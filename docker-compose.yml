@@ -6,13 +6,10 @@ services:
     container_name: invest-platform
     ports:
       - "4321:4321"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
-      - DB_HOST=204.44.121.43
-      - DB_PORT=3306
-      - DB_USER=mnigc
-      - DB_PASSWORD=woaiyinyue.4
-      - DB_NAME=invest_platform
       - HOST=0.0.0.0
       - PORT=4321
     restart: unless-stopped
