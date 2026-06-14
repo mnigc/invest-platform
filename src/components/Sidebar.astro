@@ -1,0 +1,130 @@
+---
+const navItems = [
+  { label: '首页', href: '/', icon: '🏠' },
+  { label: '市场仪表盘', href: '/dashboard', icon: '📈' },
+  { label: '每日报告', href: '/reports', icon: '📰' },
+  { label: '研究库', href: '/library', icon: '📚' },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">US MACRO</div>
+    <div class="logo-sub">投资数据研究平台</div>
+  </div>
+
+  <nav class="nav">
+    {navItems.map(item => (
+      <a href={item.href} class={`nav-link ${currentPath === item.href ? 'active' : ''}`}>
+        <span class="icon">{item.icon}</span>
+        <span class="label">{item.label}</span>
+      </a>
+    ))}
+  </nav>
+</aside>
+
+<style>
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    z-index: 100;
+  }
+
+  .logo {
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .logo-mark {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-primary);
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .nav {
+    padding: 12px 8px;
+    flex: 1;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    transition: all 0.15s ease;
+    margin-bottom: 2px;
+  }
+
+  .nav-link:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-link.active {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .nav-link.sub {
+    padding-left: 24px;
+    font-size: 12px;
+  }
+
+  .icon {
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 12px 8px;
+  }
+
+  .category {
+    margin-bottom: 8px;
+  }
+
+  .category-label {
+    padding: 8px 12px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .sub-category {
+    margin-top: 2px;
+  }
+
+  .sub-category-label {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+</style>

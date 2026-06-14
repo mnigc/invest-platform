@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  invest-platform:
+    build: .
+    container_name: invest-platform
+    ports:
+      - "4321:4321"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=204.44.121.43
+      - DB_PORT=3306
+      - DB_USER=mnigc
+      - DB_PASSWORD=woaiyinyue.4
+      - DB_NAME=invest_platform
+      - HOST=0.0.0.0
+      - PORT=4321
+    restart: unless-stopped
+    networks:
+      - invest-network
+
+networks:
+  invest-network:
+    driver: bridge

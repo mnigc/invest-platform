@@ -1,0 +1,176 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import { query } from '../../lib/db';
+
+const { code } = Astro.params;
+
+const indicatorRows = await query(
+  `SELECT * FROM indicators WHERE code = ? AND is_active = TRUE`,
+  [code]
+);
+
+const indicator = indicatorRows[0] as any;
+
+let dataRows: any[] = [];
+if (indicator) {
+  dataRows = await query(
+    `SELECT period_date, value, value_prev, value_yoy, value_mom, is_estimated, data_quality
+     FROM indicator_data
+     WHERE indicator_id = ?
+     ORDER BY period_date DESC
+     LIMIT 20`,
+    [indicator.id]
+  );
+}
+
+const title = indicator ? `${indicator.name_zh} - US MACRO` : '指标详情 - US MACRO';
+---
+
+<Layout title={title}>
+  {indicator ? (
+    <>
+      <div class="page-header">
+        <h1>{indicator.name_zh}</h1>
+        <p class="subtitle">{indicator.description} · 数据来源 {indicator.source}</p>
+      </div>
+
+      <div class="hero-card">
+        <div class="hero-label">最新值 ({indicator.unit})</div>
+        <div class="hero-value">{dataRows[0]?.value ?? '-'}</div>
+        <div class="hero-meta">{dataRows[0]?.period_date ?? '暂无数据'} · {indicator.frequency === 'daily' ? '日数据' : indicator.frequency === 'monthly' ? '月度数据' : '季度数据'}</div>
+      </div>
+
+      <div class="section">
+        <h2>近期数据</h2>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>数值</th>
+                {dataRows[0]?.value_yoy != null && <th>同比</th>}
+                {dataRows[0]?.value_mom != null && <th>环比</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {dataRows.map((row: any) => (
+                <tr>
+                  <td>{row.period_date}</td>
+                  <td class="price">{row.value ?? '-'}</td>
+                  {row.value_yoy != null && <td>{row.value_yoy}</td>}
+                  {row.value_mom != null && <td>{row.value_mom}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  ) : (
+    <div class="page-header">
+      <h1>指标未找到</h1>
+      <p class="subtitle">请检查 URL 或前往 <a href="/dashboard">市场仪表盘</a></p>
+    </div>
+  )}
+</Layout>
+
+<style>
+  .page-header {
+    margin-bottom: 20px;
+  }
+
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .hero-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .hero-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .hero-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .hero-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+  }
+
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .section h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+
+  .table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .data-table thead {
+    background: var(--bg-secondary);
+  }
+
+  .data-table th {
+    padding: 10px 16px;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .data-table td {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+
+  .data-table tr:hover td {
+    background: var(--bg-hover);
+  }
+
+  .price {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-family: 'SF Mono', monospace;
+  }
+</style>

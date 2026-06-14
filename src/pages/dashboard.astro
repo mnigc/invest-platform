@@ -1,0 +1,173 @@
+---
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import { query } from '../lib/db';
+
+const rawAssets = await query(`
+  SELECT a.id, a.symbol, a.name_zh, a.name_en, a.sub_category,
+         ac.name_zh as category_name, ac.code as category_code,
+         s.last_price, s.change_percent
+  FROM assets a
+  JOIN asset_categories ac ON a.category_id = ac.id
+  LEFT JOIN asset_snapshots s ON a.id = s.asset_id
+  WHERE a.is_active = TRUE
+  ORDER BY ac.sort_order, a.id
+`);
+
+const categories: Record<string, { title: string; code: string; items: any[] }> = {};
+for (const a of rawAssets as any[]) {
+  const catCode = a.category_code;
+  if (!categories[catCode]) {
+    categories[catCode] = {
+      title: a.category_name,
+      code: catCode,
+      items: [],
+    };
+  }
+  categories[catCode].items.push(a);
+}
+
+function fmtChange(cp: any) {
+  const num = cp == null ? null : Number(cp);
+  if (num == null || isNaN(num)) return { text: '-', cls: '' };
+  const text = (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+  return { text, cls: num > 0 ? 'up' : num < 0 ? 'down' : '' };
+}
+---
+
+<Layout title="市场仪表盘 - US MACRO">
+  <div class="page-header">
+    <h1>市场仪表盘</h1>
+    <p class="subtitle">核心资产价格与变动 · 日线非实时</p>
+  </div>
+
+  {Object.values(categories).map(cat => (
+    <div class="category-section">
+      <div class="cat-header">
+        <h2>{cat.title}</h2>
+        <a href={`/assets/${cat.code}`} class="more">查看详情 &rarr;</a>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>代码</th>
+              <th>名称</th>
+              <th>最新价</th>
+              <th>日涨跌幅</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cat.items.map((item: any) => {
+              const ch = fmtChange(item.change_percent);
+              return (
+                <tr>
+                  <td class="symbol">{item.symbol}</td>
+                  <td>{item.name_zh}</td>
+                  <td class="price">{item.last_price ?? '-'}</td>
+                  <td class={`change ${ch.cls}`}>{ch.text}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ))}
+</Layout>
+
+<style>
+  .page-header {
+    margin-bottom: 24px;
+  }
+
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .category-section {
+    margin-bottom: 32px;
+  }
+
+  .cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .cat-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .more {
+    font-size: 12px;
+    color: var(--accent-blue);
+  }
+
+  .table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .data-table thead {
+    background: var(--bg-secondary);
+  }
+
+  .data-table th {
+    padding: 10px 16px;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .data-table td {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+
+  .data-table tr:hover td {
+    background: var(--bg-hover);
+  }
+
+  .symbol {
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .price {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .change {
+    font-weight: 500;
+  }
+
+  .change.up { color: var(--accent-green); }
+  .change.down { color: var(--accent-red); }
+</style>
