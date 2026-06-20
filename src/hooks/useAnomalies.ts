@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchApi } from '../lib/api'
-import type { AnomalyResponse } from '@invest/core'
+import type { AnomalyResponse } from '../lib/core'
 
 export function useAnomalies() {
   const [data, setData] = useState<AnomalyResponse | null>(null)
@@ -9,7 +9,7 @@ export function useAnomalies() {
   useEffect(() => {
     let cancelled = false
     const fetch = () => {
-      fetchApi<AnomalyResponse>('/regime/anomalies')
+      fetchApi<AnomalyResponse>('/regime/anomalies.json')
         .then(r => { if (!cancelled) setData(r); setLoading(false) })
         .catch(() => { if (!cancelled) setLoading(false) })
     }

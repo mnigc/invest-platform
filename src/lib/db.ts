@@ -1,10 +1,4 @@
 import mysql from 'mysql2/promise'
-import { config } from 'dotenv'
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-// 从项目根目录加载 .env（Astro SSR 页面直连数据库时使用）
-config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.env') })
 
 const env = import.meta.env
 
@@ -21,6 +15,8 @@ const DB_CONFIG = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  decimalNumbers: true,
+  dateStrings: true,
 }
 
 let pool: mysql.Pool | null = null
@@ -39,4 +35,9 @@ export async function query<T = any>(sql: string, values?: any[]): Promise<T[]> 
   const p = getPool()
   const [rows] = await p.execute(sql, values)
   return rows as T[]
+}
+
+export async function queryOne<T = any>(sql: string, values?: any[]): Promise<T | null> {
+  const rows = await query<T>(sql, values)
+  return rows.length > 0 ? rows[0] : null
 }

@@ -32,7 +32,7 @@ export default function CnSectorTheme() {
               <MacroBadge value={s.perf} variant={s.up ? 'up' : 'down'} size="sm" />
             </div>
             <div style={{ width: '80px', height: '6px', background: THEME.borderColor, borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.abs(s.perf) * 20}%`, background: s.up ? THEME.red : THEME.green, borderRadius: '2px' }} />
+              <div style={{ height: '100%', width: `${Math.abs(s.perf) * 20}%`, background: s.up ? THEME.green : THEME.red, borderRadius: '2px' }} />
             </div>
           </div>
         ))}
@@ -47,7 +47,7 @@ export default function CnSectorTheme() {
               <MacroBadge value={s.perf} variant={s.up ? 'up' : 'down'} size="sm" />
             </div>
             <div style={{ width: '80px', height: '6px', background: THEME.borderColor, borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.abs(s.perf) * 20}%`, background: s.up ? THEME.red : THEME.green, borderRadius: '2px' }} />
+              <div style={{ height: '100%', width: `${Math.abs(s.perf) * 20}%`, background: s.up ? THEME.green : THEME.red, borderRadius: '2px' }} />
             </div>
           </div>
         ))}

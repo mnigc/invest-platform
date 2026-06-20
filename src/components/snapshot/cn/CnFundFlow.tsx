@@ -11,7 +11,7 @@ const etfFlows = [
   { name: '创业板ETF', flow: -3.2, up: false },
 ]
 
-const valClr = (up: boolean) => up ? THEME.red : THEME.green
+const valClr = (up: boolean) => up ? THEME.green : THEME.red
 const arrSvg = (up: boolean) => up
   ? <polyline points="18 15 12 9 6 15" fill="none" stroke="currentColor" strokeWidth="2.5" />
   : <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" strokeWidth="2.5" />
@@ -70,6 +70,24 @@ export default function CnFundFlow() {
                 </span>
                 <svg width="6" height="6" viewBox="0 0 24 24" style={{ color: THEME.textMuted }}>{arrSvg(etf.up)}</svg>
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: '12px', borderTop: `1px solid ${THEME.borderLight}`, paddingTop: '12px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>主力资金净流入 TOP</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+          {[
+            { name: '中际旭创', netIn: 8.5, up: true },
+            { name: '寒武纪', netIn: 6.2, up: true },
+            { name: '拓普集团', netIn: 4.8, up: true },
+          ].map(item => (
+            <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}` }}>
+              <span style={{ fontSize: '12px', color: THEME.textSecondary, fontWeight: 500 }}>{item.name}</span>
+              <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: THEME.fontMono, color: valClr(item.up), textAlign: 'right' }}>
+                {item.netIn >= 0 ? '+' : ''}{item.netIn.toFixed(1)}亿
+              </span>
             </div>
           ))}
         </div>

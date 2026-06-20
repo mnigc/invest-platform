@@ -2,7 +2,7 @@ import { useAnomalies } from '../../hooks/useAnomalies'
 import { MacroCard } from '../ui/MacroCard'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { THEME } from '../ui/theme'
-import type { AnomalySeverity } from '@invest/core'
+import type { AnomalySeverity } from '../../lib/core'
 
 const SEV_STYLES: Record<AnomalySeverity, { bg: string; border: string; dot: string; label: string }> = {
   critical: { bg: 'rgba(239,68,68,0.1)', border: '#EF4444', dot: '#EF4444', label: '严重' },

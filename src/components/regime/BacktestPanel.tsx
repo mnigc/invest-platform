@@ -3,7 +3,7 @@ import { fetchApi } from '../../lib/api'
 import { MacroCard } from '../ui/MacroCard'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { THEME } from '../ui/theme'
-import type { BacktestResponse, BacktestSummary } from '@invest/core'
+import type { BacktestResponse, BacktestSummary } from '../../lib/core'
 
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`
@@ -83,7 +83,7 @@ export default function BacktestPanel() {
   useEffect(() => {
     let cancelled = false
     const end = new Date().toISOString().slice(0, 10)
-    fetchApi<BacktestResponse>(`/regime/backtest?startDate=2010-01-01&endDate=${end}`)
+    fetchApi<BacktestResponse>(`/regime/backtest.json?startDate=2010-01-01&endDate=${end}`)
       .then(r => { if (!cancelled) setData(r); setLoading(false) })
       .catch(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

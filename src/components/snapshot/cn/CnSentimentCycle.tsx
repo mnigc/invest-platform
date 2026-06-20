@@ -30,11 +30,11 @@ export default function CnSentimentCycle() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '12px' }}>
         {[
-          { label: '涨停', val: limitUp, clr: THEME.red },
-          { label: '跌停', val: limitDown, clr: THEME.green },
-          { label: '连板高度', val: boardHeight, clr: THEME.red },
-          { label: '炸板率', val: breakRate, clr: THEME.green },
-          { label: '首板', val: firstBoard, clr: THEME.red },
+          { label: '涨停', val: limitUp, clr: THEME.green },
+          { label: '跌停', val: limitDown, clr: THEME.red },
+          { label: '连板高度', val: boardHeight, clr: THEME.green },
+          { label: '炸板率', val: breakRate, clr: THEME.red },
+          { label: '首板', val: firstBoard, clr: THEME.green },
         ].map(item => (
           <div key={item.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px 4px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}` }}>
             <span style={{ fontSize: '11px', color: THEME.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</span>
@@ -52,7 +52,7 @@ export default function CnSentimentCycle() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '4px', background: 'rgba(245,158,11,0.12)', color: '#F59E0B', fontWeight: 600 }}>{coreLeader.boards}连板</span>
-            <span style={{ fontSize: '12px', color: THEME.cyan, fontWeight: 500 }}>{coreLeader.concept}</span>
+            <span style={{ fontSize: '12px', color: THEME.cyan, fontWeight: 50 }}>{coreLeader.concept}</span>
           </div>
         </div>
       </div>

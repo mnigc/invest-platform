@@ -10,7 +10,6 @@ const SCRIPTS: Record<string, { path: string; args: string[] }> = {
   assets:       { path: 'doc/sync_data.py',             args: ['assets'] },
   indicators:   { path: 'doc/sync_data.py',             args: ['indicators'] },
   cn:           { path: 'doc/sync_data_cn.py',          args: [] },
-  cn_stocks:    { path: 'doc/sync_data_cn_stocks.py',   args: ['--quick', '--daily'] },
 };
 
 function runScript(script: string, args: string[]): Promise<string> {
@@ -35,7 +34,7 @@ export const GET: APIRoute = async ({ url }) => {
   const type = url.searchParams.get('type') || 'all';
 
   const tasks: string[] = type === 'all'
-    ? ['assets', 'indicators', 'cn', 'cn_stocks']
+    ? ['assets', 'indicators', 'cn']
     : [type];
 
   const results: { task: string; success: boolean; output?: string; error?: string }[] = [];

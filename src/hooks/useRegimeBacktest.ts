@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchApi } from '../lib/api'
-import type { BacktestResponse } from '@invest/core'
+import type { BacktestResponse } from '../lib/core'
 
 export function useRegimeBacktest(startDate = '2010-01-01', endDate?: string) {
   const [data, setData] = useState<BacktestResponse | null>(null)
@@ -11,7 +11,7 @@ export function useRegimeBacktest(startDate = '2010-01-01', endDate?: string) {
     let cancelled = false
     setLoading(true); setError(null)
     const end = endDate || new Date().toISOString().slice(0, 10)
-    fetchApi<BacktestResponse>(`/regime/backtest?startDate=${startDate}&endDate=${end}`)
+    fetchApi<BacktestResponse>(`/regime/backtest.json?startDate=${startDate}&endDate=${end}`)
       .then(r => { if (!cancelled) { setData(r); setLoading(false) } })
       .catch(e => { if (!cancelled) { setError(e.message); setLoading(false) } })
     return () => { cancelled = true }

@@ -8,10 +8,10 @@ interface Props {
 }
 
 const variantColors: Record<string, { color: string; bg: string; border: string }> = {
-  up: { color: THEME.red, bg: THEME.redBg, border: 'rgba(242, 54, 69, 0.2)' },
-  down: { color: THEME.green, bg: THEME.greenBg, border: 'rgba(8, 153, 129, 0.2)' },
+  up: { color: THEME.green, bg: THEME.greenBg, border: 'rgba(8, 153, 129, 0.2)' },
+  down: { color: THEME.red, bg: THEME.redBg, border: 'rgba(242, 54, 69, 0.2)' },
   neutral: { color: THEME.textMuted, bg: THEME.bgCard, border: THEME.borderLight },
-  hot: { color: THEME.red, bg: THEME.redBg, border: 'rgba(242, 54, 69, 0.3)' },
+  hot: { color: THEME.green, bg: THEME.greenBg, border: 'rgba(8, 153, 129, 0.3)' },
   cold: { color: THEME.cyan, bg: THEME.cyanDim, border: 'rgba(6, 182, 212, 0.2)' },
 }
 

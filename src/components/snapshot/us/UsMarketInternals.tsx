@@ -21,10 +21,10 @@ export default function UsMarketInternals() {
         <div style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>市场广度</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
           {[
-            { label: '涨', val: breadth.advance, color: THEME.red },
-            { label: '跌', val: breadth.decline, color: THEME.green },
-            { label: '新高', val: breadth.newHigh, color: THEME.red },
-            { label: '新低', val: breadth.newLow, color: THEME.green },
+            { label: '涨', val: breadth.advance, color: THEME.green },
+            { label: '跌', val: breadth.decline, color: THEME.red },
+            { label: '新高', val: breadth.newHigh, color: THEME.green },
+            { label: '新低', val: breadth.newLow, color: THEME.red },
             { label: 'AD%', val: `${adPct}%` },
           ].map(b => (
             <div key={b.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '8px 4px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}` }}>
@@ -58,14 +58,14 @@ export default function UsMarketInternals() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>科技七巨头 (Mag7) 1D</span>
           <span style={{ fontSize: '12px', color: THEME.textMuted, fontFamily: THEME.fontMono }}>
-            SOX {sox.toFixed(0)} <span style={{ color: soxUp ? THEME.red : THEME.green }}>{soxUp ? '+' : ''}{soxChange.toFixed(2)}%</span>
+            SOX {sox.toFixed(0)} <span style={{ color: soxUp ? THEME.green : THEME.red }}>{soxUp ? '+' : ''}{soxChange.toFixed(2)}%</span>
           </span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
           {mag7.map(m => (
             <div key={m.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px 4px', background: THEME.bgCard, borderRadius: '6px', border: `1px solid ${THEME.borderLight}` }}>
               <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textPrimary, fontFamily: THEME.fontMono }}>{m.name}</span>
-              <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontMono, color: m.up ? THEME.red : THEME.green }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontMono, color: m.up ? THEME.green : THEME.red }}>
                 {m.up ? '+' : ''}{m.perf.toFixed(2)}%
               </span>
             </div>

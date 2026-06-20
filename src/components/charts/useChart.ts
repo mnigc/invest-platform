@@ -20,8 +20,11 @@ export function useChart(option: EChartsOption | null, deps: any[]) {
     }
     const observer = new ResizeObserver(resize)
     observer.observe(ref.current)
+    const onResize = () => chartRef.current?.resize()
+    window.addEventListener('resize', onResize)
     return () => {
       observer.disconnect()
+      window.removeEventListener('resize', onResize)
     }
   }, deps)
 

@@ -52,12 +52,28 @@ export default function CnVolumeMicro() {
                   <div style={{ flex: 1, height: '4px', background: THEME.borderColor, borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${s.ratio * 15}%`, background: section.clr, borderRadius: '2px' }} />
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontMono, color: s.change >= 0 ? THEME.red : THEME.green, width: '48px', textAlign: 'right' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontMono, color: s.change >= 0 ? THEME.green : THEME.red, width: '48px', textAlign: 'right' }}>
                     {s.change >= 0 ? '+' : ''}{s.change.toFixed(1)}%
                   </span>
                   <span style={{ fontSize: '10px', color: THEME.textMuted, fontFamily: THEME.fontMono, width: '32px', textAlign: 'right' }}>{s.ratio.toFixed(1)}x</span>
                 </div>
               ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: '12px', borderTop: `1px solid ${THEME.borderLight}`, paddingTop: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+          {[
+            { label: '涨停', val: 42, clr: THEME.green },
+            { label: '跌停', val: 8, clr: THEME.red },
+            { label: '炸板', val: 12, clr: THEME.textMuted },
+            { label: '连板高度', val: 4, clr: THEME.cyan },
+          ].map(item => (
+            <div key={item.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px 4px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}` }}>
+              <span style={{ fontSize: '10px', color: THEME.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</span>
+              <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: THEME.fontMono, lineHeight: 1, color: item.clr }}>{item.val}</span>
             </div>
           ))}
         </div>

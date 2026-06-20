@@ -7,7 +7,7 @@ interface Props {
   title?: string;
 }
 
-const { title = 'US MACRO - 投资数据研究平台' } = Astro.props;
+const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
 const pathParts = Astro.url.pathname.split('/').filter(Boolean);
 const labelMap: Record<string, string> = {
   indicators: '经济指标',
@@ -28,6 +28,9 @@ const labelMap: Record<string, string> = {
     <meta name="description" content="投资数据与内容平台 - 宏观经济数据、投资大师文献、A股数据" />
   </head>
   <body>
+    <div id="globalLoader" class="global-loader" aria-hidden="true">
+      <div class="global-loader-bar"></div>
+    </div>
     <Sidebar />
     <header class="header">
       <div class="header-left">
@@ -67,6 +70,68 @@ const labelMap: Record<string, string> = {
   }
   updateTime();
   setInterval(updateTime, 1000);
+
+  // 全局页面导航 loading 进度条
+  const loader = document.getElementById('globalLoader');
+  let loaderTimer = null;
+  let fallbackTimer = null;
+
+  function showLoader() {
+    if (!loader || loader.classList.contains('active')) return;
+    loader.classList.add('active');
+    let progress = 0;
+    if (loaderTimer) window.clearInterval(loaderTimer);
+    loaderTimer = window.setInterval(() => {
+      progress = Math.min(progress + Math.random() * 3, 90);
+      const bar = loader.querySelector('.global-loader-bar');
+      if (bar) bar.style.width = `${progress}%`;
+    }, 200);
+  }
+
+  function hideLoader() {
+    if (loaderTimer) {
+      window.clearInterval(loaderTimer);
+      loaderTimer = null;
+    }
+    const bar = loader?.querySelector('.global-loader-bar');
+    if (bar) bar.style.width = '100%';
+    setTimeout(() => {
+      loader?.classList.remove('active');
+      if (bar) bar.style.width = '0%';
+    }, 300);
+  }
+
+  // 点击内部链接时显示 loading
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    const link = target.closest('a');
+    if (!link) return;
+    const href = link.getAttribute('href') || '';
+    if (
+      !href ||
+      href.startsWith('#') ||
+      href.startsWith('http') ||
+      href.startsWith('mailto:') ||
+      href.startsWith('tel:') ||
+      link.hasAttribute('download') ||
+      link.target === '_blank' ||
+      e.metaKey || e.ctrlKey || e.shiftKey
+    ) return;
+
+    let url;
+    try {
+      url = new URL(href, window.location.origin);
+    } catch (e2) { return; }
+    if (url.origin !== window.location.origin) return;
+    if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+
+    showLoader();
+    if (fallbackTimer) window.clearTimeout(fallbackTimer);
+    fallbackTimer = window.setTimeout(hideLoader, 4000);
+  });
+
+  window.addEventListener('pageshow', hideLoader);
+  window.addEventListener('pagehide', hideLoader);
 </script>
 
 <style>
@@ -158,5 +223,29 @@ const labelMap: Record<string, string> = {
     min-height: calc(100vh - var(--header-height));
     padding: 28px 32px;
     animation: fadeIn 0.3s ease;
+  }
+
+  .global-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .global-loader.active {
+    opacity: 1;
+  }
+
+  .global-loader-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    transition: width 0.2s ease;
   }
 </style>

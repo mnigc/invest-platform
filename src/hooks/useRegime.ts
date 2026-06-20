@@ -19,7 +19,7 @@ export interface RegimeData {
 export function useRegime() {
   return useQuery({
     queryKey: ['regime'],
-    queryFn: () => fetchApi<RegimeData>('/regime'),
+    queryFn: () => fetchApi<RegimeData>('/regime.json'),
     refetchInterval: 30 * 60 * 1000,
   })
 }

@@ -3,8 +3,7 @@ import { fetchApi } from '../lib/api'
 import type { UsSnapshotData, CnSnapshotData } from '../lib/api'
 
 import CnHeader from './snapshot/cn/CnHeader'
-import CnIndexStyle from './snapshot/cn/CnIndexStyle'
-import CnSentimentCycle from './snapshot/cn/CnSentimentCycle'
+import CnHeroPanel from './snapshot/cn/CnHeroPanel'
 import CnFundFlow from './snapshot/cn/CnFundFlow'
 import CnSectorTheme from './snapshot/cn/CnSectorTheme'
 import CnVolumeMicro from './snapshot/cn/CnVolumeMicro'
@@ -20,7 +19,7 @@ import UsSectorTheme from './snapshot/us/UsSectorTheme'
 import UsMicroAnomaly from './snapshot/us/UsMicroAnomaly'
 import UsSentimentOutlook from './snapshot/us/UsSentimentOutlook'
 import UsSummary from './snapshot/us/UsSummary'
-import MarketRegimePanel from './regime/MarketRegimePanel'
+import UsHeroPanel from './regime/UsHeroPanel'
 import AnomalyAlertPanel from './regime/AnomalyAlertPanel'
 import BacktestPanel from './regime/BacktestPanel'
 
@@ -32,8 +31,8 @@ let fetchError: string | null = null
 try {
   const API_BASE = import.meta.env.API_BASE || `${origin}/api/v1`
   const [usRes, cnRes] = await Promise.all([
-    fetch(`${API_BASE}/snapshot/us`, { headers: { 'Accept': 'application/json' } }),
-    fetch(`${API_BASE}/snapshot/cn`, { headers: { 'Accept': 'application/json' } }),
+    fetch(`${API_BASE}/snapshot/us.json`, { headers: { 'Accept': 'application/json' } }),
+    fetch(`${API_BASE}/snapshot/cn.json`, { headers: { 'Accept': 'application/json' } }),
   ])
   if (usRes.ok) {
     const json = await usRes.json()
@@ -67,7 +66,7 @@ try {
         </div>
         <div class="tabs-container">
           <button class="tab-btn" data-tab="cn" role="tab" aria-selected="true">
-            <span>🇨🇳 中国A股</span>
+            <span>🇨🇳 中国市场</span>
           </button>
           <button class="tab-btn" data-tab="us" role="tab" aria-selected="false">
             <span>🇺🇸 美国市场</span>
@@ -81,29 +80,29 @@ try {
   <div class="snapshot-content" id="snapshotContent">
     <div class="tab-content" data-panel="cn">
       <CnHeader data={cnData?.header} client:load />
-      <div class="panels-grid">
-        <CnIndexStyle data={cnData?.indices} client:load />
-        <CnSentimentCycle client:load />
+      <CnHeroPanel indices={cnData?.indices} client:load />
+      <div class="panels-grid-3col">
         <CnFundFlow client:load />
         <CnSectorTheme data={cnData?.sectors} client:load />
         <CnVolumeMicro client:load />
         <CnValuation data={cnData?.valuation} client:load />
         <CnPolicyRisk client:load />
-        <CnOutlook data={cnData?.summary} client:load class="full-span" />
+        <CnOutlook data={cnData?.summary} client:load />
       </div>
     </div>
 
     <div class="tab-content" data-panel="us" hidden>
       <UsHeader data={usData?.header} client:load />
-      <div class="panels-grid">
-        <MarketRegimePanel client:load />
-        <UsCoreIndices data={usData?.coreIndices} client:load />
+      <UsHeroPanel indices={usData?.coreIndices} client:load />
+      <div class="panels-grid-3col">
         <UsMarketInternals data={usData?.marketInternals} client:load />
         <UsMacroRisk data={usData?.macroRisk} client:load />
         <UsSectorTheme data={usData?.sectorTheme} client:load />
         <UsMicroAnomaly data={usData?.microAnomaly} client:load />
         <UsSentimentOutlook data={usData?.sentiment} client:load />
-        <AnomalyAlertPanel client:load class="full-span" />
+        <AnomalyAlertPanel client:load />
+      </div>
+      <div class="panels-grid">
         <BacktestPanel client:load class="full-span" />
         <UsSummary data={usData?.summary} client:load class="full-span" />
       </div>
@@ -190,6 +189,7 @@ try {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+    margin-top: 12px;
   }
   .full-span { grid-column: span 2; }
   .tab-content[hidden] { display: none; }
@@ -200,5 +200,18 @@ try {
   @media (max-width: 1400px) {
     .header-content { flex-wrap: wrap; }
     .tabs-container { order: -1; margin-left: auto; }
+  }
+
+  .panels-grid-3col {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+  @media (max-width: 1400px) {
+    .panels-grid-3col { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .panels-grid-3col { grid-template-columns: 1fr; }
   }
 </style>

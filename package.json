@@ -3,21 +3,14 @@
   "private": true,
   "type": "module",
   "version": "0.0.1",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "dev": "astro dev",
-    "dev:full": "concurrently -n api,web -c yellow,cyan \"npm run api:dev\" \"astro dev\"",
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro",
-    "api:dev": "npm run dev -w @invest/api",
-    "api:build": "npm run build -w @invest/api"
+    "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
     "@astrojs/mdx": "^3.1.9",
     "@astrojs/node": "^8.3.4",
     "@astrojs/react": "^3.4.0",
@@ -31,7 +24,6 @@
   "devDependencies": {
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "concurrently": "^10.0.3",
     "typescript": "^5.9.3"
   }
 }

@@ -22,7 +22,7 @@ export function TrendArrow({ value, variant = 'percent' }: Props) {
       fontSize: '12px',
       fontWeight: 600,
       fontFamily: THEME.fontMono,
-      color: isUp ? THEME.red : THEME.green,
+      color: isUp ? THEME.green : THEME.red,
     }}>
       {arrow}{display}
     </span>

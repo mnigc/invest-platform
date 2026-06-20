@@ -16,17 +16,17 @@ export interface IndicatorData {
 export function useIndicators() {
   return useQuery({
     queryKey: ['indicators'],
-    queryFn: () => fetchApi<Indicator[]>('/indicators'),
+    queryFn: () => fetchApi<Indicator[]>('/indicators.json'),
   })
 }
 
-export function useIndicatorData(code: string, period?: string, yearly?: boolean) {
+export function useIndicatorData(code: string, region: string = 'US', period?: string, yearly?: boolean) {
   const qp = new URLSearchParams()
   if (period) qp.set('period', period)
   qp.set('yearly', String(yearly ?? true))
   return useQuery({
-    queryKey: ['indicator', code, period, yearly],
-    queryFn: () => fetchApi<IndicatorData>(`/indicators/${code}?${qp}`),
+    queryKey: ['indicator', code, region, period, yearly],
+    queryFn: () => fetchApi<IndicatorData>(`/indicators/${region}/${code}.json?${qp}`),
     enabled: !!code,
   })
 }

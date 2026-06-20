@@ -15,7 +15,6 @@ const riskFactors = [
   { name: '信用风险', val: '城投化解中', direction: 'stable' as const },
 ]
 const nextEvents = [
-  { date: '07-01', event: '6月PMI数据', impact: '高' as const },
   { date: '07-10', event: '社融/M2 数据', impact: '高' as const },
   { date: '07-15', event: 'Q2 GDP 初值', impact: '高' as const },
 ]

@@ -49,7 +49,7 @@ export default function UsMicroAnomaly() {
             <div key={o.name} style={{ padding: '10px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary }}>{o.name}</span>
-                <span style={{ color: o.bullish ? THEME.red : THEME.green }}>{o.bullish ? '▲' : '▼'}</span>
+                <span style={{ color: o.bullish ? THEME.green : THEME.red }}>{o.bullish ? '▲' : '▼'}</span>
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: THEME.textMuted, fontFamily: THEME.fontMono }}>
                 <span>{o.strikes.join('/')}</span>
@@ -87,3 +87,4 @@ export default function UsMicroAnomaly() {
     </MacroCard>
   )
 }
+

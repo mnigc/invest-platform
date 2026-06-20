@@ -29,3 +29,5 @@ test_api.py
 test_net.py
 test_db2.py
 run_schema.py
+
+.doc/

@@ -35,7 +35,7 @@ export default function MarketRegimePanel() {
 
   useEffect(() => {
     let cancelled = false
-    fetchApi<RegimeData>('/regime').then(r => {
+    fetchApi<RegimeData>('/regime.json').then(r => {
       if (!cancelled) { setData(r); setLoading(false) }
     }).catch(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

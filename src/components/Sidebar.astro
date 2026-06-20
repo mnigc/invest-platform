@@ -3,7 +3,6 @@ const usIndicators = [
   { label: 'GDP', href: '/indicators/US/GDP' },
   { label: 'CPI', href: '/indicators/US/CPI' },
   { label: 'PPI', href: '/indicators/US/PPI' },
-  { label: 'PMI', href: '/indicators/US/PMI' },
   { label: '个人消费支出', href: '/indicators/US/PCE' },
   { label: '消费者信心指数', href: '/indicators/US/UMCSENT' },
   { label: '零售销售', href: '/indicators/US/RSXFS' },
@@ -13,7 +12,6 @@ const cnIndicators = [
   { label: 'GDP', href: '/indicators/CN/GDP' },
   { label: 'CPI', href: '/indicators/CN/CPI' },
   { label: 'PPI', href: '/indicators/CN/PPI' },
-  { label: '制造业PMI', href: '/indicators/CN/PMI' },
   { label: '社会消费品零售总额', href: '/indicators/CN/RETAIL' },
 ];
 
@@ -32,14 +30,7 @@ const navSections = [
     items: cnIndicators,
   },
   {
-    title: '个股策略',
     items: [
-      { label: '搜索股票', href: '/stock' },
-    ],
-  },
-  {
-    items: [
-      { label: '每日报告', href: '/reports' },
       { label: '研究库', href: '/library' },
     ],
   },
@@ -61,8 +52,8 @@ function isActive(href: string) {
       </svg>
     </div>
     <div class="brand-text">
-      <div class="brand-title">US MACRO</div>
-      <div class="brand-sub">投资数据研究平台</div>
+      <div class="brand-title">CN-US MACRO</div>
+      <div class="brand-sub">中美宏观数据研究平台</div>
     </div>
   </div>
 
