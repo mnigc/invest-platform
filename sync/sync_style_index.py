@@ -125,18 +125,52 @@ def safe_int(v):
         return None
 
 
+def _run_with_timeout(fn, args=(), kwargs=None, timeout=20):
+    """在线程中运行函数，超时返回 None（防止 API 卡死）"""
+    import threading
+    result = [None]
+    exc = [None]
+
+    def worker():
+        try:
+            result[0] = fn(*args, **(kwargs or {}))
+        except Exception as e:
+            exc[0] = e
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        logger.warning(f"  API 请求超时（>{timeout}s）")
+        return None
+    if exc[0]:
+        raise exc[0]
+    return result[0]
+
+
 def fetch_index(code, start_date, end_date):
     """获取指数日线（腾讯源优先，失败回退东财）"""
 
+    def _try_eastmoney(code, start_date, end_date):
+        df = _run_with_timeout(
+            ak.index_zh_a_hist,
+            kwargs={"symbol": code, "period": "daily", "start_date": start_date, "end_date": end_date},
+            timeout=20,
+        )
+        if df is not None and not df.empty:
+            return df
+        return None
+
     def try_eastmoney(code, start_date, end_date):
-        for attempt in range(3):
+        for attempt in range(2):
+            if attempt > 0:
+                time.sleep(3)
             try:
-                df = ak.index_zh_a_hist(symbol=code, period="daily", start_date=start_date, end_date=end_date)
-                if df is not None and not df.empty:
+                df = _try_eastmoney(code, start_date, end_date)
+                if df is not None:
                     return df
-            except:
-                if attempt < 2:
-                    time.sleep(3 * (attempt + 1))
+            except Exception as e:
+                logger.warning(f"  东财尝试 {attempt+1}/2 失败: {e}")
         return None
 
     # 申万行业指数(801xxx)腾讯不支持，直接走东财
@@ -147,9 +181,15 @@ def fetch_index(code, start_date, end_date):
     tx_prefix = "sh" if not code.startswith("399") else "sz"
     tx_symbol = f"{tx_prefix}{code}"
 
-    for attempt in range(3):
+    for attempt in range(2):
+        if attempt > 0:
+            time.sleep(2)
         try:
-            df = ak.stock_zh_index_daily_tx(symbol=tx_symbol, start_date=start_date, end_date=end_date)
+            df = _run_with_timeout(
+                ak.stock_zh_index_daily_tx,
+                kwargs={"symbol": tx_symbol, "start_date": start_date, "end_date": end_date},
+                timeout=15,
+            )
             if df is not None and not df.empty:
                 df = df.rename(columns={
                     "date": "日期", "open": "开盘", "close": "收盘",
@@ -159,9 +199,8 @@ def fetch_index(code, start_date, end_date):
                 df["涨跌幅"] = close_vals.pct_change() * 100
                 df["涨跌幅"] = df["涨跌幅"].fillna(0)
                 return df
-        except Exception:
-            if attempt < 2:
-                time.sleep(2 * (attempt + 1))
+        except Exception as e:
+            logger.warning(f"  腾讯尝试 {attempt+1}/2 失败: {e}")
 
     return try_eastmoney(code, start_date, end_date)
 
@@ -209,8 +248,10 @@ def main():
         logger.info("=" * 50)
         logger.info(f"开始同步 {label}")
         for code, name in items:
+            logger.info(f"  正在获取 {name} ({code})...")
             df = fetch_index(code, start_date, end_date)
             if df is None:
+                logger.warning(f"  {name} ({code}): 跳过（获取失败）")
                 continue
             conn = get_conn()
             try:

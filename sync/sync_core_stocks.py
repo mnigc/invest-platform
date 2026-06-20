@@ -132,14 +132,18 @@ def safe_decimal(v):
 
 
 def fetch_indicator(code):
-    try:
-        df = ak.stock_a_indicator_lg(symbol=code)
-        if df is None or df.empty:
-            return None
-        return df
-    except Exception as e:
-        logger.warning(f"  {code} 拉取失败: {e}")
-        return None
+    for func_name in ['stock_a_indicator_lg', 'stock_a_lg_indicator']:
+        func = getattr(ak, func_name, None)
+        if func is None:
+            continue
+        try:
+            df = func(symbol=code)
+            if df is not None and not df.empty:
+                return df
+        except Exception:
+            continue
+    logger.warning(f"  {code}: akshare PE/PB 接口均不可用（乐咕数据源可能已下线）")
+    return None
 
 
 def save_indicator(cur, df, code, name, industry):
