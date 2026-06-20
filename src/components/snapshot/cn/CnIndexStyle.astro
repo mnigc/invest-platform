@@ -1,0 +1,112 @@
+---
+interface Props {
+  data?: Array<{ symbol: string; name: string; price: number; change: number }> | null
+}
+
+const { data } = Astro.props as Props
+
+const fallbackIndices = [
+  { name: '上证指数', code: '000001.SH', value: 3015.47, change: -0.28, up: false },
+  { name: '深证成指', code: '399001.SZ', value: 9245.83, change: 0.15, up: true },
+  { name: '创业板指', code: '399006.SZ', value: 1782.36, change: 0.42, up: true },
+  { name: '科创50', code: '000688.SH', value: 756.21, change: -0.63, up: false },
+  { name: '沪深300', code: '000300.SH', value: 3521.68, change: -0.12, up: false },
+  { name: '中证500', code: '000905.SH', value: 5310.44, change: 0.35, up: true },
+  { name: '中证1000', code: '000852.SH', value: 5678.92, change: 0.58, up: true },
+]
+
+const indices = data?.length
+  ? data.map(d => ({
+      name: d.name,
+      code: d.symbol,
+      value: d.price,
+      change: d.change,
+      up: d.change >= 0,
+    }))
+  : fallbackIndices
+
+const styleMatrix = [
+  { name: '大盘价值', change: -0.35, up: false },
+  { name: '大盘成长', change: 1.05, up: true },
+  { name: '小盘价值', change: -0.52, up: false },
+  { name: '小盘成长', change: 1.28, up: true },
+]
+
+function fmt(v: any) {
+  if (v == null) return '-';
+  return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%';
+}
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>核心指数</span>
+    </div>
+    <span class="snapshot-panel-badge">1D</span>
+  </div>
+
+  <div class="index-section">
+    <div class="section-header">
+      <span class="section-title">主要指数</span>
+    </div>
+    <div class="index-grid">
+      {indices.slice(0, 5).map(idx => (
+        <div class="index-card">
+          <div class="index-main">
+            <span class="index-name">{idx.name}</span>
+            <span class="index-code">{idx.code}</span>
+          </div>
+          <div class="index-footer">
+            <span class="index-value">{idx.value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            <span class={`index-change ${idx.up ? 'up' : 'down'}`}>{fmt(idx.change)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div class="index-section">
+    <div class="section-header">
+      <span class="section-title">风格切换</span>
+    </div>
+    <div class="style-grid">
+      {styleMatrix.map(s => (
+        <div class="style-card">
+          <span class="style-name">{s.name}</span>
+          <span class={`style-chg ${s.up ? 'up' : 'down'}`}>{fmt(s.change)}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<style>
+  .snapshot-panel { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); padding: 16px; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
+  .snapshot-panel:hover { border-color: var(--accent-blue); box-shadow: var(--shadow-blue); }
+  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .snapshot-panel-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); }
+  .snapshot-panel-title svg { color: var(--accent-blue); flex-shrink: 0; }
+  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-cyan-dim); color: var(--accent-cyan); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
+  .index-section { margin-bottom: 12px; }
+  .section-header { margin-bottom: 8px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .index-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .index-card { padding: 10px; border-radius: var(--radius-md); background: var(--bg-card); border: 1px solid var(--border-light); transition: all var(--transition-base); }
+  .index-card:hover { background: var(--bg-card-hover); border-color: var(--accent-blue); transform: translateY(-2px); box-shadow: var(--shadow-blue); }
+  .index-main { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+  .index-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .index-code { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  .index-footer { display: flex; align-items: center; justify-content: space-between; }
+  .index-value { font-size: 20px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); letter-spacing: -0.02em; }
+  .index-change { font-size: 12px; font-weight: 600; font-family: var(--font-mono); padding: 2px 8px; border-radius: 4px; }
+  .index-change.up { color: var(--red); background: var(--red-bg); border: 1px solid rgba(242,54,69,0.2); }
+  .index-change.down { color: var(--green); background: var(--green-bg); border: 1px solid rgba(8,153,129,0.2); }
+  .style-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .style-card { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+  .style-name { font-size: 13px; color: var(--text-muted); }
+  .style-chg { font-size: 13px; font-weight: 700; font-family: var(--font-mono); }
+  .style-chg.up { color: var(--red); }
+  .style-chg.down { color: var(--green); }
+</style>

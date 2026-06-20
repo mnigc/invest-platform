@@ -1,12 +1,22 @@
 ---
 import '../styles/global.css';
 import Sidebar from '../components/Sidebar.astro';
+import ClientRoot from '../components/ClientRoot';
 
 interface Props {
   title?: string;
 }
 
 const { title = 'US MACRO - 投资数据研究平台' } = Astro.props;
+const pathParts = Astro.url.pathname.split('/').filter(Boolean);
+const labelMap: Record<string, string> = {
+  indicators: '经济指标',
+  library: '研究库',
+  reports: '每日报告',
+  stock: '个股策略',
+  US: '美国',
+  CN: '中国',
+};
 ---
 
 <!DOCTYPE html>
@@ -15,20 +25,138 @@ const { title = 'US MACRO - 投资数据研究平台' } = Astro.props;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
-    <meta name="description" content="投资数据与内容平台 - 宏观经济数据、产业链图谱、投资大师文献" />
+    <meta name="description" content="投资数据与内容平台 - 宏观经济数据、投资大师文献、A股数据" />
   </head>
   <body>
     <Sidebar />
+    <header class="header">
+      <div class="header-left">
+        <div class="breadcrumb">
+          <a href="/">首页</a>
+          {pathParts.map((part, i) => {
+            const href = '/' + pathParts.slice(0, i + 1).join('/');
+            const label = labelMap[part] || part;
+            return <><span class="sep">/</span><a href={href}>{label}</a></>
+          })}
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-badge">
+          <span class="status-dot"></span>
+          <span>LIVE</span>
+        </div>
+        <span class="header-time" id="headerTime">--:--:--</span>
+      </div>
+    </header>
     <main class="main">
-      <slot />
+      <ClientRoot client:load>
+        <slot />
+      </ClientRoot>
     </main>
   </body>
 </html>
 
+<script>
+  function updateTime() {
+    const el = document.getElementById('headerTime');
+    if (el) {
+      const now = new Date();
+      const s = now.toLocaleString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.textContent = s;
+    }
+  }
+  updateTime();
+  setInterval(updateTime, 1000);
+</script>
+
 <style>
+  .header {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-width);
+    right: 0;
+    height: var(--header-height);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    z-index: 50;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .breadcrumb a {
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+  }
+
+  .breadcrumb a:hover {
+    color: var(--accent-cyan);
+  }
+
+  .breadcrumb a:last-of-type {
+    color: var(--text-secondary);
+    pointer-events: none;
+  }
+
+  .sep {
+    color: var(--border-color);
+    font-size: 10px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent-cyan);
+    background: var(--accent-cyan-dim);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+  }
+
+  .status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    animation: neonPulse 2s ease-in-out infinite;
+  }
+
+  .header-time {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+  }
+
   .main {
     margin-left: var(--sidebar-width);
-    min-height: 100vh;
-    padding: 24px 32px;
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+    padding: 28px 32px;
+    animation: fadeIn 0.3s ease;
   }
 </style>

@@ -1,0 +1,137 @@
+---
+interface Props {
+  data?: {
+    vix?: number
+    putCallRatio?: number
+    cta?: string
+    gamma?: string
+    events?: Array<{ date: string; name: string; impact: string }>
+    watchPoints?: string[]
+  } | null
+}
+const { data } = Astro.props as Props
+const events = data?.events ?? []
+const watchPoints = data?.watchPoints ?? []
+const hasAny = data?.cta || events.length > 0 || watchPoints.length > 0 || data?.vix != null
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>情绪 & 前瞻</span>
+    </div>
+  </div>
+
+  {!hasAny ? (
+    <div class="empty-state">暂无情绪数据</div>
+  ) : (
+    <>
+      <div class="cta-grid">
+        {data?.cta && (
+          <div class="cta-cell">
+            <span class="cta-label">CTA 定位</span>
+            <span class="cta-val">{data.cta}</span>
+          </div>
+        )}
+        {data?.gamma && (
+          <div class="cta-cell">
+            <span class="cta-label">Gamma</span>
+            <span class="cta-val">{data.gamma}</span>
+          </div>
+        )}
+        {data?.vix != null && (
+          <div class="cta-cell">
+            <span class="cta-label">VIX</span>
+            <span class="cta-val" style={`color: ${data.vix < 15 ? 'var(--green)' : data.vix > 25 ? 'var(--red)' : 'var(--text-primary)'}`}>
+              {data.vix.toFixed(1)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {events.length > 0 && (
+        <div class="events-section">
+          <div class="section-title">关键事件日历</div>
+          {events.map((e: any) => {
+            const imp = e.impact === '高' ? 'high' : e.impact === '中' ? 'mid' : 'low'
+            return (
+              <div class="event-row">
+                <span class="event-date">{e.date}</span>
+                <span class="event-name">{e.name}</span>
+                <span class={`event-impact impact-${imp}`}>{e.impact}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {watchPoints.length > 0 && (
+        <div class="watch-section">
+          <div class="section-title">明日关注</div>
+          {watchPoints.map((w: string, i: number) => (
+            <div class="watch-item">
+              <span class="watch-num">{String(i + 1).padStart(2, '0')}</span>
+              <span class="watch-text">{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )}
+</div>
+
+<style>
+  .snapshot-panel {
+    background: var(--bg-card); border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light); padding: 16px;
+  }
+  .snapshot-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .snapshot-panel-title {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    font-family: var(--font-display);
+  }
+  .snapshot-panel-title svg { color: var(--accent-purple); }
+  .empty-state {
+    padding: 24px 0; text-align: center; color: var(--text-muted);
+    font-size: 13px;
+  }
+  .cta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .cta-cell {
+    text-align: center; padding: 10px 4px;
+    background: var(--bg-card-hover); border-radius: var(--radius-md);
+  }
+  .cta-label { display: block; font-size: 10px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .cta-val { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .events-section { margin-bottom: 14px; }
+  .section-title {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .event-row {
+    display: flex; align-items: center; gap: 8px; padding: 5px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .event-row:last-child { border-bottom: none; }
+  .event-date { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); width: 45px; }
+  .event-name { flex: 1; font-size: 12px; color: var(--text-primary); }
+  .event-impact { font-size: 10px; padding: 1px 6px; border-radius: 6px; font-weight: 600; }
+  .impact-high { background: var(--red-bg); color: var(--red); }
+  .impact-mid { background: var(--accent-orange-dim); color: var(--accent-orange); }
+  .impact-low { background: var(--bg-card-hover); color: var(--text-muted); }
+  .watch-section { }
+  .watch-item {
+    display: flex; gap: 8px; padding: 5px 0; align-items: flex-start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .watch-item:last-child { border-bottom: none; }
+  .watch-num {
+    font-size: 10px; font-weight: 700; color: var(--accent-blue);
+    font-family: var(--font-mono); width: 18px; flex-shrink: 0;
+  }
+  .watch-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+</style>

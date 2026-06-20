@@ -1,0 +1,73 @@
+---
+interface Props {
+  data?: Array<{ code: string; name: string; value: number; unit: string }> | null
+}
+
+const { data } = Astro.props as Props
+
+function findVal(code: string): number | null {
+  const item = data?.find(d => d.code === code)
+  return item?.value ?? null
+}
+
+const dxy = findVal('DEXUSEU')
+const vix = findVal('VIXCLS')
+const fedFunds = findVal('FEDFUNDS')
+const dgs10 = findVal('DGS10')
+
+function fmt(v: any, suffix = '') {
+  if (v == null) return '-';
+  return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + suffix;
+}
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
+      <span>宏观与风险指标</span>
+    </div>
+    {dgs10 && fedFunds && <span class="snapshot-panel-badge">利差 {(Number(dgs10) - Number(fedFunds)).toFixed(2)}%</span>}
+  </div>
+  
+  <div class="macro-section">
+    <div class="macro-header">
+      <span class="section-title">利率</span>
+    </div>
+    <div class="macro-grid">
+      <div class="macro-item">
+        <span class="macro-label">联邦利率</span>
+        <span class="macro-val">{fedFunds != null ? `${fedFunds}%` : '--'}</span>
+      </div>
+      <div class="macro-item">
+        <span class="macro-label">10Y</span>
+        <span class="macro-val">{dgs10 != null ? `${dgs10}%` : '--'}</span>
+      </div>
+      <div class="macro-item">
+        <span class="macro-label">VIX</span>
+        <span class="macro-val">{vix != null ? vix.toFixed(2) : '--'}</span>
+      </div>
+      <div class="macro-item">
+        <span class="macro-label">DXY</span>
+        <span class="macro-val">{dxy != null ? dxy.toFixed(2) : '--'}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .snapshot-panel { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); padding: 16px; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
+  .snapshot-panel:hover { border-color: var(--accent-blue); box-shadow: var(--shadow-blue); }
+  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .snapshot-panel-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); }
+  .snapshot-panel-title svg { color: var(--accent-blue); flex-shrink: 0; }
+  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-gold-dim); color: var(--accent-gold); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
+  .macro-section { margin-bottom: 12px; }
+  .macro-header { margin-bottom: 8px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .macro-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .macro-item { display: flex; align-items: center; gap: 4px; padding: 8px 6px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-light); transition: all var(--transition-base); }
+  .macro-item:hover { background: var(--bg-card-hover); border-color: var(--accent-blue); }
+  .macro-label { font-size: 12px; color: var(--text-muted); width: 50px; font-weight: 500; }
+  .macro-val { font-size: 13px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); flex: 1; }
+</style>

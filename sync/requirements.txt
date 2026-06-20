@@ -1,0 +1,7 @@
+# 投资平台同步工具依赖
+
+# 核心依赖
+pymysql>=1.1.0
+yfinance>=1.4.0
+requests>=2.31.0
+akshare>=1.18.64

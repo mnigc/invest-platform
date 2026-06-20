@@ -1,0 +1,89 @@
+---
+interface Props {
+  data?: { evidence: string[]; falsify: string[]; action: string[] } | null
+}
+
+const { data } = Astro.props as Props
+
+const hasData = data && data.evidence?.length > 0
+
+const evidence = hasData
+  ? data!.evidence
+  : ['北向资金连续净流出但幅度收窄', '两市成交额缩至万亿以下', '情绪周期处于分歧阶段']
+
+const falsify = hasData
+  ? data!.falsify
+  : ['科技线成交占比过高 > 40%', '权重股无增量资金', '明日 CPO 龙头 5 板是关键信号']
+
+const action = hasData
+  ? data!.action
+  : ['科技线（光模块/AI芯片/机器人）聚焦', '关注 CPO 龙头能否打开 5 板空间', '北向净流出超 50 亿则减仓权重']
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span>三段式方法论</span>
+    </div>
+    <span class="snapshot-panel-badge">RECON</span>
+  </div>
+
+  <div class="outlook-container">
+    <div class="evidence-block">
+      <div class="block-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span class="evidence-title">证据</span>
+      </div>
+      <ul class="outlook-list">
+        {evidence.map(e => <li class="outlook-item evidence-item">{e}</li>)}
+      </ul>
+    </div>
+    <div class="falsify-block">
+      <div class="block-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span class="falsify-title">证伪</span>
+      </div>
+      <ul class="outlook-list">
+        {falsify.map(f => <li class="outlook-item falsify-item">{f}</li>)}
+      </ul>
+    </div>
+    <div class="action-block">
+      <div class="block-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span class="action-title">行动</span>
+      </div>
+      <ul class="outlook-list">
+        {action.map(a => <li class="outlook-item action-item">{a}</li>)}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<style>
+  .snapshot-panel { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); padding: 16px; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
+  .snapshot-panel:hover { border-color: var(--accent-blue); box-shadow: var(--shadow-blue); }
+  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .snapshot-panel-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); }
+  .snapshot-panel-title svg { color: var(--accent-blue); flex-shrink: 0; }
+  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-gold-dim); color: var(--accent-gold); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
+  .outlook-container { display: flex; flex-direction: column; gap: 10px; }
+  .evidence-block, .falsify-block, .action-block { padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+  .evidence-block { background: rgba(8,153,129,0.06); border-color: rgba(8,153,129,0.2); }
+  .falsify-block { background: rgba(242,54,69,0.06); border-color: rgba(242,54,69,0.2); }
+  .action-block { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.2); }
+  .block-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .block-header svg { flex-shrink: 0; }
+  .evidence-block .block-header svg { color: var(--green); }
+  .falsify-block .block-header svg { color: var(--red); }
+  .action-block .block-header svg { color: var(--accent-blue); }
+  .evidence-title { font-size: 12px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--green); }
+  .falsify-title { font-size: 12px; font-weight: 600; font-family: var(--font-display); color: var(--red); }
+  .action-title { font-size: 12px; font-weight: 600; font-family: var(--font-display); color: var(--accent-blue); }
+  .outlook-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .outlook-item { font-size: 12px; line-height: 1.5; color: var(--text-secondary); padding-left: 12px; position: relative; }
+  .outlook-item::before { content: ''; position: absolute; left: 0; top: 7px; width: 4px; height: 4px; border-radius: 50%; }
+  .evidence-item::before { background: var(--green); }
+  .falsify-item::before { background: var(--red); }
+  .action-item::before { background: var(--accent-blue); }
+</style>

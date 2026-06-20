@@ -1,0 +1,21 @@
+{
+  "name": "invest-platform-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for pushing TRAE Work automation results to invest-platform database",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "mysql2": "^3.22.5",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.0"
+  }
+}

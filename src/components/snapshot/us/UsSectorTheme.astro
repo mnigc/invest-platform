@@ -1,0 +1,92 @@
+---
+interface Props {
+  data?: Array<{ symbol: string; name: string; change: number }> | null
+}
+
+const { data } = Astro.props as Props
+
+const hasData = data && data.length > 0
+
+const gics1dTop5 = hasData
+  ? data!.sort((a, b) => b.change - a.change).slice(0, 5).map(d => ({ name: d.name, perf: d.change, up: d.change >= 0 }))
+  : [
+      { name: '信息技术', perf: 0.85, up: true },
+      { name: '通信服务', perf: 0.72, up: true },
+      { name: '非必需消费', perf: 0.45, up: true },
+      { name: '医疗', perf: 0.32, up: true },
+      { name: '工业', perf: 0.18, up: true },
+    ]
+
+const gics1dBtm3 = hasData
+  ? data!.sort((a, b) => a.change - b.change).slice(0, 3).map(d => ({ name: d.name, perf: d.change, up: d.change >= 0 }))
+  : [
+      { name: '能源', perf: -0.65, up: false },
+      { name: '公用事业', perf: -0.42, up: false },
+      { name: '材料', perf: -0.28, up: false },
+    ]
+
+function fmt(v: any) {
+  if (v == null) return '-';
+  return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%';
+}
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <span>行业主题</span>
+    </div>
+    <span class="snapshot-panel-badge">1D</span>
+  </div>
+  
+  <div class="sector-section">
+    <div class="sector-header">
+      <span class="section-title">领涨行业 TOP 5</span>
+    </div>
+    <div class="sector-list">
+      {gics1dTop5.map(s => (
+        <div class="sector-row">
+          <span class="sector-name">{s.name}</span>
+          <span class={`sector-chg ${s.up ? 'val-up' : 'val-down'}`}>{fmt(s.perf)}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+  
+  <div class="sector-divider"></div>
+  
+  <div class="sector-section">
+    <div class="sector-header">
+      <span class="section-title">领跌行业 BOTTOM 3</span>
+    </div>
+    <div class="sector-list">
+      {gics1dBtm3.map(s => (
+        <div class="sector-row">
+          <span class="sector-name">{s.name}</span>
+          <span class={`sector-chg ${s.up ? 'val-up' : 'val-down'}`}>{fmt(s.perf)}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<style>
+  .snapshot-panel { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); padding: 16px; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
+  .snapshot-panel:hover { border-color: var(--accent-blue); box-shadow: var(--shadow-blue); }
+  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .snapshot-panel-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); }
+  .snapshot-panel-title svg { color: var(--accent-blue); flex-shrink: 0; }
+  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-cyan-dim); color: var(--accent-cyan); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
+  .sector-section { margin-bottom: 8px; }
+  .sector-header { margin-bottom: 6px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sector-list { display: flex; flex-direction: column; gap: 3px; }
+  .sector-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-radius: 4px; }
+  .sector-row:hover { background: var(--bg-card-hover); }
+  .sector-name { font-size: 13px; color: var(--text-secondary); }
+  .sector-chg { font-size: 13px; font-weight: 600; font-family: var(--font-mono); }
+  .sector-chg.val-up { color: var(--red); }
+  .sector-chg.val-down { color: var(--green); }
+  .sector-divider { height: 1px; background: var(--border-light); margin: 8px 0; }
+</style>

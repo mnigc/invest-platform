@@ -1,0 +1,271 @@
+---
+const regime = 'RISK_ON';
+const riskLevel = 1;
+const riskRatio = '35/100';
+const vix = 13.85;
+const vixChange = 0.42;
+const vixUp = true;
+const vixTerm = 'Contango (7.2 → 15.3)';
+const putCall = 0.85;
+const putCallUp = false;
+const aaiiBull = 48.2;
+const aaiiBear = 22.5;
+const aaiiNeutral = 29.3;
+
+function fmt(v: any, suffix = '') {
+  if (v == null) return '-';
+  return (v >= 0 ? '+' : '') + v.toFixed(2) + suffix;
+}
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>市场制式</span>
+    </div>
+    <span class="snapshot-panel-badge">{regime}</span>
+  </div>
+  
+  <div class="regime-section">
+    <div class="regime-top-row">
+      <div class="regime-badge-box">
+        <div class="regime-badge-inner">
+          <span class="regime-state">{regime}</span>
+          <div class="regime-meta">
+            <span class="regime-ratio">规避/偏好 {riskRatio}</span>
+            <span class="regime-level">风险等级 {riskLevel} (轻度警戒)</span>
+          </div>
+        </div>
+      </div>
+      <div class="vix-box">
+        <div class="vix-header">
+          <span class="vix-label">VIX</span>
+          <span class="vix-value">{vix}</span>
+          <span class={`vix-change ${vixUp ? 'up' : 'down'}`}>{fmt(vixChange)}</span>
+        </div>
+        <div class="vix-term">{vixTerm}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="sentiment-section">
+    <div class="sentiment-header">
+      <span class="section-title">市场情绪</span>
+    </div>
+    <div class="sentiment-grid">
+      <div class="sentiment-item">
+        <span class="sent-label">Put/Call</span>
+        <span class="sent-value">{putCall.toFixed(2)}</span>
+      </div>
+      <div class="sentiment-item">
+        <span class="sent-label">AAII 牛</span>
+        <span class="sent-value up">{aaiiBull}%</span>
+      </div>
+      <div class="sentiment-item">
+        <span class="sent-label">AAII 熊</span>
+        <span class="sent-value down">{aaiiBear}%</span>
+      </div>
+      <div class="sentiment-item">
+        <span class="sent-label">牛熊差</span>
+        <span class="sent-value up">{(aaiiBull - aaiiBear).toFixed(1)}%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .snapshot-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: 16px;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .snapshot-panel:hover {
+    border-color: var(--accent-blue);
+    box-shadow: var(--shadow-blue);
+  }
+
+  .snapshot-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .snapshot-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+  }
+
+  .snapshot-panel-title svg {
+    color: var(--accent-blue);
+    flex-shrink: 0;
+  }
+
+  .snapshot-panel-badge {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    background: var(--accent-cyan-dim);
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  .regime-section {
+    margin-bottom: 12px;
+  }
+
+  .regime-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .regime-badge-box {
+    padding: 14px 16px;
+    background: var(--accent-blue-dim);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+
+  .regime-badge-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .regime-state {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: var(--font-display);
+    letter-spacing: 0.06em;
+    color: var(--accent-blue);
+  }
+
+  .regime-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .regime-ratio, .regime-level {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .vix-box {
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+  }
+
+  .vix-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .vix-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  .vix-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+  }
+
+  .vix-change {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+
+  .vix-change.up { color: var(--red); }
+  .vix-change.down { color: var(--green); }
+
+  .vix-term {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .sentiment-section {
+    border-top: 1px solid var(--border-light);
+    padding-top: 12px;
+  }
+
+  .sentiment-header {
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .sentiment-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .sentiment-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 6px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-base);
+  }
+
+  .sentiment-item:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-blue);
+  }
+
+  .sent-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  .sent-value {
+    font-size: 16px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+  }
+
+  .sent-value.up { color: var(--red); }
+  .sent-value.down { color: var(--green); }
+</style>

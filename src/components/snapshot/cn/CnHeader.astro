@@ -1,0 +1,52 @@
+---
+interface Props {
+  data?: { tradeDate: string; sentiment: string; conclusion: string } | null
+}
+
+const { data } = Astro.props as Props
+
+const tradeDate = data?.tradeDate || '2026-06-19'
+const generatedAt = new Date().toLocaleString('zh-CN', { hour12: false }) + ' UTC+8'
+const sentimentTemp = data?.sentiment || '正常'
+const coreSummary = data?.conclusion || '两市成交额萎缩至万亿以下，北向资金连续3日净流出，短期情绪偏谨慎但未到冰点'
+const status = sentimentTemp === 'danger' ? 'danger' : sentimentTemp === 'warning' ? 'warning' : 'normal'
+---
+
+<div class="snapshot-header-bar">
+  <div class="header-bar-left">
+    <div class="header-date">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>交易日</span>
+      <strong>{tradeDate}</strong>
+    </div>
+    <div class="header-generated">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>生成 {generatedAt}</span>
+    </div>
+  </div>
+  <div class="header-bar-right">
+    <span class={`header-status status-${status}`}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span>{status.toUpperCase()}</span>
+    </span>
+    <span class="header-sentiment">{sentimentTemp}</span>
+  </div>
+  <div class="header-summary">{coreSummary}</div>
+</div>
+
+<style>
+  .snapshot-header-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 16px; margin-bottom: 12px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
+  .header-bar-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .header-date, .header-generated { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); background: var(--bg-card); padding: 5px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+  .header-date svg, .header-generated svg { color: var(--accent-cyan); flex-shrink: 0; }
+  .header-date strong { color: var(--text-primary); font-weight: 600; font-family: var(--font-mono); }
+  .header-bar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .header-status { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.06em; }
+  .header-status.status-normal { color: var(--accent-cyan); background: var(--accent-cyan-dim); border: 1px solid rgba(6,182,212,0.2); }
+  .header-status.status-warning { color: var(--accent-gold); background: var(--accent-gold-dim); border: 1px solid rgba(245,158,11,0.2); }
+  .header-status.status-danger { color: var(--red); background: var(--red-bg); border: 1px solid rgba(242,54,69,0.2); }
+  .header-status svg { flex-shrink: 0; }
+  .header-status span { white-space: nowrap; }
+  .header-sentiment { padding: 5px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; color: var(--accent-gold); background: var(--accent-gold-dim); border: 1px solid rgba(245,158,11,0.2); }
+  .header-summary { width: 100%; font-size: 13px; color: var(--text-secondary); line-height: 1.5; padding-top: 8px; border-top: 1px solid var(--border-light); margin-top: 8px; }
+</style>

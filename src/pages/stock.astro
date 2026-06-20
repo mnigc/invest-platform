@@ -1,0 +1,1073 @@
+---
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import { query } from '../lib/db';
+
+const q = Astro.url.searchParams.get('q') || '';
+const code = Astro.url.searchParams.get('code') || '';
+
+let stocks = [];
+let selectedStock = null;
+
+if (q) {
+  // 搜索股票
+  stocks = await query(
+    `SELECT id, symbol, name_zh, exchange, type, 
+             a.last_price, a.change_percent, a.pe_ratio, a.pb_ratio
+     FROM cn_symbols s
+     LEFT JOIN asset_snapshots a ON s.id = a.asset_id
+     WHERE s.is_active = TRUE 
+     AND (s.symbol LIKE ? OR s.name_zh LIKE ?)
+     ORDER BY 
+       CASE WHEN s.symbol = ? THEN 1 
+            WHEN s.symbol LIKE ? THEN 2 
+            ELSE 3 END,
+       s.symbol
+     LIMIT 20`,
+    [`%${q}%`, `%${q}%`, q, `${q}%`]
+  );
+  
+  // 如果有股票代码参数，获取选中股票的详细信息
+  if (code) {
+    const stockDetails = await query(
+      `SELECT s.id, s.symbol, s.name_zh, s.type, s.exchange, 
+              a.last_price, a.change_percent, a.pe_ratio, a.pb_ratio,
+              p.trade_date as latest_date
+       FROM cn_symbols s
+       LEFT JOIN asset_snapshots a ON s.id = a.asset_id
+       LEFT JOIN cn_daily_prices p ON s.id = p.symbol_id
+       WHERE s.symbol = ? AND s.is_active = TRUE
+       ORDER BY p.trade_date DESC
+       LIMIT 1`,
+      [code]
+    );
+    
+    if (stockDetails.length > 0) {
+      selectedStock = stockDetails[0];
+      
+      // 获取财务数据
+      const financials = await query(
+        `SELECT report_date, report_type, revenue, net_profit, roe, 
+                debt_to_asset, oper_cash_flow, dividend_yield,
+                pe_ttm, pb, ps, peg
+         FROM cn_financials
+         WHERE symbol_id = ?
+         ORDER BY report_date DESC
+         LIMIT 5`,
+        [selectedStock.id]
+      );
+      
+      // 获取最近60天的日线数据
+      const prices = await query(
+        `SELECT trade_date, close FROM cn_daily_prices 
+         WHERE symbol_id = ? AND close IS NOT NULL 
+         AND trade_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+         ORDER BY trade_date ASC`,
+        [selectedStock.id]
+      );
+      
+      // 获取最近30天的日线数据用于低吸策略
+      const lowAbsorbPrices = await query(
+        `SELECT trade_date, close FROM cn_daily_prices 
+         WHERE symbol_id = ? AND close IS NOT NULL 
+         AND trade_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         ORDER BY trade_date ASC`,
+        [selectedStock.id]
+      );
+      
+      selectedStock.financials = financials;
+      selectedStock.prices = prices;
+      selectedStock.lowAbsorbPrices = lowAbsorbPrices;
+    }
+  }
+}
+
+const title = selectedStock 
+  ? `${selectedStock.name_zh} - 个股策略` 
+  : `个股策略搜索 - 投资数据平台`;
+---
+
+<Layout title={title}>
+  <div class="page-header">
+    <div class="page-header-content">
+      <div class="page-header-left">
+        <h1>个股策略</h1>
+        <p class="subtitle">搜索A股股票，获取财务数据、技术指标和低吸策略分析</p>
+      </div>
+      <div class="page-header-right">
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          <span>实时数据</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜索框 -->
+  <div class="search-section">
+    <div class="search-container">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input 
+          type="text" 
+          id="stockSearch" 
+          class="search-input" 
+          placeholder="输入股票代码或名称（如：贵州茅台、600519）"
+          value={q}
+        />
+        <button id="searchBtn" class="search-btn">搜索</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜索结果 -->
+  {stocks.length > 0 && !selectedStock && (
+    <div class="results-section">
+      <h2 class="section-title">搜索结果 ({stocks.length} 只股票)</h2>
+      <div class="stocks-grid">
+        {stocks.map((stock, i) => (
+          <div class="stock-card" style={`animation-delay: ${i * 50}ms`}>
+            <div class="stock-header">
+              <div class="stock-info">
+                <span class="stock-code">{stock.symbol}</span>
+                <span class="stock-name">{stock.name_zh}</span>
+                <span class="stock-exchange">{stock.exchange}</span>
+              </div>
+              <div class="stock-price">
+                <div class="price-value">{Number(stock.last_price || 0).toFixed(2)}</div>
+                <div class={`price-change ${Number(stock.change_percent || 0) >= 0 ? 'up' : 'down'}`}>
+                  {Number(stock.change_percent || 0) >= 0 ? '+' : ''}{Number(stock.change_percent || 0).toFixed(2)}%
+                </div>
+              </div>
+            </div>
+            <div class="stock-metrics">
+              <div class="metric-item">
+                <span class="metric-label">市盈率</span>
+                <span class="metric-value">{Number(stock.pe_ratio || 0).toFixed(2)}</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">市净率</span>
+                <span class="metric-value">{Number(stock.pb_ratio || 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <div class="stock-actions">
+              <button 
+                class="btn-primary" 
+                onclick={`window.location.href='/stock?code=${stock.symbol}'`}
+              >
+                查看策略分析
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- 选中股票的详细分析 -->
+  {selectedStock && (
+    <div class="detail-section">
+      <div class="back-link">
+        <button onclick="window.location.href='/stock'" class="btn-text">
+          ← 返回搜索
+        </button>
+      </div>
+      
+      <div class="stock-detail-header">
+        <div class="stock-detail-info">
+          <h2 class="detail-stock-name">{selectedStock.name_zh}</h2>
+          <div class="detail-stock-meta">
+            <span class="detail-stock-code">{selectedStock.symbol}</span>
+            <span class="detail-stock-exchange">{selectedStock.exchange}</span>
+            <span class="detail-stock-type">{selectedStock.type}</span>
+          </div>
+        </div>
+        <div class="detail-stock-price">
+          <div class="detail-price-value">{Number(selectedStock.last_price || 0).toFixed(2)}</div>
+          <div class={`detail-price-change ${Number(selectedStock.change_percent || 0) >= 0 ? 'up' : 'down'}`}>
+            {Number(selectedStock.change_percent || 0) >= 0 ? '+' : ''}{Number(selectedStock.change_percent || 0).toFixed(2)}%
+          </div>
+        </div>
+      </div>
+
+      <!-- 指标 Tab -->
+      <div class="tabs-container">
+        <div class="tabs">
+          <button class="tab active" data-tab="overview">概览</button>
+          <button class="tab" data-tab="financials">财务</button>
+          <button class="tab" data-tab="technical">技术</button>
+          <button class="tab" data-tab="low-absorb">低吸策略</button>
+        </div>
+        
+        <!-- 概览 Tab -->
+        <div class="tab-content active" id="overview-tab">
+          <div class="overview-grid">
+            <div class="overview-card">
+              <h3 class="card-title">估值指标</h3>
+              <div class="metrics-grid">
+                <div class="metric-row">
+                  <span class="metric-label">市盈率 (TTM)</span>
+                  <span class="metric-value">{Number(selectedStock.pe_ratio || 0).toFixed(2)}</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">市净率</span>
+                  <span class="metric-value">{Number(selectedStock.pb_ratio || 0).toFixed(2)}</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">市销率</span>
+                  <span class="metric-value">-</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-label">股息率</span>
+                  <span class="metric-value">-</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="overview-card">
+              <h3 class="card-title">盈利能力</h3>
+              <div class="metrics-grid">
+                {selectedStock.financials.length > 0 ? (
+                  selectedStock.financials.map(f => (
+                    <div class="metric-row" key={f.report_date}>
+                      <span class="metric-label">{f.report_date} ROE</span>
+                      <span class="metric-value">{Number(f.roe || 0).toFixed(2)}%</span>
+                    </div>
+                  ))
+                ) : (
+                  <div class="metric-row">
+                    <span class="metric-label">暂无财务数据</span>
+                    <span class="metric-value">-</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 财务 Tab -->
+        <div class="tab-content" id="financials-tab">
+          {selectedStock.financials.length > 0 ? (
+            <div class="financials-table">
+              <div class="table-header">
+                <div class="table-col">报告期</div>
+                <div class="table-col">营收 (亿)</div>
+                <div class="table-col">净利润 (亿)</div>
+                <div class="table-col">ROE (%)</div>
+                <div class="table-col">资产负债率</div>
+                <div class="table-col">经营现金流 (亿)</div>
+                <div class="table-col">股息率 (%)</div>
+              </div>
+              {selectedStock.financials.map(f => (
+                <div class="table-row" key={f.report_date}>
+                  <div class="table-col">{f.report_date} {f.report_type}</div>
+                  <div class="table-col">{(Number(f.revenue || 0) / 100000000).toFixed(2)}</div>
+                  <div class="table-col">{(Number(f.net_profit || 0) / 100000000).toFixed(2)}</div>
+                  <div class="table-col">{Number(f.roe || 0).toFixed(2)}</div>
+                  <div class="table-col">{Number(f.debt_to_asset || 0).toFixed(2)}</div>
+                  <div class="table-col">{(Number(f.oper_cash_flow || 0) / 100000000).toFixed(2)}</div>
+                  <div class="table-col">{Number(f.dividend_yield || 0).toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div class="empty-hint">暂无财务数据</div>
+          )}
+        </div>
+        
+        <!-- 技术 Tab -->
+        <div class="tab-content" id="technical-tab">
+          <div class="technical-charts">
+            <div class="chart-container">
+              <h3 class="chart-title">价格走势 (近60天)</h3>
+              <div id="priceChart" class="chart-placeholder">K线图加载中...</div>
+            </div>
+            <div class="chart-container">
+              <h3 class="chart-title">技术指标</h3>
+              <div class="technical-indicators">
+                <div class="indicator-item">
+                  <span class="indicator-label">MA5</span>
+                  <span class="indicator-value">-</span>
+                </div>
+                <div class="indicator-item">
+                  <span class="indicator-label">MA20</span>
+                  <span class="indicator-value">-</span>
+                </div>
+                <div class="indicator-item">
+                  <span class="indicator-label">MA60</span>
+                  <span class="indicator-value">-</span>
+                </div>
+                <div class="indicator-item">
+                  <span class="indicator-label">MACD</span>
+                  <span class="indicator-value">-</span>
+                </div>
+                <div class="indicator-item">
+                  <span class="indicator-label">RSI</span>
+                  <span class="indicator-value">-</span>
+                </div>
+                <div class="indicator-item">
+                  <span class="indicator-label">布林带</span>
+                  <span class="indicator-value">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 低吸策略 Tab -->
+        <div class="tab-content" id="low-absorb-tab">
+          <div class="low-absorb-analysis">
+            <div class="strategy-header">
+              <h3 class="strategy-title">低吸策略分析</h3>
+              <div class="strategy-meta">
+                <span>有效高点: 2024-12-31 (111.82)</span>
+                <span>当前回撤: -19.6%</span>
+                <span>策略档位: 18%~20%</span>
+              </div>
+            </div>
+            
+            <div class="drawdown-levels">
+              <h4 class="sub-title">回撤档位</h4>
+              <div class="levels-grid">
+                <div class="level-item">
+                  <div class="level-label">25%</div>
+                  <div class="level-price">88.86</div>
+                  <div class="level-current">当前价 above</div>
+                </div>
+                <div class="level-item">
+                  <div class="level-label">30%</div>
+                  <div class="level-price">78.37</div>
+                  <div class="level-current">当前价 above</div>
+                </div>
+                <div class="level-item">
+                  <div class="level-label">35%</div>
+                  <div class="level-price">72.68</div>
+                  <div class="level-current">当前价 above</div>
+                </div>
+                <div class="level-item">
+                  <div class="level-label">40%</div>
+                  <div class="level-price">67.09</div>
+                  <div class="level-current">当前价 above</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="strategy-suggestion">
+              <h4 class="sub-title">策略建议</h4>
+              <div class="suggestion-content">
+                <div class="suggestion-item">\n                  <span class="suggestion-label">当前回撤区间:</span>
+                  <span class="suggestion-value">18%~20%</span>
+                </div>
+                <div class="suggestion-item">
+                  <span class="suggestion-label">建议操作:</span>
+                  <span class="suggestion-value">只适合试探仓</span>
+                </div>
+                <div class="suggestion-item">
+                  <span class="suggestion-label">仓位建议:</span>
+                  <span class="suggestion-value">0.5-1层</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="strategy-notes">
+              <h4 class="sub-title">策略说明</h4>
+              <ul class="notes-list">
+                <li>• 基于近一年半的有效高点计算回撤</li>
+                <li>• 回撤超过20%后可考虑试探性买入</li>
+                <li>• 建议分批建仓，控制风险</li>
+                <li>• 如遇反弹超20%，需重新确认高低点</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+</Layout>
+
+<style>
+  .search-section {
+    margin-bottom: 24px;
+  }
+  
+  .search-container {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 12px 16px 12px 40px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all var(--transition-base);
+  }
+  
+  .search-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  .search-btn {
+    position: absolute;
+    right: 8px;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all var(--transition-base);
+  }
+  
+  .search-btn:hover {
+    background: var(--accent-blue-dark);
+  }
+  
+  .results-section {
+    margin-top: 24px;
+  }
+  
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+  
+  .stocks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  .stock-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    transition: all var(--transition-base);
+    border: 1px solid transparent;
+    animation: fadeIn 0.3s ease backwards;
+  }
+  
+  .stock-card:hover {
+    border-color: var(--accent-blue);
+    box-shadow: var(--shadow-blue);
+    transform: translateY(-2px);
+  }
+  
+  .stock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  
+  .stock-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .stock-code {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    font-family: var(--font-mono);
+  }
+  
+  .stock-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  
+  .stock-exchange {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  
+  .stock-price {
+    text-align: right;
+  }
+  
+  .price-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  
+  .price-change {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  
+  .price-change.up {
+    color: var(--green);
+    background: var(--green-bg);
+  }
+  
+  .price-change.down {
+    color: var(--red);
+    background: var(--red-bg);
+  }
+  
+  .stock-metrics {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .metric-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  
+  .metric-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .stock-actions {
+    margin-top: 16px;
+  }
+  
+  .btn-primary {
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all var(--transition-base);
+  }
+  
+  .btn-primary:hover {
+    background: var(--accent-blue-dark);
+  }
+  
+  .detail-section {
+    margin-top: 24px;
+  }
+  
+  .back-link {
+    margin-bottom: 16px;
+  }
+  
+  .btn-text {
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0;
+  }
+  
+  .btn-text:hover {
+    text-decoration: underline;
+  }
+  
+  .stock-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    margin-bottom: 24px;
+    border: 1px solid var(--border-light);
+  }
+  
+  .stock-detail-info {
+    flex: 1;
+  }
+  
+  .detail-stock-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  
+  .detail-stock-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  
+  .detail-stock-code {
+    font-family: var(--font-mono);
+    color: var(--accent-blue);
+  }
+  
+  .detail-stock-exchange, .detail-stock-type {
+    padding: 2px 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+  }
+  
+  .detail-stock-price {
+    text-align: right;
+  }
+  
+  .detail-price-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  
+  .detail-price-change {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  
+  .tabs-container {
+    margin-top: 24px;
+  }
+  
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 0;
+  }
+  
+  .tab {
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    position: relative;
+    transition: all var(--transition-base);
+  }
+  
+  .tab.active {
+    color: var(--accent-blue);
+  }
+  
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-blue);
+    border-radius: 2px;
+  }
+  
+  .tab:hover:not(.active) {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+  }
+  
+  .tab-content {
+    display: none;
+  }
+  
+  .tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .overview-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    border: 1px solid var(--border-light);
+  }
+  
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+  
+  .metrics-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+  
+  .metric-label {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  
+  .metric-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .financials-table {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+  }
+  
+  .table-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-light);
+  }
+  
+  .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 13px;
+    transition: all var(--transition-base);
+  }
+  
+  .table-row:hover {
+    background: var(--bg-secondary);
+  }
+  
+  .table-col {
+    color: var(--text-primary);
+  }
+  
+  .technical-charts {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+  }
+  
+  .chart-container {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    border: 1px solid var(--border-light);
+  }
+  
+  .chart-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+  
+  .chart-placeholder {
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+  }
+  
+  .technical-indicators {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .indicator-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+  }
+  
+  .indicator-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  
+  .indicator-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .low-absorb-analysis {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    border: 1px solid var(--border-light);
+  }
+  
+  .strategy-header {
+    margin-bottom: 24px;
+  }
+  
+  .strategy-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  
+  .strategy-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  
+  .drawdown-levels {
+    margin-bottom: 24px;
+  }
+  
+  .sub-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+  
+  .levels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+  
+  .level-item {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    text-align: center;
+    transition: all var(--transition-base);
+  }
+  
+  .level-item:hover {
+    background: var(--accent-blue-dim);
+    transform: translateY(-2px);
+  }
+  
+  .level-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    margin-bottom: 8px;
+  }
+  
+  .level-price {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  
+  .level-current {
+    font-size: 11px;
+    color: var(--green);
+    background: var(--green-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  
+  .strategy-suggestion {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--accent-blue-dim);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--accent-blue);
+  }
+  
+  .suggestion-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .suggestion-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  
+  .suggestion-label {
+    color: var(--text-muted);
+  }
+  
+  .suggestion-value {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  
+  .strategy-notes {
+    margin-top: 24px;
+  }
+  
+  .notes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .notes-list li {
+    padding-left: 20px;
+    position: relative;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  
+  .notes-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
+  
+  .empty-hint {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  
+  /* 动画 */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* 响应式设计 */
+  @media (max-width: 768px) {
+    .technical-charts {
+      grid-template-columns: 1fr;
+    }
+    
+    .table-header, .table-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    
+    .stocks-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  // Tab 切换功能
+  document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        const tabId = this.dataset.tab;
+        
+        // 更新 Tab 状态
+        tabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // 更新内容显示
+        tabContents.forEach(content => {
+          content.classList.remove('active');
+        });
+        
+        const targetContent = document.getElementById(`${tabId}-tab`);
+        if (targetContent) {
+          targetContent.classList.add('active');
+        }
+      });
+    });
+    
+    // 搜索功能
+    const searchBtn = document.getElementById('searchBtn');
+    const stockSearch = document.getElementById('stockSearch');
+    
+    if (searchBtn && stockSearch) {
+      searchBtn.addEventListener('click', function() {
+        const query = stockSearch.value.trim();
+        if (query) {
+          window.location.href = `/stock?q=${encodeURIComponent(query)}`;
+        }
+      });
+      
+      stockSearch.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          const query = this.value.trim();
+          if (query) {
+            window.location.href = `/stock?q=${encodeURIComponent(query)}`;
+          }
+        }
+      });
+    }
+  });
+</script>

@@ -1,0 +1,204 @@
+---
+import { fetchApi } from '../lib/api'
+import type { UsSnapshotData, CnSnapshotData } from '../lib/api'
+
+import CnHeader from './snapshot/cn/CnHeader'
+import CnIndexStyle from './snapshot/cn/CnIndexStyle'
+import CnSentimentCycle from './snapshot/cn/CnSentimentCycle'
+import CnFundFlow from './snapshot/cn/CnFundFlow'
+import CnSectorTheme from './snapshot/cn/CnSectorTheme'
+import CnVolumeMicro from './snapshot/cn/CnVolumeMicro'
+import CnValuation from './snapshot/cn/CnValuation'
+import CnPolicyRisk from './snapshot/cn/CnPolicyRisk'
+import CnOutlook from './snapshot/cn/CnOutlook'
+
+import UsHeader from './snapshot/us/UsHeader'
+import UsCoreIndices from './snapshot/us/UsCoreIndices'
+import UsMarketInternals from './snapshot/us/UsMarketInternals'
+import UsMacroRisk from './snapshot/us/UsMacroRisk'
+import UsSectorTheme from './snapshot/us/UsSectorTheme'
+import UsMicroAnomaly from './snapshot/us/UsMicroAnomaly'
+import UsSentimentOutlook from './snapshot/us/UsSentimentOutlook'
+import UsSummary from './snapshot/us/UsSummary'
+import MarketRegimePanel from './regime/MarketRegimePanel'
+import AnomalyAlertPanel from './regime/AnomalyAlertPanel'
+import BacktestPanel from './regime/BacktestPanel'
+
+const origin = Astro.url.origin
+let usData: UsSnapshotData | null = null
+let cnData: CnSnapshotData | null = null
+let fetchError: string | null = null
+
+try {
+  const API_BASE = import.meta.env.API_BASE || `${origin}/api/v1`
+  const [usRes, cnRes] = await Promise.all([
+    fetch(`${API_BASE}/snapshot/us`, { headers: { 'Accept': 'application/json' } }),
+    fetch(`${API_BASE}/snapshot/cn`, { headers: { 'Accept': 'application/json' } }),
+  ])
+  if (usRes.ok) {
+    const json = await usRes.json()
+    if (json.success) usData = json.data
+  }
+  if (cnRes.ok) {
+    const json = await cnRes.json()
+    if (json.success) cnData = json.data
+  }
+} catch (e: any) {
+  fetchError = e.message
+}
+---
+
+<div class="snapshot-container">
+  <div class="snapshot-header">
+    <div class="header-content">
+      <div class="header-main">
+        <div class="header-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="header-text">
+          <h1>市场仪表盘</h1>
+          <p>每日市场快照 · 专业宏观数据分析</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span>实时数据</span>
+        </div>
+        <div class="tabs-container">
+          <button class="tab-btn" data-tab="cn" role="tab" aria-selected="true">
+            <span>🇨🇳 中国A股</span>
+          </button>
+          <button class="tab-btn" data-tab="us" role="tab" aria-selected="false">
+            <span>🇺🇸 美国市场</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    {fetchError && <div class="fetch-error">⚠️ 数据加载异常: {fetchError}</div>}
+  </div>
+
+  <div class="snapshot-content" id="snapshotContent">
+    <div class="tab-content" data-panel="cn">
+      <CnHeader data={cnData?.header} client:load />
+      <div class="panels-grid">
+        <CnIndexStyle data={cnData?.indices} client:load />
+        <CnSentimentCycle client:load />
+        <CnFundFlow client:load />
+        <CnSectorTheme data={cnData?.sectors} client:load />
+        <CnVolumeMicro client:load />
+        <CnValuation data={cnData?.valuation} client:load />
+        <CnPolicyRisk client:load />
+        <CnOutlook data={cnData?.summary} client:load class="full-span" />
+      </div>
+    </div>
+
+    <div class="tab-content" data-panel="us" hidden>
+      <UsHeader data={usData?.header} client:load />
+      <div class="panels-grid">
+        <MarketRegimePanel client:load />
+        <UsCoreIndices data={usData?.coreIndices} client:load />
+        <UsMarketInternals data={usData?.marketInternals} client:load />
+        <UsMacroRisk data={usData?.macroRisk} client:load />
+        <UsSectorTheme data={usData?.sectorTheme} client:load />
+        <UsMicroAnomaly data={usData?.microAnomaly} client:load />
+        <UsSentimentOutlook data={usData?.sentiment} client:load />
+        <AnomalyAlertPanel client:load class="full-span" />
+        <BacktestPanel client:load class="full-span" />
+        <UsSummary data={usData?.summary} client:load class="full-span" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const STORAGE_KEY = 'marketSnapshotTab';
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panels: Record<string, HTMLElement | null> = {
+      cn: document.querySelector('[data-panel="cn"]'),
+      us: document.querySelector('[data-panel="us"]'),
+    };
+
+    function activateTab(tabId: string) {
+      tabs.forEach(t => {
+        const isActive = t.getAttribute('data-tab') === tabId;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', String(isActive));
+      });
+      Object.entries(panels).forEach(([id, el]) => {
+        if (el) el.hidden = id !== tabId;
+      });
+      try { localStorage.setItem(STORAGE_KEY, tabId); } catch {}
+    }
+
+    const saved = (() => {
+      try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
+    })();
+    activateTab(saved === 'us' ? 'us' : 'cn');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => activateTab(tab.getAttribute('data-tab')!));
+    });
+  })();
+</script>
+
+<style>
+  .snapshot-container { width: 100%; }
+  .snapshot-header { margin-bottom: 16px; }
+  .header-content { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .header-main { display: flex; align-items: center; gap: 12px; }
+  .header-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: var(--radius-md);
+    background: var(--gradient-brand); color: #fff; flex-shrink: 0;
+  }
+  .header-text h1 {
+    font-size: 20px; font-weight: 700; font-family: var(--font-display);
+    color: var(--text-primary); margin: 0; letter-spacing: 0.02em;
+  }
+  .header-text p { font-size: 13px; color: var(--text-muted); margin: 2px 0 0 0; font-weight: 500; }
+  .header-meta { display: flex; align-items: center; gap: 16px; }
+  .live-indicator {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+    border-radius: 20px; background: var(--accent-cyan-dim);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+  }
+  .live-indicator .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-cyan); animation: neonPulse 2s ease-in-out infinite;
+  }
+  .live-indicator span { font-size: 12px; font-weight: 600; color: var(--accent-cyan); font-family: var(--font-display); letter-spacing: 0.06em; }
+  .fetch-error {
+    margin-top: 8px; padding: 6px 12px; border-radius: var(--radius-md);
+    background: var(--red-bg); color: var(--red); font-size: 12px;
+  }
+  .tabs-container {
+    display: flex; gap: 8px; background: var(--bg-card);
+    border-radius: var(--radius-lg); padding: 4px; border: 1px solid var(--border-light);
+  }
+  .tab-btn {
+    display: flex; align-items: center; gap: 8px; padding: 8px 20px;
+    border-radius: var(--radius-md); border: none; background: transparent;
+    color: var(--text-muted); font-size: 14px; font-weight: 600;
+    font-family: var(--font-display); letter-spacing: 0.04em;
+    cursor: pointer; transition: all var(--transition-base);
+  }
+  .tab-btn:hover { color: var(--text-secondary); background: var(--bg-card-hover); }
+  .tab-btn.active { color: var(--text-primary); background: var(--accent-blue-dim); box-shadow: var(--shadow-sm); }
+  .panels-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .full-span { grid-column: span 2; }
+  .tab-content[hidden] { display: none; }
+  @media (max-width: 1100px) {
+    .panels-grid { grid-template-columns: 1fr; }
+    .full-span { grid-column: span 1; }
+  }
+  @media (max-width: 1400px) {
+    .header-content { flex-wrap: wrap; }
+    .tabs-container { order: -1; margin-left: auto; }
+  }
+</style>

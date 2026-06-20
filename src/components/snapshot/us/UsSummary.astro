@@ -1,0 +1,95 @@
+---
+interface Props {
+  data?: { evidence: string[]; falsify: string[]; action: string[] } | null
+}
+
+const { data } = Astro.props as Props
+
+const hasData = data && data.evidence?.length > 0
+
+const evidence = hasData ? data!.evidence : [
+  'SPX 距历史高点 0.5% 以内，VIX < 14 低位运行',
+  '10Y-3M 利差倒挂收窄至 -30bp，信用利差 < 1%',
+  '经济意外指数转正，Q2 GDP Now 2.8%',
+]
+const falsify = hasData ? data!.falsify : [
+  '科技板块成交占比 > 35%，集中度过高',
+  '市场宽度（%>200MA）从 78% 降至 62%',
+  'NVDA 期权隐波 skew 走阔，尾部对冲成本上升',
+]
+const action = hasData ? data!.action : [
+  '维持权重股底仓，不加杠杆，不追 AI',
+  '关注半导体设备 (AMAT/LRCX) 回调机会',
+  '对冲：黄金 5% + TLT 8%，防范利率下行',
+]
+---
+
+<div class="snapshot-panel">
+  <div class="snapshot-panel-header">
+    <div class="snapshot-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span>三段式方法论</span>
+    </div>
+    <span class="snapshot-panel-badge">RISK ON</span>
+  </div>
+  
+  <div class="summary-section">
+    <div class="summary-container">
+      <div class="evidence-block">
+        <div class="evidence-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="evidence-title">证据</span>
+        </div>
+        <ul class="summary-list">
+          {evidence.map(e => <li class="summary-item evidence-item">{e}</li>)}
+        </ul>
+      </div>
+      <div class="falsify-block">
+        <div class="falsify-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span class="falsify-title">证伪</span>
+        </div>
+        <ul class="summary-list">
+          {falsify.map(f => <li class="summary-item falsify-item">{f}</li>)}
+        </ul>
+      </div>
+      <div class="action-block">
+        <div class="action-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span class="action-title">行动</span>
+        </div>
+        <ul class="summary-list">
+          {action.map(a => <li class="summary-item action-item">{a}</li>)}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .snapshot-panel { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); padding: 16px; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
+  .snapshot-panel:hover { border-color: var(--accent-blue); box-shadow: var(--shadow-blue); }
+  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .snapshot-panel-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); }
+  .snapshot-panel-title svg { color: var(--accent-blue); flex-shrink: 0; }
+  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-gold-dim); color: var(--accent-gold); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
+  .summary-container { display: flex; flex-direction: column; gap: 12px; }
+  .evidence-block, .falsify-block, .action-block { padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+  .evidence-block { background: rgba(8, 153, 129, 0.06); border-color: rgba(8, 153, 129, 0.2); }
+  .falsify-block { background: rgba(242, 54, 69, 0.06); border-color: rgba(242, 54, 69, 0.2); }
+  .action-block { background: rgba(59, 130, 246, 0.06); border-color: rgba(59, 130, 246, 0.2); }
+  .evidence-header, .falsify-header, .action-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .evidence-header svg { color: var(--green); }
+  .falsify-header svg { color: var(--red); }
+  .action-header svg { color: var(--accent-blue); }
+  .evidence-title, .falsify-title, .action-title { font-size: 12px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; }
+  .evidence-title { color: var(--green); }
+  .falsify-title { color: var(--red); }
+  .action-title { color: var(--accent-blue); }
+  .summary-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .summary-item { font-size: 12px; line-height: 1.5; color: var(--text-secondary); padding-left: 12px; position: relative; }
+  .summary-item::before { content: ''; position: absolute; left: 0; top: 7px; width: 4px; height: 4px; border-radius: 50%; }
+  .evidence-item::before { background: var(--green); }
+  .falsify-item::before { background: var(--red); }
+  .action-item::before { background: var(--accent-blue); }
+</style>
