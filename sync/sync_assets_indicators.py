@@ -194,8 +194,13 @@ def fetch_fred_series(indicator_id: int, series_id: str, frequency: str) -> int:
 
     params = {"series_id": series_id, "api_key": FRED_API_KEY, "file_type": "json", "sort_order": "asc"}
     if last_date:
-        start = (datetime.strptime(last_date, "%Y-%m-%d") - timedelta(days=90)).strftime("%Y-%m-%d")
-        params["observation_start"] = start
+        # 如果上次同步距今超过30天，全量重新拉取（解决 DGS2/DGS5/DGS6MO 数据中断问题）
+        days_behind = (datetime.now() - datetime.strptime(last_date, "%Y-%m-%d")).days
+        if days_behind > 30:
+            logger.info(f"  {series_id}: 上次同步距今 {days_behind} 天，将全量重新拉取")
+        else:
+            start = (datetime.strptime(last_date, "%Y-%m-%d") - timedelta(days=90)).strftime("%Y-%m-%d")
+            params["observation_start"] = start
 
     url = "https://api.stlouisfed.org/fred/series/observations"
     try:

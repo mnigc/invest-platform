@@ -131,18 +131,73 @@ def safe_decimal(v):
         return None
 
 
+def _run_with_timeout(fn, args=(), kwargs=None, timeout=20):
+    import threading
+    result = [None]
+    exc = [None]
+    def worker():
+        try:
+            result[0] = fn(*args, **(kwargs or {}))
+        except Exception as e:
+            exc[0] = e
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        logger.warning(f"  API 请求超时（>{timeout}s）")
+        return None
+    if exc[0]:
+        raise exc[0]
+    return result[0]
+
+
 def fetch_indicator(code):
-    for func_name in ['stock_a_indicator_lg', 'stock_a_lg_indicator']:
+    # 尝试多种 akshare 接口（乐咕已下线，优先东财接口）
+    candidates = [
+        ("stock_a_indicator_lg", {"symbol": code}),
+        ("stock_a_lg_indicator", {"symbol": code}),
+        # stock_a_indicator_em 返回全市场数据，过滤后取匹配的
+    ]
+    for func_name, kwargs in candidates:
         func = getattr(ak, func_name, None)
         if func is None:
             continue
         try:
-            df = func(symbol=code)
+            df = _run_with_timeout(func, kwargs=kwargs, timeout=15)
             if df is not None and not df.empty:
                 return df
-        except Exception:
+        except Exception as e:
+            logger.warning(f"  {code}: {func_name} 失败: {e}")
             continue
-    logger.warning(f"  {code}: akshare PE/PB 接口均不可用（乐咕数据源可能已下线）")
+
+    # 最后尝试 stock_a_indicator_em（东财全市场接口，需过滤）
+    try:
+        func = getattr(ak, "stock_a_indicator_em", None)
+        if func:
+            df = _run_with_timeout(func, timeout=20)
+            if df is not None and not df.empty:
+                # 查找匹配代码的行
+                row = df[df["代码"] == code]
+                if not row.empty:
+                    # 构造与 save_indicator 兼容的格式
+                    r = row.iloc[0]
+                    import pandas as pd
+                    return pd.DataFrame([{
+                        "trade_date": datetime.now().strftime("%Y-%m-%d"),
+                        "pe": r.get("市盈率-动态"),
+                        "pe_ttm": r.get("市盈率-动态"),
+                        "pb": r.get("市净率"),
+                        "ps": None,
+                        "ps_ttm": None,
+                        "dv_ratio": r.get("股息率"),
+                        "dv_ttm": r.get("股息率"),
+                        "total_mv": r.get("总市值"),
+                        "circ_mv": r.get("流通市值"),
+                    }])
+    except Exception as e:
+        logger.warning(f"  {code}: stock_a_indicator_em 失败: {e}")
+
+    logger.warning(f"  {code}: 所有 akshare 接口均不可用")
     return None
 
 
