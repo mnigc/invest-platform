@@ -110,6 +110,69 @@ export interface YieldCurveResponse {
   spreads: BondSpread[]
 }
 
+// ── 曲线形态判定 ──
+export type CurveShape = 'steepening' | 'flattening' | 'inverted' | 'normal'
+
+export interface CurveShapeAssessment {
+  shape: CurveShape
+  label: string
+  description: string
+  // 10Y-2Y 利差（bp）
+  spread10y2y: number | null
+  // 10Y-2Y 历史分位（0-100）
+  spreadPercentile1y: number | null
+  spreadPercentile5y: number | null
+}
+
+// ── 中美利差 ──
+export interface CnUsSpreadPoint {
+  date: string
+  cn10y: number | null
+  us10y: number | null
+  spread: number | null
+}
+
+export interface CnUsSpreadResponse {
+  latestDate: string
+  latest: {
+    cn10y: number | null
+    us10y: number | null
+    spread: number | null
+    change: number | null
+  }
+  history: CnUsSpreadPoint[]
+  // 警戒线（如 -100bp / -150bp）
+  warningLines: { label: string; valueBp: number }[]
+  // 历史分位
+  percentile1y: number | null
+  percentile5y: number | null
+  // 历史倒挂次数（spread < 0 持续 >= 5 交易日）
+  inversionCount: number
+}
+
+// ── Nelson-Siegel 三因子分解 ──
+export interface NelsonSiegelFactors {
+  date: string
+  level: number | null   // β0 水平因子
+  slope: number | null   // β1 斜率因子
+  curvature: number | null // β2 曲率因子
+}
+
+export interface CurveDynamicsResponse {
+  country: string
+  lambda: number
+  history: NelsonSiegelFactors[]
+  latest: NelsonSiegelFactors | null
+  // 三因子历史分位
+  percentiles: {
+    level: number | null
+    slope: number | null
+    curvature: number | null
+  }
+  // 拟合优度
+  latestRmse: number | null
+}
+
 export type RegimeType =
   | 'GOLDILOCKS'
   | 'RISK_ON'

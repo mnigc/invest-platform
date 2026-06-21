@@ -1,23 +1,13 @@
 ---
-import { fetchApi } from '../lib/api'
 import type { UsSnapshotData, CnSnapshotData } from '../lib/api'
 
 import CnHeader from './snapshot/cn/CnHeader'
 import CnHeroPanel from './snapshot/cn/CnHeroPanel'
-import CnFundFlow from './snapshot/cn/CnFundFlow'
-import CnSectorTheme from './snapshot/cn/CnSectorTheme'
-import CnVolumeMicro from './snapshot/cn/CnVolumeMicro'
 import CnValuation from './snapshot/cn/CnValuation'
-import CnPolicyRisk from './snapshot/cn/CnPolicyRisk'
 import CnOutlook from './snapshot/cn/CnOutlook'
 
 import UsHeader from './snapshot/us/UsHeader'
-import UsCoreIndices from './snapshot/us/UsCoreIndices'
-import UsMarketInternals from './snapshot/us/UsMarketInternals'
 import UsMacroRisk from './snapshot/us/UsMacroRisk'
-import UsSectorTheme from './snapshot/us/UsSectorTheme'
-import UsMicroAnomaly from './snapshot/us/UsMicroAnomaly'
-import UsSentimentOutlook from './snapshot/us/UsSentimentOutlook'
 import UsSummary from './snapshot/us/UsSummary'
 import UsHeroPanel from './regime/UsHeroPanel'
 import AnomalyAlertPanel from './regime/AnomalyAlertPanel'
@@ -82,12 +72,21 @@ try {
       <CnHeader data={cnData?.header} client:load />
       <CnHeroPanel indices={cnData?.indices} client:load />
       <div class="panels-grid-3col">
-        <CnFundFlow client:load />
-        <CnSectorTheme data={cnData?.sectors} client:load />
-        <CnVolumeMicro client:load />
         <CnValuation data={cnData?.valuation} client:load />
-        <CnPolicyRisk client:load />
         <CnOutlook data={cnData?.summary} client:load />
+      </div>
+      <div class="indicator-links-panel">
+        <div class="indicator-links-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          中国经济指标
+        </div>
+        <div class="indicator-links">
+          <a href="/indicators/CN/GDP" class="indicator-link"><span class="indicator-code">GDP</span><span class="indicator-name">国内生产总值</span></a>
+          <a href="/indicators/CN/CPI" class="indicator-link"><span class="indicator-code">CPI</span><span class="indicator-name">居民消费价格指数</span></a>
+          <a href="/indicators/CN/PPI" class="indicator-link"><span class="indicator-code">PPI</span><span class="indicator-name">工业生产者出厂价格</span></a>
+          <a href="/indicators/CN/PMI" class="indicator-link"><span class="indicator-code">PMI</span><span class="indicator-name">制造业采购经理人指数</span></a>
+          <a href="/indicators/CN/RETAIL" class="indicator-link"><span class="indicator-code">RETAIL</span><span class="indicator-name">社会消费品零售总额</span></a>
+        </div>
       </div>
     </div>
 
@@ -95,16 +94,28 @@ try {
       <UsHeader data={usData?.header} client:load />
       <UsHeroPanel indices={usData?.coreIndices} client:load />
       <div class="panels-grid-3col">
-        <UsMarketInternals data={usData?.marketInternals} client:load />
         <UsMacroRisk data={usData?.macroRisk} client:load />
-        <UsSectorTheme data={usData?.sectorTheme} client:load />
-        <UsMicroAnomaly data={usData?.microAnomaly} client:load />
-        <UsSentimentOutlook data={usData?.sentiment} client:load />
         <AnomalyAlertPanel client:load />
       </div>
       <div class="panels-grid">
         <BacktestPanel client:load class="full-span" />
         <UsSummary data={usData?.summary} client:load class="full-span" />
+      </div>
+      <div class="indicator-links-panel">
+        <div class="indicator-links-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          美国经济指标
+        </div>
+        <div class="indicator-links">
+          <a href="/indicators/US/GDP" class="indicator-link"><span class="indicator-code">GDP</span><span class="indicator-name">国内生产总值</span></a>
+          <a href="/indicators/US/CPI" class="indicator-link"><span class="indicator-code">CPI</span><span class="indicator-name">居民消费价格指数</span></a>
+          <a href="/indicators/US/PPI" class="indicator-link"><span class="indicator-code">PPI</span><span class="indicator-name">生产者价格指数</span></a>
+          <a href="/indicators/US/PCE" class="indicator-link"><span class="indicator-code">PCE</span><span class="indicator-name">个人消费支出物价</span></a>
+          <a href="/indicators/US/PMI" class="indicator-link"><span class="indicator-code">PMI</span><span class="indicator-name">制造业采购经理人指数</span></a>
+          <a href="/indicators/US/UMCSENT" class="indicator-link"><span class="indicator-code">UMCSENT</span><span class="indicator-name">消费者信心指数</span></a>
+          <a href="/indicators/US/RSXFS" class="indicator-link"><span class="indicator-code">RSXFS</span><span class="indicator-name">零售销售</span></a>
+          <a href="/indicators/US/FEDFUNDS" class="indicator-link"><span class="indicator-code">FEDFUNDS</span><span class="indicator-name">联邦基金利率</span></a>
+        </div>
       </div>
     </div>
   </div>
@@ -208,10 +219,46 @@ try {
     gap: 12px;
     margin-top: 12px;
   }
-  @media (max-width: 1400px) {
+  @media (max-width: 1200px) {
     .panels-grid-3col { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 900px) {
     .panels-grid-3col { grid-template-columns: 1fr; }
   }
+
+  .indicator-links-panel {
+    margin-top: 16px;
+    padding: 16px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+  }
+  .indicator-links-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .indicator-links-title svg { color: var(--accent-cyan); }
+  .indicator-links {
+    display: flex; flex-wrap: wrap; gap: 10px;
+  }
+  .indicator-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary); text-decoration: none;
+    transition: all var(--transition-fast);
+  }
+  .indicator-link:hover {
+    background: var(--accent-blue-dim);
+    border-color: var(--accent-blue);
+    color: var(--text-primary);
+  }
+  .indicator-code {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    color: var(--accent-cyan); min-width: 44px;
+  }
+  .indicator-name { font-size: 12px; font-weight: 500; }
 </style>

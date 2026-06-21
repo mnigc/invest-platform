@@ -5,6 +5,12 @@ import { query, queryOne } from '../../../../lib/db'
 import { withCache } from '../../../../lib/cache'
 import type { YieldCurveResponse, YieldCurvePoint, BondSpread } from '../../../../lib/core'
 
+// ⚠️ 本接口已升级，建议改用：
+//   - /api/v1/bonds.json?region=US  （中美统一国债接口，含曲线形态判定）
+//   - /api/v1/bonds/curve-dynamics.json?region=US  （Nelson-Siegel 三因子分解）
+//   - /api/v1/bonds/cn-us-spread.json  （中美 10Y 利差）
+// 保留本接口仅为向后兼容 erp.json 子路由。
+
 const CURVE_TENORS = ['DGS1MO','DGS3MO','DGS6MO','DGS1','DGS2','DGS3','DGS5','DGS7','DGS10','DGS20','DGS30']
 const TENOR_LABELS: Record<string, string> = {
   DGS1MO: '1M', DGS3MO: '3M', DGS6MO: '6M', DGS1: '1Y', DGS2: '2Y',

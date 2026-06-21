@@ -167,6 +167,13 @@ const INDICATOR_INFO: Record<string, Record<string, {
       future_up: '若社零持续走强，消费对GDP拉动增强，可选消费（食品饮料、家电、服装、餐饮旅游）盈利修复确定性提升。',
       future_down: '若社零持续走弱，政策端可能通过发放消费券、下调消费税率、稳就业措施和房地产松绑等方式改善居民消费能力与预期。',
     },
+    PMI: {
+      definition: '中国制造业采购经理人指数（PMI）由国家统计局发布，通过对企业采购经理的月度调查汇总而成，50为荣枯分界线。',
+      up_means: 'PMI高于50并上行意味着制造业扩张加速，新订单、生产、就业分项改善，工业企业景气回升，经济动能增强。',
+      down_means: 'PMI低于50或持续下行意味着制造业收缩，需求不足、库存积压、企业补库意愿弱，经济面临下行压力。',
+      future_up: '若PMI持续高于50，政策端可能保持中性，上游原材料、工业制造、出口链相关板块盈利修复确定性提升。',
+      future_down: '若PMI跌破荣枯线并持续走弱，可能触发降准降息、基建加码、制造业设备更新补贴等稳增长政策出台。',
+    },
   },
 };
 
@@ -412,6 +419,13 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     align-items: flex-start;
   }
 
+  @media (max-width: 640px) {
+    .hero-header {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+  }
+
   .hero-left {
     min-width: 0;
   }
@@ -462,12 +476,27 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     gap: 10px;
   }
 
+  @media (max-width: 640px) {
+    .hero-changes {
+      flex-direction: column;
+      width: 100%;
+    }
+  }
+
   .change-item {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border-light);
     border-radius: 8px;
     padding: 8px 14px;
     min-width: 100px;
+    flex: 1;
+  }
+
+  @media (max-width: 640px) {
+    .change-item {
+      width: 100%;
+      box-sizing: border-box;
+    }
   }
 
   .change-item.positive {

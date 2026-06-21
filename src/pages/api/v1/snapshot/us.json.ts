@@ -18,17 +18,16 @@ export const GET = withCache(async () => {
   const [
     coreIndices,
     macroRiskIndicators,
-    sectorEtfs,
-    allAssets,
     vixIndicator,
   ] = await Promise.all([
     safeQuery(
       `SELECT a.symbol, a.name_zh AS name, s.last_price AS price,
-              COALESCE(s.change_percent, 0) AS \`change\`
+              COALESCE(s.change_percent, 0) AS \`change\`, a.sub_category
        FROM asset_snapshots s
        JOIN assets a ON a.id = s.asset_id
-       WHERE a.is_active = TRUE AND a.sub_category = '美股'
-       ORDER BY FIELD(a.symbol, '^GSPC', '^IXIC', '^DJI', '^RUT')`
+       WHERE a.is_active = TRUE
+         AND (a.sub_category = '美股' OR a.sub_category = '指数ETF' OR a.symbol IN ('SOX','^VIX'))
+       ORDER BY FIELD(a.symbol, '^GSPC', '^IXIC', '^DJI', '^RUT', 'SOX', '^VIX')`
     ),
     safeQuery(
       `SELECT i.code, i.name_zh AS name, d.value, i.unit
@@ -38,21 +37,6 @@ export const GET = withCache(async () => {
          AND d.period_date = (SELECT MAX(d2.period_date) FROM indicator_data d2 WHERE d2.indicator_id = d.indicator_id)`
     ),
     safeQuery(
-      `SELECT a.symbol, a.name_zh AS name, s.last_price AS price,
-              COALESCE(s.change_percent, 0) AS \`change\`
-       FROM asset_snapshots s
-       JOIN assets a ON a.id = s.asset_id
-       WHERE a.is_active = TRUE AND a.sub_category = '行业ETF'
-       ORDER BY \`change\` DESC`
-    ),
-    safeQuery(
-      `SELECT a.symbol, a.name_zh AS name, a.sub_category,
-              s.last_price AS price, COALESCE(s.change_percent, 0) AS \`change\`, s.volume
-       FROM asset_snapshots s
-       JOIN assets a ON a.id = s.asset_id
-       WHERE a.is_active = TRUE`
-    ),
-    safeQuery(
       `SELECT d.value FROM indicator_data d
        JOIN indicators i ON i.id = d.indicator_id
        WHERE i.code = 'VIXCLS'
@@ -60,65 +44,23 @@ export const GET = withCache(async () => {
     ),
   ])
 
-  const mag7Symbols = ['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA']
-  const mag7 = allAssets
-    .filter((a: any) => mag7Symbols.includes(a.symbol))
-    .map((a: any) => ({ symbol: a.symbol, name: a.name, change: a.change }))
-
-  const soxAsset = allAssets.find((a: any) => a.symbol === 'SOX')
-  const sox = soxAsset ? { price: Number(soxAsset.price), change: Number(soxAsset.change) } : undefined
-
-  const stockAssets = allAssets.filter((a: any) => a.sub_category === '美股' || a.sub_category === '行业ETF')
-  const advances = stockAssets.filter((a: any) => Number(a.change) > 0).length
-  const declines = stockAssets.filter((a: any) => Number(a.change) < 0).length
-
-  const marketInternals = {
-    breadth: { advance: advances, decline: declines, newHigh: 0, newLow: 0 },
-    maDist: { above20: 0, above50: 0, above200: 0 },
-    mag7: mag7.length > 0 ? mag7 : undefined,
-    sox,
-  }
-
   const vixVal = vixIndicator?.[0]?.value
   const vix = vixVal != null ? Number(vixVal) : undefined
-  const sentiment = {
-    vix,
-    cta: vix != null ? (vix < 15 ? '偏乐观' : vix > 25 ? '偏防御' : '中性') : '--',
-    watchPoints: vix != null ? [
-      `VIX ${vix.toFixed(1)}` + (vix < 15 ? ' 处于低位，市场情绪偏乐观' : vix > 25 ? ' 偏高，警惕波动加剧' : ' 处于中性区间'),
-      mag7.length > 0 ? 'Mag7 涨跌分化，关注龙头动向' : '等待 Mag7 数据同步',
-    ] : ['等待波动率数据同步'],
-  }
 
-  const topVolume = [...allAssets]
-    .filter((a: any) => a.volume != null)
-    .sort((a: any, b: any) => Number(b.volume) - Number(a.volume))
-    .slice(0, 3)
-    .map((a: any) => ({ symbol: a.symbol, name: a.name, ratio: 1.5, change: Number(a.change) }))
-
-  const momentumCands = [...stockAssets]
-    .filter((a: any) => Number(a.change) > 1.5)
-    .sort((a: any, b: any) => Number(b.change) - Number(a.change))
-    .slice(0, 3)
-    .map((a: any) => ({ symbol: a.symbol, name: a.name, change: Number(a.change), reason: '连续走强' }))
-
-  const reversalCands = [...stockAssets]
-    .filter((a: any) => Number(a.change) < -1.5)
-    .sort((a: any, b: any) => Number(a.change) - Number(b.change))
-    .slice(0, 3)
-    .map((a: any) => ({ symbol: a.symbol, name: a.name, change: Number(a.change), reason: '明显回调' }))
-
-  const microAnomaly = {
-    volume: topVolume.length > 0 ? topVolume : [],
-    options: [],
-    momentum: momentumCands,
-    reversal: reversalCands,
-  }
-
-  const spx = coreIndices.find((i: any) => i.symbol === '^GSPC')
-  const ndx = coreIndices.find((i: any) => i.symbol === '^IXIC')
   const dgs10 = macroRiskIndicators.find((r: any) => r.code === 'DGS10')
   const fedfunds = macroRiskIndicators.find((r: any) => r.code === 'FEDFUNDS')
+
+  const rateExtra: any[] = []
+  if (dgs10) rateExtra.push({ symbol: 'US10Y', name: '10Y 美债收益率', price: Number(dgs10.value), change: 0 })
+  if (fedfunds) rateExtra.push({ symbol: 'FEDFUNDS', name: '联邦基金利率', price: Number(fedfunds.value), change: 0 })
+
+  const expandedCoreIndices = [
+    ...coreIndices,
+    ...rateExtra.filter((r) => !coreIndices.some((i: any) => i.symbol === r.symbol)),
+  ]
+
+  const spx = expandedCoreIndices.find((i: any) => i.symbol === '^GSPC')
+  const ndx = expandedCoreIndices.find((i: any) => i.symbol === '^IXIC')
 
   const evidence: string[] = []
   const falsify: string[] = []
@@ -163,16 +105,10 @@ export const GET = withCache(async () => {
           status: 'active',
           conclusion: evidence.length > 0 ? evidence[0] : '',
         },
-        coreIndices,
+        coreIndices: expandedCoreIndices,
         macroRisk: macroRiskIndicators.map((r: any) => ({
           code: r.code, name: r.name, value: r.value, unit: r.unit,
         })),
-        sectorTheme: sectorEtfs.map((s: any) => ({
-          symbol: s.symbol, name: s.name, change: s.change,
-        })),
-        marketInternals,
-        sentiment,
-        microAnomaly,
         summary: { evidence, falsify, action },
       },
     }),

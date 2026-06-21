@@ -6,13 +6,16 @@ const usIndicators = [
   { label: '个人消费支出', href: '/indicators/US/PCE' },
   { label: '消费者信心指数', href: '/indicators/US/UMCSENT' },
   { label: '零售销售', href: '/indicators/US/RSXFS' },
+  { label: '国债收益率', href: '/indicators/US/bonds' },
 ];
 
 const cnIndicators = [
   { label: 'GDP', href: '/indicators/CN/GDP' },
   { label: 'CPI', href: '/indicators/CN/CPI' },
   { label: 'PPI', href: '/indicators/CN/PPI' },
+  { label: '制造业PMI', href: '/indicators/CN/PMI' },
   { label: '社会消费品零售总额', href: '/indicators/CN/RETAIL' },
+  { label: '国债收益率', href: '/indicators/CN/bonds' },
 ];
 
 const navSections = [
@@ -30,7 +33,14 @@ const navSections = [
     items: cnIndicators,
   },
   {
+    title: '跨市场分析',
     items: [
+      { label: '中美 10Y 利差', href: '/indicators/cn-us-spread' },
+    ],
+  },
+  {
+    items: [
+      { label: '黄金数据', href: '/gold' },
       { label: '研究库', href: '/library' },
     ],
   },

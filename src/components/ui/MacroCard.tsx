@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { THEME } from './theme'
 
 interface Props {
@@ -11,21 +10,16 @@ interface Props {
 }
 
 export function MacroCard({ title, icon, badge, variant = 'default', children, className }: Props) {
-  const [hovered, setHovered] = useState(false)
-
   return (
     <div
       className={className}
       style={{
         background: THEME.bgCard,
-        border: `1px solid ${hovered ? THEME.blue : THEME.borderLight}`,
+        border: `1px solid ${THEME.borderLight}`,
         borderRadius: '16px',
         padding: '16px',
-        transition: 'all 0.2s ease',
         boxShadow: variant === 'elevated' ? `0 4px 12px rgba(0,0,0,0.6)` : '0 1px 2px rgba(0,0,0,0.5)',
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
       {title && (
         <div style={{

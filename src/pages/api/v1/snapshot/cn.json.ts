@@ -15,34 +15,36 @@ async function safeQuery(sql: string): Promise<any[]> {
 }
 
 export const GET = withCache(async () => {
-  const [
-    indices,
-    marketSentiment,
-    swSectors,
-  ] = await Promise.all([
+  const [indices, valuationRows] = await Promise.all([
     safeQuery(
-      `SELECT index_code AS symbol, index_name AS name, close_price AS price,
-              COALESCE(change_pct, 0) AS \`change\`
-       FROM index_daily
-       WHERE category = 'main'
-         AND trade_date = (SELECT MAX(trade_date) FROM index_daily WHERE category = 'main')
-       ORDER BY FIELD(index_code, '000001','399001','399006','000688','899050')`
+      `WITH latest AS (
+         SELECT index_code, index_name, trade_date, close_price,
+                ROW_NUMBER() OVER (PARTITION BY index_code ORDER BY trade_date DESC) AS rn
+         FROM index_daily
+         WHERE category = 'main' AND close_price IS NOT NULL
+       )
+       SELECT
+         l.index_code AS symbol,
+         l.index_name AS name,
+         l.trade_date,
+         l.close_price AS price,
+         ((l.close_price - p.close_price) / p.close_price * 100) AS \`change\`
+       FROM latest l
+       LEFT JOIN index_daily p
+         ON p.index_code = l.index_code
+         AND p.close_price IS NOT NULL
+         AND p.trade_date = (
+           SELECT MAX(trade_date)
+           FROM index_daily
+           WHERE index_code = l.index_code AND close_price IS NOT NULL AND trade_date < l.trade_date
+         )
+       WHERE l.rn = 1
+       ORDER BY FIELD(l.index_code, '000001','399001','399006','000688','899050','000016','000300','000852','000905')`
     ),
     safeQuery(
-      `SELECT index_code AS symbol, index_name AS name, close_price AS price,
-              COALESCE(change_pct, 0) AS \`change\`
-       FROM index_daily
-       WHERE category = 'style'
-         AND trade_date = (SELECT MAX(trade_date) FROM index_daily WHERE category = 'style')
-       ORDER BY FIELD(index_code, '399364','399365','399366','399367','399368','399369')`
-    ),
-    safeQuery(
-      `SELECT index_code AS code, index_name AS name, close_price AS price,
-              COALESCE(change_pct, 0) AS \`change\`
-       FROM index_daily
-       WHERE category = 'sw_l1'
-         AND trade_date = (SELECT MAX(trade_date) FROM index_daily WHERE category = 'sw_l1')
-       ORDER BY change_pct DESC`
+      `SELECT overall_pe, overall_pb, overall_signal, industries_json
+       FROM cn_valuation
+       ORDER BY date DESC LIMIT 1`
     ),
   ])
 
@@ -64,13 +66,6 @@ export const GET = withCache(async () => {
     if (cch > 0.5) evidence.push(`创业板 ${cch > 1 ? '强势' : '温和'}上涨 ${cch.toFixed(2)}%，成长风格占优`)
     else if (cch < -0.5) falsify.push(`创业板 ${cch.toFixed(2)}%，成长板块承压`)
   }
-  if (swSectors.length > 0) {
-    const topSec = swSectors[0]
-    const botSec = swSectors[swSectors.length - 1]
-    if (topSec && Number(topSec.change) > 0) evidence.push(`申万行业多数上涨，${topSec.name} 领涨 +${Number(topSec.change).toFixed(2)}%`)
-    if (botSec && Number(botSec.change) < 0) falsify.push(`${botSec.name} 领跌 ${Number(botSec.change).toFixed(2)}%`)
-  }
-
   if (evidence.length === 0) evidence.push('A股市场窄幅整理，等待方向选择')
   action.push('维持均衡配置，关注政策面变化')
   action.push('关注 LPR 及社融数据发布')
@@ -89,18 +84,21 @@ export const GET = withCache(async () => {
         indices: indices.map((i: any) => ({
           symbol: i.symbol, name: i.name, price: i.price, change: i.change,
         })),
-        styleIndices: marketSentiment.map((s: any) => ({
-          symbol: s.symbol, name: s.name, change: s.change,
-        })),
-        sectors: swSectors.map((s: any) => ({
-          code: s.code, name: s.name, change: s.change, price: s.price,
-        })),
-        fundFlow: { northbound: 0, southbound: 0, margin: 0 },
-        valuation: {
-          overallPE: undefined,
-          overallSignal: undefined,
-          industries: [],
-        },
+        valuation: (() => {
+          const v = valuationRows?.[0]
+          let industries: any[] = []
+          try {
+            industries = v?.industries_json ? JSON.parse(v.industries_json) : []
+          } catch (e) {
+            console.error('[cn.json.ts] parse industries_json failed', e)
+          }
+          return {
+            overallPE: v?.overall_pe != null ? Number(v.overall_pe) : undefined,
+            overallPB: v?.overall_pb != null ? Number(v.overall_pb) : undefined,
+            overallSignal: v?.overall_signal || undefined,
+            industries: Array.isArray(industries) ? industries : [],
+          }
+        })(),
         summary: { evidence, falsify, action },
       },
     }),

@@ -1,7 +1,18 @@
-# 投资平台同步工具依赖
+# 同步脚本依赖
+# 安装：pip install -r requirements.txt
 
-# 核心依赖
+# ===== 数据库 =====
 pymysql>=1.1.0
-yfinance>=1.4.0
-requests>=2.31.0
-akshare>=1.18.64
+PyMySQL>=1.1.0
+
+# ===== 金融数据源 =====
+yfinance>=0.2.40           # 美股/ETF/A股主要指数 —— 海外直连稳定
+requests>=2.31.0           # FRED 等 REST API
+akshare>=1.18.64           # A 股行业 / 中国宏观 —— 海外环境建议配置 HTTP_PROXY 回国内
+
+# ===== 通用 =====
+pandas>=2.0.0              # 所有脚本均用 pandas 处理返回
+
+# ===== 可选 =====
+python-dotenv>=1.0.0       # 允许用 .env 文件加载环境变量（不装也行，直接 export）
+# tushare>=1.2.89           # 如需使用 Tushare Pro 作为中国数据备用源（需 TUSHARE_TOKEN）

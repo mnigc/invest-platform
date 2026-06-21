@@ -21,6 +21,10 @@ const FALLBACK_INDICES: CoreIndex[] = [
   { name: 'NASDAQ 100', code: 'NDX', value: 19685.42, change: 0.68 },
   { name: 'Dow Jones', code: 'DJI', value: 38920.35, change: -0.12 },
   { name: 'Russell 2000', code: 'RUT', value: 2042.18, change: -0.45 },
+  { name: '费城半导体', code: 'SOX', value: 5320.18, change: 1.25 },
+  { name: 'VIX 波动率', code: 'VIX', value: 14.32, change: -2.15 },
+  { name: '10Y 美债收益率', code: 'US10Y', value: 4.25, change: 0.08 },
+  { name: '2Y 美债收益率', code: 'US2Y', value: 4.68, change: -0.03 },
 ]
 
 export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null }) {
@@ -35,9 +39,23 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
     return () => { cancelled = true }
   }, [])
 
-  const finalIndices = indices && indices.length > 0
-    ? indices.map((d: any) => ({ name: d.name, code: d.symbol?.replace('^', '') || '', value: d.price, change: d.change }))
-    : FALLBACK_INDICES
+  const apiIndices = indices && indices.length > 0
+    ? indices.map((d: any) => ({
+        name: d.name,
+        code: d.symbol?.replace('^', '') || '',
+        value: d.price,
+        change: d.change,
+      }))
+    : []
+
+  const filledIndices: CoreIndex[] = [...apiIndices]
+  for (const fb of FALLBACK_INDICES) {
+    if (!apiIndices.some((a) => a.code === fb.code)) {
+      filledIndices.push(fb)
+    }
+  }
+
+  const finalIndices = filledIndices.length > 0 ? filledIndices : FALLBACK_INDICES
 
   const rs = regime ? REGIME_STYLES[regime.regime] || REGIME_STYLES.UNKNOWN : REGIME_STYLES.UNKNOWN
   const goodCount = regime ? regime.signals.filter((s: RegimeSignal) => s.score === 1).length : 0

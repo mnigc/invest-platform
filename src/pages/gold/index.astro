@@ -1,0 +1,30 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import GoldDashboard from '../../components/GoldDashboard';
+---
+
+<Layout title="黄金数据 | CN-US MACRO">
+  <div class="page-header">
+    <h1 class="title">黄金数据</h1>
+    <p class="subtitle">全球央行黄金储备 / 月度增持减持 / 伦敦黄金定盘价</p>
+  </div>
+  <GoldDashboard client:load />
+</Layout>
+
+<style>
+  .page-header {
+    margin-bottom: 20px;
+  }
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+    font-family: var(--font-display);
+  }
+  .subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+</style>

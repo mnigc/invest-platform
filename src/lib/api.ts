@@ -24,27 +24,6 @@ export interface UsSnapshotData {
   header: { date: string; status: string; conclusion: string }
   coreIndices: Array<{ symbol: string; name: string; price: number; change: number }>
   macroRisk: Array<{ code: string; name: string; value: number; unit: string }>
-  sectorTheme: Array<{ symbol: string; name: string; change: number }>
-  marketInternals: {
-    breadth?: { advance: number; decline: number; newHigh: number; newLow: number }
-    maDist?: { above20: number; above50: number; above200: number }
-    mag7?: Array<{ symbol: string; name: string; change: number }>
-    sox?: { price: number; change: number }
-  }
-  sentiment: {
-    vix?: number
-    putCallRatio?: number
-    events?: Array<{ date: string; name: string; impact: string }>
-    cta?: string
-    gamma?: string
-    watchPoints?: string[]
-  }
-  microAnomaly: {
-    volume: Array<{ symbol: string; name: string; ratio: number; change: number }>
-    options: Array<{ symbol: string; name: string; premium: number; direction: string }>
-    momentum: Array<{ symbol: string; name: string; change: number; reason: string }>
-    reversal: Array<{ symbol: string; name: string; change: number; reason: string }>
-  }
   summary: { evidence: string[]; falsify: string[]; action: string[] }
 }
 
@@ -59,13 +38,11 @@ export interface Indicator {
 export interface CnSnapshotData {
   header: { tradeDate: string; sentiment: string; conclusion: string }
   indices: Array<{ symbol: string; name: string; price: number; change: number }>
-  styleIndices: Array<{ symbol: string; name: string; change: number }>
-  sectors: Array<{ code: string; name: string; change: number; price?: number }>
-  fundFlow: { northbound: number; southbound: number; margin: number }
   valuation: {
     overallPE?: number
+    overallPB?: number
     overallSignal?: string
-    industries: Array<{ name: string; pe: number; pb: number; stockCount: number }>
+    industries: Array<{ name: string; pe?: number; pb?: number; stockCount?: number }>
   }
   summary: { evidence: string[]; falsify: string[]; action: string[] }
 }

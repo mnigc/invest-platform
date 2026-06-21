@@ -1,0 +1,84 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import BondDashboard from '../../../components/BondDashboard';
+
+const origin = Astro.url.origin;
+let data: any = null;
+let error: string | null = null;
+
+try {
+  const res = await fetch(`${origin}/api/v1/bonds.json?region=US`, {
+    headers: { 'Accept': 'application/json' },
+  });
+
+  if (!res.ok) {
+    error = `HTTP ${res.status}`;
+  } else {
+    const json = await res.json();
+    if (json.success) {
+      data = json.data?.US ?? null;
+      if (!data) error = '暂无数据（请确认 FRED 同步任务已执行）';
+    } else {
+      error = json.error || '加载失败';
+    }
+  }
+} catch (e: any) {
+  error = e?.message || '网络错误';
+}
+---
+
+<Layout title="美国国债收益率 - CN-US MACRO">
+  <div class="page-animate">
+    <div class="page-header">
+      <div class="breadcrumb">
+        <a href="/">首页</a>
+        <span class="sep">/</span>
+        <a href="/indicators/US/GDP">美国经济指标</a>
+        <span class="sep">/</span>
+        <span>国债收益率</span>
+      </div>
+      <h1>美国国债收益率</h1>
+      <p class="subtitle">收益率曲线 · 期限利差 · Nelson-Siegel 三因子 · 长端趋势</p>
+    </div>
+
+    {error ? (
+      <div class="error-box">
+        ⚠️ {error}
+      </div>
+    ) : (
+      <BondDashboard data={data} region="US" client:load />
+    )}
+  </div>
+</Layout>
+
+<style>
+  .page-animate {
+    animation: fadeIn 0.3s ease;
+  }
+  .page-header {
+    margin-bottom: 20px;
+  }
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .breadcrumb a { color: var(--text-muted); transition: color var(--transition-fast); }
+  .breadcrumb a:hover { color: var(--accent-cyan); }
+  .sep { color: var(--border-color); font-size: 10px; }
+  .page-header h1 {
+    font-size: 22px; font-weight: 700; font-family: var(--font-display);
+    letter-spacing: 0.02em; color: var(--text-primary); margin: 0;
+  }
+  .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .error-box {
+    padding: 14px 18px; border-radius: var(--radius-xl);
+    background: var(--red-bg); color: var(--red); font-size: 13px;
+    border: 1px solid rgba(242, 54, 69, 0.2);
+  }
+</style>
