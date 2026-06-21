@@ -13,13 +13,12 @@ import UsHeroPanel from './regime/UsHeroPanel'
 import AnomalyAlertPanel from './regime/AnomalyAlertPanel'
 import BacktestPanel from './regime/BacktestPanel'
 
-const origin = Astro.url.origin
+const PORT = import.meta.env.PORT || 4321
 let usData: UsSnapshotData | null = null
 let cnData: CnSnapshotData | null = null
-let fetchError: string | null = null
 
 try {
-  const API_BASE = import.meta.env.API_BASE || `${origin}/api/v1`
+  const API_BASE = import.meta.env.API_BASE || `http://127.0.0.1:${PORT}/api/v1`
   const [usRes, cnRes] = await Promise.all([
     fetch(`${API_BASE}/snapshot/us.json`, { headers: { 'Accept': 'application/json' } }),
     fetch(`${API_BASE}/snapshot/cn.json`, { headers: { 'Accept': 'application/json' } }),
@@ -33,7 +32,7 @@ try {
     if (json.success) cnData = json.data
   }
 } catch (e: any) {
-  fetchError = e.message
+  console.error('[DailySnapshot] SSR fetch failed:', e.message)
 }
 ---
 
@@ -50,10 +49,6 @@ try {
         </div>
       </div>
       <div class="header-meta">
-        <div class="live-indicator">
-          <span class="live-dot"></span>
-          <span>实时数据</span>
-        </div>
         <div class="tabs-container">
           <button class="tab-btn" data-tab="cn" role="tab" aria-selected="true">
             <span>🇨🇳 中国市场</span>
@@ -64,7 +59,6 @@ try {
         </div>
       </div>
     </div>
-    {fetchError && <div class="fetch-error">⚠️ 数据加载异常: {fetchError}</div>}
   </div>
 
   <div class="snapshot-content" id="snapshotContent">
@@ -179,10 +173,6 @@ try {
     background: var(--accent-cyan); animation: neonPulse 2s ease-in-out infinite;
   }
   .live-indicator span { font-size: 12px; font-weight: 600; color: var(--accent-cyan); font-family: var(--font-display); letter-spacing: 0.06em; }
-  .fetch-error {
-    margin-top: 8px; padding: 6px 12px; border-radius: var(--radius-md);
-    background: var(--red-bg); color: var(--red); font-size: 12px;
-  }
   .tabs-container {
     display: flex; gap: 8px; background: var(--bg-card);
     border-radius: var(--radius-lg); padding: 4px; border: 1px solid var(--border-light);
