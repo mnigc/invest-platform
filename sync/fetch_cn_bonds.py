@@ -224,7 +224,7 @@ def main():
 
     daily = "--daily" in sys.argv
     today = date.today()
-    start = today - timedelta(days=7 if daily else 365)  # default 1 year backfill
+    start = today - timedelta(days=7 if daily else 365 * 5)  # default 5 year backfill
     log.info("syncing CN treasury yields (%s ~ %s)", start, today)
 
     ensure_indicators()

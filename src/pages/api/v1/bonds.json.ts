@@ -78,8 +78,7 @@ async function fetchRegion(
   const codeList = Object.keys(codes);
   const placeholders = codeList.map(() => '?').join(',');
 
-  // 只取最近 500 天的数据，足够计算 change + 250 天 history + 1Y 分位
-  // 避免全表扫描返回 14 万行导致响应体过大
+  // 取最近 1825 天（5 年）数据
   const rawRows = await query<any>(
     `SELECT i.code, i.name_zh, d.period_date, d.value
      FROM indicators i
@@ -87,7 +86,7 @@ async function fetchRegion(
      WHERE i.region = ? AND i.code IN (${placeholders})
        AND i.is_active = TRUE
        AND d.value IS NOT NULL
-       AND d.period_date >= DATE_SUB(CURDATE(), INTERVAL 500 DAY)
+       AND d.period_date >= DATE_SUB(CURDATE(), INTERVAL 1825 DAY)
      ORDER BY i.code, d.period_date DESC`,
     [region, ...codeList],
   );
@@ -109,9 +108,8 @@ async function fetchRegion(
     });
   }
 
-  // 限制 history 长度：只保留最近 N 天，避免响应体过大
-  // 前端趋势图通常只显示 1-3 年，250 个交易日足够
-  const MAX_HISTORY_POINTS = 250;
+  // 限制 history 长度：保留最近 1250 天（约 5 年交易日）
+  const MAX_HISTORY_POINTS = 1250;
 
   let latestDate = '';
   const series: BondSeries[] = [];

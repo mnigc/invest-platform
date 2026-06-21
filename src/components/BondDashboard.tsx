@@ -64,20 +64,23 @@ function SpreadCard({ label, value, change }: { label: string; value: number | n
   const isUp = (change || 0) >= 0
   return (
     <div style={{
-      padding: '14px 18px', background: THEME.bgCard, borderRadius: '12px',
-      border: `1px solid ${THEME.borderLight}`, display: 'flex', flexDirection: 'column', gap: '6px',
-      flex: 1, minWidth: 0,
+      padding: '18px 20px', background: THEME.bgCard, borderRadius: '14px',
+      border: `1px solid ${THEME.borderLight}`, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', textAlign: 'center', gap: '8px', minWidth: 0,
     }}>
       <div style={{ fontSize: '11px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.2 }}>
+      <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.1 }}>
         {value > 0 ? '+' : ''}{value.toFixed(2)}%
       </div>
       {change != null && (
         <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '3px',
+          padding: '2px 8px', borderRadius: '6px',
           fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontMono,
           color: isUp ? THEME.green : THEME.red,
+          background: isUp ? THEME.greenBg : THEME.redBg,
         }}>
-          {isUp ? '↑' : '↓'} {Math.abs(change).toFixed(2)}bp
+          {isUp ? '↑' : '↓'} {Math.abs(change * 100).toFixed(1)}bp
         </div>
       )}
     </div>
@@ -113,6 +116,218 @@ function CurveShapeBadge({ shape }: { shape?: CurveShapeAssessment | null }) {
     }}>
       {shape.label}
     </span>
+  )
+}
+
+// ── Curve Shape 说明条 ──
+function CurveShapeSummary({ shape }: { shape?: CurveShapeAssessment | null }) {
+  if (!shape) return null
+  const colorMap: Record<string, string> = {
+    inverted: THEME.red,
+    steepening: THEME.gold,
+    flattening: THEME.cyan,
+    normal: THEME.green,
+  }
+  const color = colorMap[shape.shape] || THEME.textSecondary
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+      padding: '12px 16px', marginTop: '12px',
+      background: 'rgba(255,255,255,0.02)', borderRadius: '8px',
+      border: `1px solid ${THEME.borderLight}`,
+      fontSize: '12px', lineHeight: 1.5,
+    }}>
+      <CurveShapeBadge shape={shape} />
+      <span style={{ color: THEME.textSecondary }}>{shape.description}</span>
+      {shape.spread10y2y != null && (
+        <span style={{ fontFamily: THEME.fontMono, color: shape.spread10y2y >= 0 ? THEME.green : THEME.red, fontWeight: 600 }}>
+          10Y-2Y = {(shape.spread10y2y * 100).toFixed(1)}bp
+        </span>
+      )}
+      {shape.spreadPercentile1y != null && (
+        <span style={{ color: THEME.textMuted }}>
+          1Y分位 {shape.spreadPercentile1y.toFixed(0)}%
+        </span>
+      )}
+    </div>
+  )
+}
+
+function DailyBondSummary({
+  region, tenYear, shape, spreads, latestDate,
+}: {
+  region: 'US' | 'CN'
+  tenYear: BondSeries | undefined
+  shape: CurveShapeAssessment | null | undefined
+  spreads: Record<string, { value: number | null; change: number | null }>
+  latestDate: string
+}) {
+  const spread10y2y = spreads['2Y-10Y']
+  const summaryItems: string[] = []
+  if (tenYear?.latest) {
+    summaryItems.push(`${region === 'US' ? '美国' : '中国'}10年期国债收益率当前报 ${tenYear.latest.value.toFixed(3)}%`)
+  }
+  if (tenYear?.change != null) {
+    summaryItems.push(`日间${tenYear.change >= 0 ? '上行' : '下行'} ${Math.abs(tenYear.change * 100).toFixed(1)}bp`)
+  }
+  if (shape) {
+    summaryItems.push(`收益率曲线形态：${shape.description}`)
+  }
+  if (spread10y2y?.value != null) {
+    summaryItems.push(`2Y-10Y 利差 ${spread10y2y.value >= 0 ? '+' : ''}${(spread10y2y.value * 100).toFixed(1)}bp（${spread10y2y.value >= 0 ? '正常' : '倒挂'}）`)
+  }
+
+  return (
+    <div style={{
+      padding: '18px 20px', background: THEME.bgElevated, borderRadius: '14px',
+      border: `1px solid ${THEME.borderLight}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={THEME.cyan} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.03em', color: THEME.textPrimary }}>
+          今日债市 · {latestDate}
+        </span>
+      </div>
+      <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
+        {summaryItems.join('；')}。
+      </p>
+    </div>
+  )
+}
+
+const BOND_EDUCATION_OPEN = true
+
+function BondEducation({ region }: { region: 'US' | 'CN' }) {
+  const title = region === 'US' ? '美国国债' : '中国国债'
+  const [open, setOpen] = useState(BOND_EDUCATION_OPEN)
+
+  return (
+    <div style={{
+      borderRadius: '14px', border: `1px solid ${THEME.borderLight}`,
+      background: THEME.bgCard, overflow: 'hidden',
+    }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '14px 18px', cursor: 'pointer', userSelect: 'none',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={THEME.cyan} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <span style={{ flex: 1, fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.03em', color: THEME.textPrimary }}>
+          {title}收益率 · 一图读懂
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={THEME.textMuted} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{ padding: '0 18px 16px', fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
+          <p style={{ margin: '0 0 14px 0' }}>
+            <span style={{ color: THEME.textPrimary, fontWeight: 700 }}>{title}</span>
+            是{region === 'US' ? '美国联邦政府' : '中国中央政府'}为筹集财政资金而发行的债券，以国家信用为担保，被公认为全球最安全的资产之一。其<strong>收益率（利率）</strong>不仅是政府的借钱成本，更是全球金融市场的"定海神针"——所有资产的定价都或多或少参考它。
+          </p>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
+          }}>
+            {/* 利率上行 */}
+            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+              <div style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
+                color: THEME.red, background: 'rgba(242,54,69,0.06)', borderBottom: '1px solid rgba(242,54,69,0.15)',
+              }}>
+                📈 利率上行
+              </div>
+              <div style={{ padding: '10px 14px' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>触发因素：</div>
+                <ul style={{ margin: '6px 0 12px 0', paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>经济过热、通胀高企</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>央行加息（FOMC / 人行）</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>国债供给大增（财政赤字扩大）</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>全球避险情绪降温，资金从债市流出</li>
+                </ul>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>市场影响：</div>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>债市价格下跌，债券持有人亏损</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>股市估值承压（贴现率上升）</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>房贷、企业融资成本上升</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>美元/人民币走强（利差吸引）</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>黄金吸引力下降（持有成本增加）</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 利率下行 */}
+            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+              <div style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
+                color: THEME.green, background: 'rgba(8,153,129,0.06)', borderBottom: '1px solid rgba(8,153,129,0.15)',
+              }}>
+                📉 利率下行
+              </div>
+              <div style={{ padding: '10px 14px' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>触发因素：</div>
+                <ul style={{ margin: '6px 0 12px 0', paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>经济放缓、衰退风险</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>央行降息 / 宽松政策</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>通胀回落、通缩压力</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>避险资金涌入（地缘危机 / 金融危机）</li>
+                </ul>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>市场影响：</div>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>债市价格上涨，债券持有人盈利</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>股市估值修复，成长风格受益</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>房贷、企业融资成本下降</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>美元/人民币走弱</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>黄金等避险资产受追捧</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 利差说明 */}
+            <div style={{ gridColumn: 'span 2', borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+              <div style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
+                color: THEME.cyan, background: 'rgba(6,182,212,0.06)', borderBottom: '1px solid rgba(6,182,212,0.15)',
+              }}>
+                📊 利差（期限利差）
+              </div>
+              <div style={{ padding: '10px 14px' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '12.5px', lineHeight: 1.6 }}>
+                  <span style={{ color: THEME.textPrimary, fontWeight: 700 }}>期限利差</span> = 长期国债收益率 − 短期国债收益率（如 10Y-2Y），是债券市场最重要的信号之一。
+                </p>
+                <ul style={{ margin: '0 0 10px 0', paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <span style={{ color: THEME.green, fontWeight: 700 }}>利差为正（曲线正常）</span>：长端利率高于短端，反映市场预期经济正常增长、通胀合理。利差越大，说明市场对未来经济越乐观。
+                  </li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <span style={{ color: THEME.red, fontWeight: 700 }}>利差倒挂（曲线倒挂）</span>：短端利率高于长端，是历史上最精准的衰退预警信号之一。逻辑：市场预期未来经济走弱、央行会降息，所以长端利率反而低于短端。
+                  </li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <span style={{ color: THEME.textPrimary, fontWeight: 600 }}>利差收窄 / 平坦化</span>：市场对未来增长趋于谨慎，货币政策可能面临转折。
+                  </li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <span style={{ color: THEME.textPrimary, fontWeight: 600 }}>利差走阔 / 陡峭化</span>：通常出现在降息周期初期——短端利率快速下降（央行降息），长端利率还在反映通胀预期，二者差距拉大。
+                  </li>
+                </ul>
+                <div style={{
+                  marginTop: '10px', padding: '10px 14px', borderRadius: '8px',
+                  background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)',
+                  fontSize: '12px', lineHeight: 1.6,
+                }}>
+                  📌 自 1970 年代以来，美国历次经济衰退之前几乎都出现了 10Y-2Y 收益率曲线倒挂，是公认的最可靠领先指标之一。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -183,7 +398,7 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
   ] as const
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: SECTION_GAP, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: SECTION_GAP, alignItems: 'stretch' }}>
       <MacroCard title="Nelson-Siegel 三因子分解 (近 250 交易日)" variant="elevated">
         <CurveDynamicsChart history={history} height={340} />
         <div style={{ marginTop: '10px', fontSize: '11px', color: THEME.textMuted, fontFamily: THEME.fontMono }}>
@@ -192,7 +407,7 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
       </MacroCard>
 
       <MacroCard title="当前因子水平 & 历史分位" variant="elevated">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
           {factors.map((f) => {
             const v = (meta.latest as any)[f.key] as number | null
             const p = (meta.percentiles as any)[f.key] as number | null
@@ -279,6 +494,8 @@ export default function BondDashboard({ data: regionData, region }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: SECTION_GAP }}>
+      <DailyBondSummary region={region} tenYear={tenYear} shape={shape} spreads={spreads} latestDate={regionData.latestDate} />
+
       {/* ===== 第一行：Hero + 收益率曲线 ===== */}
       <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: SECTION_GAP, alignItems: 'stretch' }}>
         <MacroCard title={`${region === 'US' ? '美国' : '中国'}10年期国债收益率`} variant="elevated">
@@ -347,43 +564,27 @@ export default function BondDashboard({ data: regionData, region }: Props) {
           </div>
         </MacroCard>
 
-        <MacroCard
-          title="收益率曲线"
-          variant="elevated"
-          badge={shape ? <CurveShapeBadge shape={shape} /> : undefined}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
-            <div style={{ flex: 1 }}>
-              <TreasuryCurveChart series={curveSeries} height={280} />
-            </div>
-            {shape && (
-              <div style={{ padding: '10px 14px', background: THEME.bgElevated, borderRadius: '10px', fontSize: '12px', color: THEME.textSecondary, lineHeight: 1.6, border: `1px solid ${THEME.borderLight}` }}>
-                <strong style={{ color: THEME.textPrimary }}>{shape.label}</strong> &middot; {shape.description}
-                {shape.spread10y2y != null && (
-                  <span style={{ marginLeft: '10px', fontFamily: THEME.fontMono, color: shape.spread10y2y >= 0 ? THEME.green : THEME.red, fontWeight: 600 }}>
-                    10Y-2Y = {(shape.spread10y2y * 100).toFixed(1)}bp
-                  </span>
-                )}
-                {shape.spreadPercentile1y != null && (
-                  <span style={{ marginLeft: '10px', color: THEME.textMuted }}>
-                    1Y分位 {shape.spreadPercentile1y.toFixed(0)}%
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </MacroCard>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <MacroCard title="收益率曲线" variant="elevated">
+            <TreasuryCurveChart series={curveSeries} height={280} />
+            <CurveShapeSummary shape={shape} />
+          </MacroCard>
+        </div>
       </div>
 
       {/* ===== 第二行：期限利差卡片 ===== */}
-      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${region === 'US' ? 3 : 2}, 1fr)`,
+        gap: '16px',
+      }}>
         {Object.entries(spreads).map(([label, s]) => (
           <SpreadCard key={label} label={label} value={s.value} change={s.change} />
         ))}
       </div>
 
       {/* ===== 第三行：多期限走势图 + 各期限表格 ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: SECTION_GAP, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: SECTION_GAP, alignItems: 'stretch' }}>
         <MacroCard
           title={`${region === 'US' ? '美国' : '中国'}国债收益率走势（多期限对比）`}
           variant="elevated"
@@ -393,7 +594,7 @@ export default function BondDashboard({ data: regionData, region }: Props) {
         </MacroCard>
 
         <MacroCard title="各期限收益率一览" variant="elevated">
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflow: 'auto', flex: 1 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${THEME.borderColor}` }}>
@@ -407,7 +608,15 @@ export default function BondDashboard({ data: regionData, region }: Props) {
                   const change = s.change
                   const isUp = (change || 0) >= 0
                   return (
-                    <tr key={s.maturity} style={{ borderBottom: `1px solid ${THEME.borderLight}` }}>
+                    <tr
+                      key={s.maturity}
+                      style={{
+                        borderBottom: `1px solid ${THEME.borderLight}`,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.06)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
                       <td style={{ padding: '10px 12px', color: THEME.textPrimary, fontFamily: THEME.fontMono, fontWeight: 600 }}>{s.maturity}</td>
                       <td style={{ padding: '10px 12px', textAlign: 'right', color: THEME.textPrimary, fontFamily: THEME.fontMono, fontWeight: 700 }}>
                         {s.latest ? s.latest.value.toFixed(3) + '%' : '--'}
@@ -426,6 +635,9 @@ export default function BondDashboard({ data: regionData, region }: Props) {
 
       {/* ===== 第四行：Nelson-Siegel 三因子分解 ===== */}
       <CurveDynamicsSection region={region} />
+
+      {/* ===== 科普 ===== */}
+      <BondEducation region={region} />
     </div>
   )
 }

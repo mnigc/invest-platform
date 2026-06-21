@@ -3,6 +3,7 @@ export const prerender = false;
 
 import Layout from '../../../layouts/Layout.astro';
 import IndicatorChart from '../../../components/IndicatorChart';
+import ShenwanValuation from '../../../components/ShenwanValuation';
 import { query } from '../../../lib/db';
 
 const { region, code } = Astro.params;
@@ -178,6 +179,27 @@ const INDICATOR_INFO: Record<string, Record<string, {
 };
 
 const indicatorInfo = INDICATOR_INFO[region]?.[code];
+let cpiAssessment: { label: string; description: string; bc: string; bg: string; ic: string; tc: string } | null = null;
+if (code === 'CPI' && stats?.yoy != null) {
+  const yoy = stats.yoy;
+  const R = 'rgba(242,54,69,0.10)', G = 'rgba(8,153,129,0.10)', Y = 'rgba(245,158,11,0.10)';
+  const Rc = '#f23645', Gc = '#089981', Yc = '#f59e0b';
+  function hot(label: string, desc: string)  { cpiAssessment = { label, bc: Rc, bg: R, ic: Rc, tc: Rc, description: desc }; }
+  function warm(label: string, desc: string) { cpiAssessment = { label, bc: Gc, bg: G, ic: Gc, tc: Gc, description: desc }; }
+  function cool(label: string, desc: string) { cpiAssessment = { label, bc: Yc, bg: Y, ic: Yc, tc: Yc, description: desc }; }
+  function cold(label: string, desc: string) { cpiAssessment = { label, bc: Rc, bg: R, ic: Rc, tc: Rc, description: desc }; }
+  if (region === 'US') {
+    if (yoy > 3)       hot('通胀偏高',  `CPI 同比 +${yoy.toFixed(1)}%，高于美联储 2% 目标，通胀压力持续，加息预期可能升温`);
+    else if (yoy >= 1.5) warm('温和通胀', `CPI 同比 +${yoy.toFixed(1)}%，接近美联储 2% 目标，通胀基本可控，货币政策空间充裕`);
+    else if (yoy >= 0)   cool('通胀偏低', `CPI 同比仅 +${yoy.toFixed(1)}%，显著低于美联储 2% 目标，需求偏弱，降息预期可能升温`);
+    else                 cold('通缩预警', `CPI 同比 ${yoy.toFixed(1)}%，已陷入通缩区间，总需求明显不足，市场对宽松政策预期上升`);
+  } else {
+    if (yoy > 3)       hot('通胀偏高',  `CPI 同比 +${yoy.toFixed(1)}%，高于央行 3% 目标，物价上行压力明显，货币政策可能边际收紧`);
+    else if (yoy >= 1) warm('温和通胀', `CPI 同比 +${yoy.toFixed(1)}%，处于央行合意区间（1-3%），物价温和回升，经济需求稳健`);
+    else if (yoy >= 0) cool('通胀偏低', `CPI 同比仅 +${yoy.toFixed(1)}%，内需不足、物价偏弱运行，宽松政策有望加码`);
+    else               cold('通缩预警', `CPI 同比 ${yoy.toFixed(1)}%，持续处于通缩区间，总需求明显不足，降准降息预期增强`);
+  }
+}
 const title = indicator ? `${indicator.name_zh} - CN-US MACRO` : '指标详情 - CN-US MACRO';
 const regionLabel = region === 'CN' ? '中国' : '美国';
 ---
@@ -202,6 +224,16 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
         <h1>{indicator.name_zh}</h1>
         <p class="subtitle">{indicator.description} · 数据来源 {indicator.source}</p>
       </div>
+
+      {cpiAssessment && (
+        <div class="cpi-banner" style={`border-left-color: ${cpiAssessment.bc}; background: ${cpiAssessment.bg};`}>
+          <div class="cpi-banner-icon" style={`background: ${cpiAssessment.ic}; color: #fff;`}>{cpiAssessment.label === '通缩预警' ? '⚠' : cpiAssessment.label === '通胀偏高' ? '🔥' : cpiAssessment.label === '通胀偏低' ? '💧' : '✅'}</div>
+          <div class="cpi-banner-body">
+            <div class="cpi-banner-title" style={`color: ${cpiAssessment.tc};`}>{cpiAssessment.label}</div>
+            <div class="cpi-banner-text">{cpiAssessment.description}</div>
+          </div>
+        </div>
+      )}
 
       <div class="hero-row">
         <div class="hero-card">
@@ -308,7 +340,8 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
         )}
       </div>
 
-      <IndicatorChart indicator={indicator} client:only="react" />
+      <IndicatorChart indicator={indicator} showTable={region !== 'CN' || code !== 'PMI'} client:only="react" />
+      {region === 'CN' && code === 'PMI' && <ShenwanValuation client:only="react" />}
     </div>
   ) : (
     <div class="page-header">
@@ -715,6 +748,47 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   }
 
   .info-item-text {
+    color: var(--text-secondary);
+  }
+
+  .cpi-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
+    border-left-width: 4px;
+  }
+
+  .cpi-banner-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .cpi-banner-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cpi-banner-title {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .cpi-banner-text {
+    font-size: 12px;
+    line-height: 1.6;
     color: var(--text-secondary);
   }
 </style>

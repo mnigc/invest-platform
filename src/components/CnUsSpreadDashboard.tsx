@@ -11,6 +11,14 @@ interface SpreadPoint {
   spread: number | null
 }
 
+interface FlowPoint {
+  date: string
+  northbound: number | null
+  southbound: number | null
+  usdcnh: number | null
+  spread: number | null
+}
+
 interface Data {
   latestDate: string
   latest: {
@@ -71,8 +79,8 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
   const { ref } = useChart(
     useMemo(() => {
       if (!history || history.length === 0) return null
-      // 取最近 750 个交易日（约 3 年）
-      const slice = history.slice(-750)
+      // 取全部历史数据
+      const slice = history
       const dates = slice.map((p) => p.date)
       const spreads = slice.map((p) => (p.spread != null ? +(p.spread * 100).toFixed(2) : null))
       const cnVals = slice.map((p) => p.cn10y)
@@ -92,10 +100,17 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
           borderColor: THEME.borderLight,
           borderWidth: 1,
           textStyle: { color: THEME.textPrimary, fontSize: 12 },
-          valueFormatter: (v: any, idx: number) => {
-            if (v == null) return '--'
-            // 第一条（spread）显示 bp，其余显示 %
-            return idx === 0 ? `${Number(v).toFixed(1)}bp` : `${Number(v).toFixed(3)}%`
+          formatter: (params: any) => {
+            if (!Array.isArray(params) || params.length === 0) return ''
+            let html = `<div style="font-weight:600;margin-bottom:4px">${params[0].axisValue}</div>`
+            params.forEach((p: any) => {
+              const v = p.value
+              if (v == null) return
+              const seriesName = p.seriesName || ''
+              const unit = seriesName.includes('利差') ? 'bp' : '%'
+              html += `<div style="color:${p.color}">${p.marker} ${seriesName}: <b>${Number(v).toFixed(seriesName.includes('利差') ? 1 : 3)}${unit}</b></div>`
+            })
+            return html
           },
         },
         legend: {
@@ -103,7 +118,7 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
           textStyle: { color: THEME.textSecondary, fontSize: 11 },
           top: 0,
         },
-        grid: { left: 60, right: 60, top: 40, bottom: 30 },
+        grid: { left: 60, right: 60, top: 40, bottom: 56 },
         xAxis: {
           type: 'category',
           data: dates,
@@ -129,6 +144,16 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             splitLine: { show: false },
           },
         ],
+        dataZoom: [
+          {
+            type: 'slider', start: 70, end: 100, height: 18, bottom: 14,
+            borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)',
+            fillerColor: 'rgba(245,158,11,0.15)',
+            handleIcon: 'M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z',
+            handleSize: '80%',
+            handleStyle: { color: THEME.gold, borderColor: THEME.gold },
+          },
+        ],
         series: [
           {
             type: 'line',
@@ -137,6 +162,7 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             smooth: true,
             showSymbol: false,
             yAxisIndex: 0,
+            itemStyle: { color: THEME.gold },
             lineStyle: { width: 2, color: THEME.gold },
             areaStyle: {
               color: {
@@ -160,6 +186,7 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             smooth: true,
             showSymbol: false,
             yAxisIndex: 1,
+            itemStyle: { color: THEME.red },
             lineStyle: { width: 1.5, color: THEME.red, opacity: 0.8 },
           },
           {
@@ -169,6 +196,7 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             smooth: true,
             showSymbol: false,
             yAxisIndex: 1,
+            itemStyle: { color: THEME.blue },
             lineStyle: { width: 1.5, color: THEME.blue, opacity: 0.8 },
           },
         ],
@@ -191,8 +219,128 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
   )
 }
 
+// ── 解读区域辅助组件 ──
+function DataRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${THEME.borderLight}` }}>
+      <span style={{ fontSize: '12px', color: THEME.textMuted }}>{label}</span>
+      <span style={{ fontSize: '13px', fontFamily: THEME.fontMono, fontWeight: 600, color: valueColor || THEME.textPrimary }}>{value}</span>
+    </div>
+  )
+}
+
+const SPREAD_EDU_OPEN = true
+
+function SpreadEducation() {
+  const [open, setOpen] = useState(SPREAD_EDU_OPEN)
+  return (
+    <div style={{
+      borderRadius: '14px', border: `1px solid ${THEME.borderLight}`,
+      background: THEME.bgCard, overflow: 'hidden',
+    }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '14px 18px', cursor: 'pointer', userSelect: 'none',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={THEME.cyan} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <span style={{ flex: 1, fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.03em', color: THEME.textPrimary }}>
+          利差科普 · 一图读懂
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={THEME.textMuted} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{ padding: '0 18px 16px', fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
+          <p style={{ margin: '0 0 14px 0' }}>
+            <span style={{ color: THEME.textPrimary, fontWeight: 700 }}>利差（Spread）</span>是指两个不同国家或不同期限的国债收益率之间的差值。它是国际资本流动、汇率走势和宏观经济预期的核心参考指标。
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {/* 利差为正 */}
+            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+              <div style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
+                color: THEME.green, background: 'rgba(8,153,129,0.06)', borderBottom: `1px solid rgba(8,153,129,0.15)`,
+              }}>
+                ✅ 利差为正（正常区间）
+              </div>
+              <div style={{ padding: '10px 14px' }}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '12.5px', lineHeight: 1.6 }}>
+                  中国国债收益率高于美国国债，持有人民币资产有额外的正息差收入。
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>有利于吸引外资流入 A 股与债市</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>对人民币汇率形成支撑</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>反映中国经济增长前景相对乐观</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 利差倒挂 */}
+            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+              <div style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
+                color: THEME.gold, background: 'rgba(245,158,11,0.06)', borderBottom: `1px solid rgba(245,158,11,0.15)`,
+              }}>
+                ⚠️ 利差倒挂（负值区间）
+              </div>
+              <div style={{ padding: '10px 14px' }}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '12.5px', lineHeight: 1.6 }}>
+                  美国国债收益率高于中国国债，美债的绝对收益更高，可能引发跨境资金流向美元资产。
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>人民币汇率面临贬值压力</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>北向资金流入 A 股的意愿受抑制</li>
+                  <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>中国央行货币政策空间面临外部约束</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 深度解读 */}
+            <div style={{ gridColumn: 'span 2', borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+              <div style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
+                color: THEME.cyan, background: 'rgba(6,182,212,0.06)', borderBottom: `1px solid rgba(6,182,212,0.15)`,
+              }}>
+                📊 影响利差的核心因素
+              </div>
+              <div style={{ padding: '10px 14px' }}>
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li style={{ marginBottom: '4px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <strong>货币政策周期</strong>：美联储与中国人民银行的利率决策方向差是利差变化最直接的驱动因素。一方加息、另一方降息时利差急剧变化。
+                  </li>
+                  <li style={{ marginBottom: '4px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <strong>通胀预期</strong>：两国通胀水平的差异决定了名义利率的长期走向。高通胀国家通常维持更高的利率水平以压制物价。
+                  </li>
+                  <li style={{ marginBottom: '4px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <strong>经济增长预期</strong>：经济增速较快的国家往往利率更高，以反映更高的资本回报率与融资需求。
+                  </li>
+                  <li style={{ marginBottom: '4px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <strong>风险情绪</strong>：全球避险情绪升温时资金涌入美债（避险资产），压低美债利率，可能导致利差走阔或倒挂缓解。
+                  </li>
+                  <li style={{ marginBottom: '4px', fontSize: '12.5px', lineHeight: 1.6 }}>
+                    <strong>资本流动</strong>：跨境资金追逐利差的行为本身也会反向影响利差——资金流入压低利率，流出推高利率，形成反馈循环。
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CnUsSpreadDashboard() {
   const [data, setData] = useState<Data | null>(null)
+  const [flowData, setFlowData] = useState<FlowPoint[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -200,11 +348,18 @@ export default function CnUsSpreadDashboard() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/v1/bonds/cn-us-spread.json')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json = await res.json()
-        if (!json.success) throw new Error(json.error || '加载失败')
-        if (!cancelled) setData(json.data)
+        const [spreadRes, flowRes] = await Promise.all([
+          fetch('/api/v1/bonds/cn-us-spread.json'),
+          fetch('/api/v1/cross-border-flow.json'),
+        ])
+        if (!spreadRes.ok) throw new Error(`spread HTTP ${spreadRes.status}`)
+        const spreadJson = await spreadRes.json()
+        if (!spreadJson.success) throw new Error(spreadJson.error || '加载失败')
+        if (!cancelled) setData(spreadJson.data)
+        if (flowRes.ok) {
+          const flowJson = await flowRes.json()
+          if (flowJson.success && !cancelled) setFlowData(flowJson.data.history || [])
+        }
       } catch (e: any) {
         if (!cancelled) setError(e.message || '网络错误')
       } finally {
@@ -242,6 +397,9 @@ export default function CnUsSpreadDashboard() {
   const spreadBp = data.latest.spread != null ? data.latest.spread * 100 : null
   const isWarning = spreadBp != null && spreadBp < 0
   const isCritical = spreadBp != null && spreadBp <= -100
+  const timeRange = data.history?.length > 1
+    ? `${data.history[0].date} ~ ${data.history[data.history.length - 1].date}`
+    : ''
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -296,7 +454,7 @@ export default function CnUsSpreadDashboard() {
       </MacroCard>
 
       {/* 利差走势图 */}
-      <MacroCard title="中美利差时间序列 (近 3 年)" variant="elevated">
+      <MacroCard title={`中美利差时间序列 (${timeRange || '近 1 年'})`} variant="elevated">
         <SpreadChart history={data.history} warningLines={data.warningLines} />
         <div style={{ marginTop: '10px', fontSize: '11px', color: THEME.textMuted, display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <span>● 金色：中美 10Y 利差 (bp，左轴)</span>
@@ -308,30 +466,173 @@ export default function CnUsSpreadDashboard() {
 
       {/* 解读 */}
       <MacroCard title="投研解读" variant="elevated">
-        <div style={{ fontSize: '13px', color: THEME.textSecondary, lineHeight: 1.7 }}>
-          {isCritical ? (
-            <p>
-              <strong style={{ color: THEME.red }}>深度倒挂警告</strong>：中美 10Y 利差已突破 -100bp 警戒线。
-              历史经验表明，利差深度倒挂往往伴随<strong>人民币贬值压力加大</strong>与<strong>北向资金流出 A 股</strong>，
-              需重点关注央行汇率工具与资本流动管理政策。
-            </p>
-          ) : isWarning ? (
-            <p>
-              <strong style={{ color: THEME.gold }}>利差倒挂</strong>：中美 10Y 利差为负，
-              美国 10Y 收益率高于中国，<strong>美债相对吸引力上升</strong>。
-              历史上持续倒挂 5 个交易日以上共出现 {data.inversionCount} 次，
-              通常对应美联储加息周期或中国宽松周期。
-            </p>
-          ) : (
-            <p>
-              <strong style={{ color: THEME.green }}>正常区间</strong>：中美 10Y 利差为正，
-              中国国债相对美债有正息差，<strong>有利于人民币资产吸引力与北向资金流入</strong>。
-              当前 1 年分位 {data.percentile1y?.toFixed(1) ?? '--'}%，
-              5 年分位 {data.percentile5y?.toFixed(1) ?? '--'}%。
-            </p>
+        <div style={{ fontSize: '13px', lineHeight: 1.7 }}>
+          {/* 状态横幅 */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderRadius: '10px', marginBottom: '16px',
+            background: isCritical
+              ? 'rgba(242,54,69,0.1)'
+              : isWarning
+              ? 'rgba(245,158,11,0.1)'
+              : 'rgba(8,153,129,0.08)',
+            border: `1px solid ${
+              isCritical ? 'rgba(242,54,69,0.3)' : isWarning ? 'rgba(245,158,11,0.25)' : 'rgba(8,153,129,0.25)'
+            }`,
+          }}>
+            <div>
+              <div style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                当前状态
+              </div>
+              <span style={{
+                fontSize: '15px', fontWeight: 700,
+                color: isCritical ? THEME.red : isWarning ? THEME.gold : THEME.green,
+              }}>
+                {isCritical ? '深度倒挂' : isWarning ? '利差倒挂' : '正常区间'}
+              </span>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                中美 10Y 利差
+              </div>
+              <span style={{
+                fontSize: '22px', fontWeight: 800, fontFamily: THEME.fontMono,
+                color: isCritical ? THEME.red : isWarning ? THEME.gold : THEME.green,
+              }}>
+                {spreadBp == null ? '--' : `${spreadBp > 0 ? '+' : ''}${spreadBp.toFixed(1)}`}
+                <span style={{ fontSize: '12px', marginLeft: '2px' }}>bp</span>
+              </span>
+            </div>
+          </div>
+
+          {/* 数据明细表格 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
+            <DataRow label="中国 10Y 收益率" value={data.latest.cn10y != null ? `${data.latest.cn10y.toFixed(3)}%` : '--'} />
+            <DataRow label="美国 10Y 收益率" value={data.latest.us10y != null ? `${data.latest.us10y.toFixed(3)}%` : '--'} />
+            <DataRow
+              label="日变动"
+              value={data.latest.change != null
+                ? `${data.latest.change >= 0 ? '↑' : '↓'} ${Math.abs(data.latest.change * 100).toFixed(1)}bp`
+                : '--'}
+              valueColor={data.latest.change != null ? (data.latest.change >= 0 ? THEME.green : THEME.red) : undefined}
+            />
+            <DataRow label="近 1 年分位" value={data.percentile1y != null ? `${data.percentile1y.toFixed(1)}%` : '--'} />
+            <DataRow label="近 5 年分位" value={data.percentile5y != null ? `${data.percentile5y.toFixed(1)}%` : '--'} />
+            <DataRow label="历史倒挂时段" value={data.inversionCount != null ? `共 ${data.inversionCount} 次` : '--'} />
+          </div>
+
+          {/* 警戒线状态 */}
+          {data.warningLines.length > 0 && (
+            <div style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {data.warningLines.map((w) => {
+                const isBreached = spreadBp != null && spreadBp <= w.valueBp
+                return (
+                  <div key={w.label} style={{
+                    padding: '6px 12px', borderRadius: '6px', fontSize: '11px',
+                    background: isBreached ? 'rgba(242,54,69,0.1)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${isBreached ? 'rgba(242,54,69,0.25)' : THEME.borderLight}`,
+                    color: isBreached ? THEME.red : THEME.textMuted,
+                    fontFamily: THEME.fontMono, fontWeight: 600,
+                  }}>
+                    {isBreached ? '⚠' : ''} {w.label} ({w.valueBp}bp)
+                    {isBreached && ' - 已触及'}
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       </MacroCard>
+
+      {/* ===== 利差与跨境资金联动 ===== */}
+      {flowData.length > 0 && (
+        <MacroCard title="利差与跨境资金联动" variant="elevated">
+          <div style={{ marginBottom: '12px', fontSize: '12px', color: THEME.textSecondary, lineHeight: 1.6 }}>
+            利差变动与跨境资金流动存在双向反馈——利差倒挂时北向资金倾向于流出，而人民币汇率也面临压力。下方图表直观展示三者联动关系。2024-08-19起，北向资金买入/卖出/净买入额不再公布。
+          </div>
+          <FlowCorrelationChart flowHistory={flowData} />
+        </MacroCard>
+      )}
+
+      {/* ===== 利差科普 ===== */}
+      <SpreadEducation />
+    </div>
+  )
+}
+
+function FlowCorrelationChart({ flowHistory }: { flowHistory: FlowPoint[] }) {
+  const { ref: refFlow } = useChart(
+    useMemo(() => {
+      if (!flowHistory || flowHistory.length === 0) return null
+      const dates = flowHistory.map((p) => p.date)
+      const northVals = flowHistory.map((p) => (p.northbound != null ? +(p.northbound / 100).toFixed(2) : null))
+      const southVals = flowHistory.map((p) => (p.southbound != null ? +(p.southbound / 100).toFixed(2) : null))
+      const spreadVals = flowHistory.map((p) => (p.spread != null ? +(p.spread * 100).toFixed(2) : null))
+      return {
+        tooltip: {
+          trigger: 'axis', backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
+          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+        },
+        legend: {
+          data: ['北向净流入(亿元)', '南向净流入(亿元)', '中美利差(bp)'],
+          textStyle: { color: THEME.textSecondary, fontSize: 11 }, top: 0,
+        },
+        grid: { left: 70, right: 70, top: 40, bottom: 40 },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: THEME.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: THEME.borderColor } } },
+        yAxis: [
+          { type: 'value', name: '净流入(亿元)', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
+          { type: 'value', name: '利差(bp)', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, position: 'right', axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { show: false } },
+        ],
+        dataZoom: [{ type: 'slider', start: 60, end: 100, height: 14, bottom: 6, borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)', fillerColor: 'rgba(245,158,11,0.15)' }],
+        series: [
+          { type: 'bar', name: '北向净流入(亿元)', data: northVals, yAxisIndex: 0, itemStyle: { color: THEME.red } },
+          { type: 'bar', name: '南向净流入(亿元)', data: southVals, yAxisIndex: 0, itemStyle: { color: THEME.blue } },
+          { type: 'line', name: '中美利差(bp)', data: spreadVals, yAxisIndex: 1, smooth: true, showSymbol: false, itemStyle: { color: THEME.gold }, lineStyle: { width: 2, color: THEME.gold } },
+        ],
+      } as any
+    }, [flowHistory]),
+    [flowHistory],
+  )
+
+  const { ref: refFx } = useChart(
+    useMemo(() => {
+      if (!flowHistory || flowHistory.length === 0) return null
+      const dates = flowHistory.map((p) => p.date)
+      const fxVals = flowHistory.map((p) => p.usdcnh)
+      const spreadVals = flowHistory.map((p) => (p.spread != null ? +(p.spread * 100).toFixed(2) : null))
+      return {
+        tooltip: {
+          trigger: 'axis', backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
+          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+        },
+        legend: {
+          data: ['USDCNY(在岸)', '中美利差(bp)'],
+          textStyle: { color: THEME.textSecondary, fontSize: 11 }, top: 0,
+        },
+        grid: { left: 70, right: 70, top: 40, bottom: 40 },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: THEME.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: THEME.borderColor } } },
+        yAxis: [
+          { type: 'value', name: 'USDCNH', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
+          { type: 'value', name: '利差(bp)', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, position: 'right', axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { show: false } },
+        ],
+        dataZoom: [{ type: 'slider', start: 60, end: 100, height: 14, bottom: 6, borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)', fillerColor: 'rgba(245,158,11,0.15)' }],
+        series: [
+          { type: 'line', name: 'USDCNY(在岸)', data: fxVals, smooth: true, showSymbol: false, lineStyle: { width: 2, color: THEME.cyan }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(6,182,212,0.2)' }, { offset: 1, color: 'rgba(6,182,212,0.02)' }] } } },
+          { type: 'line', name: '中美利差(bp)', data: spreadVals, yAxisIndex: 1, smooth: true, showSymbol: false, itemStyle: { color: THEME.gold }, lineStyle: { width: 2, color: THEME.gold } },
+        ],
+      } as any
+    }, [flowHistory]),
+    [flowHistory],
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+        <div ref={refFlow} style={{ width: '100%', height: '340px' }} />
+      </div>
+      <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+        <div ref={refFx} style={{ width: '100%', height: '340px' }} />
+      </div>
     </div>
   )
 }

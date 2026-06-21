@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import { THEME } from './ui/theme'
+import { LoadingSkeleton } from './ui/LoadingSkeleton'
 
 // ==================== Types ====================
 
@@ -470,15 +471,7 @@ export default function GoldDashboard() {
   const hasNoData = !loading && !overview?.holdings?.length && !price?.series_5y?.length && !changes?.series?.length
 
   // ---- loading ----
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
-        <div style={{ width: 36, height: 36, border: `3px solid ${THEME.borderColor}`, borderTopColor: THEME.gold, borderRadius: '50%', animation: 'goldSpin 0.8s linear infinite' }} />
-        <p style={{ margin: 0, color: TEXT_MUTED, fontSize: 14 }}>正在加载黄金数据...</p>
-        <style>{'@keyframes goldSpin{to{transform:rotate(360deg)}}'}</style>
-      </div>
-    )
-  }
+  if (loading) return <LoadingSkeleton type="card" height={600} />
 
   // ---- empty / error ----
   if (hasNoData || error) {

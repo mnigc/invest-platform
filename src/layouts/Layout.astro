@@ -8,16 +8,6 @@ interface Props {
 }
 
 const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
-const pathParts = Astro.url.pathname.split('/').filter(Boolean);
-const labelMap: Record<string, string> = {
-  indicators: '经济指标',
-  library: '研究库',
-  reports: '每日报告',
-  stock: '个股策略',
-  gold: '黄金数据',
-  US: '美国',
-  CN: '中国',
-};
 ---
 
 <!DOCTYPE html>
@@ -35,14 +25,7 @@ const labelMap: Record<string, string> = {
     <Sidebar />
     <header class="header">
       <div class="header-left">
-        <div class="breadcrumb">
-          <a href="/">首页</a>
-          {pathParts.map((part, i) => {
-            const href = '/' + pathParts.slice(0, i + 1).join('/');
-            const label = labelMap[part] || part;
-            return <><span class="sep">/</span><a href={href}>{label}</a></>
-          })}
-        </div>
+        {/* 面包屑由各页面自行控制，不在 header 全局显示 */}
       </div>
       <div class="header-right">
         <div class="status-badge">

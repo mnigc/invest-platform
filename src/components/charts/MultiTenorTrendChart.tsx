@@ -71,7 +71,7 @@ export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
           textStyle: { color: THEME.textSecondary, fontSize: 11 },
           top: 0,
         },
-        grid: { left: 55, right: 20, top: 40, bottom: 30 },
+        grid: { left: 55, right: 20, top: 40, bottom: 56 },
         xAxis: {
           type: 'category',
           data: dates,
@@ -88,6 +88,16 @@ export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
           },
           splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } },
         },
+        dataZoom: [
+          {
+            type: 'slider', start: 70, end: 100, height: 18, bottom: 14,
+            borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)',
+            fillerColor: 'rgba(59,130,246,0.15)',
+            handleIcon: 'M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z',
+            handleSize: '80%',
+            handleStyle: { color: THEME.blue, borderColor: THEME.blue },
+          },
+        ],
         series: picked.map((s) => {
           const map = new Map(s.history.map((p) => [p.date, p.value]))
           return {

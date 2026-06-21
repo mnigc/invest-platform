@@ -23,7 +23,7 @@ export function HeatmapMatrix({ data, loading, height = 320, min, max }: Props) 
     useMemo(() => {
       if (data.length === 0) return null
       const rows = [...new Set(data.map(d => d.row))]
-      const cols = [...new Set(data.map(d => d.col))]
+      const cols = [...new Set(data.map(d => d.col))].sort()
       const vals = data.map(d => d.value)
       const vMin = min ?? Math.min(...vals)
       const vMax = max ?? Math.max(...vals)
@@ -35,7 +35,7 @@ export function HeatmapMatrix({ data, loading, height = 320, min, max }: Props) 
           textStyle: { color: THEME.textPrimary, fontSize: 12 },
           formatter: (params: any) => `${params.data[0]}, ${params.data[1]}: <strong>${Number(params.data[2]).toFixed(2)}</strong>`,
         },
-        grid: { left: 80, right: 20, top: 10, bottom: 50 },
+        grid: { left: 80, right: 20, top: 50, bottom: 50 },
         xAxis: { type: 'category', data: cols, position: 'top', axisLabel: { color: THEME.textMuted, fontSize: 10, rotate: 45 }, splitArea: { show: true, areaStyle: { color: [THEME.bgCard, THEME.bgElevated] } } },
         yAxis: { type: 'category', data: rows, axisLabel: { color: THEME.textSecondary, fontSize: 10 }, splitArea: { show: true, areaStyle: { color: [THEME.bgCard, THEME.bgElevated] } } },
         visualMap: { min: vMin, max: vMax, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: [THEME.green, THEME.bgCard, THEME.red] }, textStyle: { color: THEME.textMuted } },

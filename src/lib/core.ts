@@ -255,6 +255,26 @@ export interface AnomalyResponse {
   updatedAt: string
 }
 
+// ── 跨境资金流 ──
+export interface CrossBorderFlowPoint {
+  date: string
+  northbound: number | null
+  southbound: number | null
+  usdcnh: number | null
+  spread: number | null
+}
+
+export interface CrossBorderFlowResponse {
+  latestDate: string
+  latest: {
+    northbound: number | null
+    southbound: number | null
+    usdcnh: number | null
+    spread: number | null
+  }
+  history: CrossBorderFlowPoint[]
+}
+
 // ── Constants ──
 
 export const PERIOD_MAP: Record<string, number> = {
@@ -315,4 +335,21 @@ export function fmtCompact(value: number | null): string {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(2)}K`
   return Number(value).toFixed(2)
+}
+
+// ── 全球流动性 ──
+export type LiquidityIndicatorCode = 'FED_BALANCE_SHEET' | 'FED_RRP' | 'FED_TGA' | 'SOFR' | 'ECB_BALANCE_SHEET' | 'BOJ_BALANCE_SHEET'
+
+export interface LiquiditySeries {
+  code: LiquidityIndicatorCode
+  nameZh: string
+  nameEn: string
+  unit: string
+  frequency: string
+  data: { date: string; value: number | null }[]
+}
+
+export interface GlobalLiquidityResponse {
+  series: LiquiditySeries[]
+  updatedAt: string
 }

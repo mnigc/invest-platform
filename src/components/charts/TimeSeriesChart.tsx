@@ -70,7 +70,7 @@ export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 3
       },
       grid: { left: 60, right: 20, top: 20, bottom: 30 },
       xAxis: { type: 'category', data: data.map(d => d.period_date), axisLabel: { color: THEME.textMuted, fontSize: 11 }, axisLine: { lineStyle: { color: THEME.borderColor } }, splitLine: { show: false } },
-      yAxis: { type: 'value', axisLabel: { color: THEME.textMuted, fontSize: 11, formatter: (v: any) => (typeof v === 'number' ? v : parseFloat(v)).toFixed(3) }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
+      yAxis: { type: 'value', scale: true, axisLabel: { color: THEME.textMuted, fontSize: 11, formatter: (v: any) => (typeof v === 'number' ? v : parseFloat(v)).toFixed(3) }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
       series,
     }
   }, [data, code, name_zh, unit])
