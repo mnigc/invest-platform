@@ -132,7 +132,7 @@ function CommodityTabs({ active, onChange }: { active: string; onChange: (code: 
             transition: 'all 0.2s',
             background: active === code ? THEME.cyan : THEME.bgCard,
             color: active === code ? THEME.textPrimary : THEME.textSecondary,
-            border: active === code ? 'none' : `1px solid ${THEME.borderLight}`,
+            border: `1px solid ${active === code ? THEME.cyan : 'transparent'}`,
           }}
         >
           {COMMODITY_ICONS[code] || ''} {COMMODITY_LABELS[code] || code}
@@ -254,7 +254,8 @@ export default function CommodityCurveDashboard() {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px',
+      minHeight: '650px',  /* prevent layout shift on tab switch */ }}>
       <CommodityTabs active={activeCode} onChange={setActiveCode} />
 
       {activeCommodity && (
