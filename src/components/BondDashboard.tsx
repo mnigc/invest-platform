@@ -560,11 +560,6 @@ export default function BondDashboard({ data: regionData, region }: Props) {
                 </div>
               </>
             )}
-
-            {/* 数据来源 */}
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 'auto', paddingTop: '6px', borderTop: `1px solid var(--border-light)` }}>
-              来源: {region === 'US' ? 'FRED / 美国财政部' : '中债登 / akshare'}
-            </div>
           </div>
         </MacroCard>
 

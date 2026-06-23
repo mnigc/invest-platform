@@ -186,7 +186,6 @@ function isActive(href: string) {
     background: var(--bg-primary);
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
     z-index: 100;
   }
 
@@ -231,6 +230,8 @@ function isActive(href: string) {
   .nav {
     padding: 8px;
     flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 
   .nav-section {
