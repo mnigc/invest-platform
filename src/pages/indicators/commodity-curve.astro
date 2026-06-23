@@ -20,6 +20,54 @@ import CommodityCurveDashboard from '../../components/CommodityCurveDashboard';
     </div>
 
     <CommodityCurveDashboard client:load />
+
+    <div class="guide">
+      <div class="guide-title">📖 读懂商品期限结构</div>
+      <div class="guide-body">
+        <div class="guide-block">
+          <div class="guide-h"><strong>① 什么是"期限结构曲线"？</strong></div>
+          <div class="guide-text">同一种商品在不同交割月份上的价格连线。以 WTI 原油为例，同时有 1 月后、3 月后、6 月后、12 月后等多个合约在交易，把这些合约价格连成线，就形成了"期限结构曲线"。它集中反映了市场对商品未来供需、库存水平、通胀预期和风险溢价的一致判断。</div>
+        </div>
+
+        <div class="guide-block">
+          <div class="guide-h"><strong>② 两种核心形态（一句话区分）</strong></div>
+          <div class="guide-grid">
+            <div class="guide-cell">
+              <div class="guide-cell-title">远月升水 · Contango</div>
+              <div class="guide-cell-desc">远月价格 &gt; 近月价格 · 曲线向上</div>
+              <div class="guide-cell-meaning">📗 市场供过于求、库存充裕，持有现货需要额外仓储/资金成本</div>
+            </div>
+            <div class="guide-cell">
+              <div class="guide-cell-title">远月贴水 · Backwardation</div>
+              <div class="guide-cell-desc">远月价格 &lt; 近月价格 · 曲线向下</div>
+              <div class="guide-cell-meaning">📕 现货紧俏、库存紧张，市场愿意为即时可交割的现货支付溢价</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-block">
+          <div class="guide-h"><strong>③ 本页指标怎么看？</strong></div>
+          <div class="guide-text"><strong>最新价 / 日变动：</strong>近月合约的价格与涨跌幅，反映短期市场情绪。</div>
+          <div class="guide-text"><strong>期限结构状态：</strong>直接告诉你该商品当前是"缺货"还是"充裕"。</div>
+          <div class="guide-text"><strong>近远月价差 %：</strong>近月与远月价格的年化差（正值=贴水，负值=升水），幅度越大供需越极端。</div>
+          <div class="guide-text"><strong>曲线斜率图：</strong>看整条曲线的形状，识别"深 Contango"或"强 Backwardation"。</div>
+          <div class="guide-text"><strong>跨商品对比：</strong>把所有商品以 M1 归一化为 0%，横向对比哪个商品最紧缺、哪个最宽松。</div>
+        </div>
+
+        <div class="guide-block">
+          <div class="guide-h"><strong>④ 对现实世界的影响</strong></div>
+          <div class="guide-text"><strong>能源（原油/天然气）：</strong>贴水越深 → 现货越紧缺 → 加油站油价、化工品、居民用气涨价压力大；升水越深 → 供应充足 → 涨价动力弱。</div>
+          <div class="guide-text"><strong>铜（工业原料）：</strong>铜的期限结构是"全球经济体温计"。贴水 → 工业需求旺盛/经济扩张；深升水 → 经济降温信号。</div>
+          <div class="guide-text"><strong>农产品（玉米/小麦/大豆）：</strong>受天气、种植面积、出口政策影响极大。收割季前出现贴水往往预示减产预期；深升水通常意味着丰收、库存积压。</div>
+          <div class="guide-text"><strong>黄金：</strong>常态微弱升水（因为仓储/资金成本）。结构变陡（远月大幅升水）→ 市场预期通胀/利率走高；结构变平甚至贴水 → 避险需求抢现货。</div>
+          <div class="guide-text"><strong>商品 ETF / 投资组合：</strong>做多期货合约时，Contango 会产生"移仓亏损"（每次换月以更高价买入新合约），Backwardation 则产生"移仓收益"，这直接影响商品 ETF 的长期收益。</div>
+        </div>
+
+        <div class="guide-block" style="background: var(--accent-cyan-dim); color: var(--accent-cyan); border-radius: var(--radius-md); padding: 10px 14px; border: none;">
+          <strong>💡 一句话速记：</strong>曲线向上 = 商品不紧缺；曲线向下 = 商品紧俏；越陡 = 供需矛盾越极端。
+        </div>
+      </div>
+    </div>
   </div>
 </Layout>
 
@@ -45,5 +93,75 @@ import CommodityCurveDashboard from '../../components/CommodityCurveDashboard';
     font-size: 22px; font-weight: 700; font-family: var(--font-display);
     letter-spacing: 0.02em; color: var(--text-primary); margin: 0;
   }
-  .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .subtitle { font-size: 12px; color: 'var(--text-muted)'; margin-top: 4px; }
+
+  .guide {
+    margin-top: 20px;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+  }
+  .guide-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+  }
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .guide-block {
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--border-subtle);
+  }
+  .guide-block:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  .guide-h {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .guide-text {
+    margin: 2px 0;
+  }
+  .guide-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .guide-cell {
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+  }
+  .guide-cell-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    margin-bottom: 2px;
+  }
+  .guide-cell-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .guide-cell-meaning {
+    font-size: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .guide-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>

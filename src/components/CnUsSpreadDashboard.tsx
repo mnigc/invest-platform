@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MacroCard } from './ui/MacroCard'
-import { THEME } from './ui/theme'
+import { useChartTheme } from './ui/theme'
 import { LoadingSkeleton } from './ui/LoadingSkeleton'
 import { useChart } from './charts/useChart'
 
@@ -48,25 +48,25 @@ function HeroNumber({
   return (
     <div style={{
       padding: '12px 14px',
-      background: THEME.bgCard,
+      background: 'var(--bg-card)',
       borderRadius: '10px',
-      border: `1px solid ${THEME.borderLight}`,
+      border: `1px solid var(--border-light)`,
       display: 'flex',
       flexDirection: 'column',
       gap: '4px',
     }}>
-      <div style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {label}
       </div>
-      <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary }}>
+      <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
         {value == null ? '--' : `${value.toFixed(3)}${suffix}`}
       </div>
       {change != null && (
         <div style={{
           fontSize: '11px',
           fontWeight: 700,
-          fontFamily: THEME.fontMono,
-          color: change >= 0 ? THEME.green : THEME.red,
+          fontFamily: 'var(--font-mono)',
+          color: change >= 0 ? 'var(--green)' : 'var(--red)',
         }}>
           {change >= 0 ? '↑' : '↓'} {Math.abs(change * 100).toFixed(1)}bp
         </div>
@@ -76,10 +76,10 @@ function HeroNumber({
 }
 
 function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warningLines: { label: string; valueBp: number }[] }) {
+  const chartTheme = useChartTheme()
   const { ref } = useChart(
     useMemo(() => {
       if (!history || history.length === 0) return null
-      // 取全部历史数据
       const slice = history
       const dates = slice.map((p) => p.date)
       const spreads = slice.map((p) => (p.spread != null ? +(p.spread * 100).toFixed(2) : null))
@@ -89,17 +89,17 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
       const markLines = warningLines.map((w) => ({
         yAxis: w.valueBp,
         name: w.label,
-        label: { formatter: w.label, color: THEME.red, fontSize: 10 },
-        lineStyle: { color: THEME.red, type: 'dashed', width: 1, opacity: 0.5 },
+        label: { formatter: w.label, color: chartTheme.red, fontSize: 10 },
+        lineStyle: { color: chartTheme.red, type: 'dashed', width: 1, opacity: 0.5 },
       }))
 
       return {
         tooltip: {
           trigger: 'axis',
-          backgroundColor: THEME.bgCard,
-          borderColor: THEME.borderLight,
+          backgroundColor: chartTheme.bgCard,
+          borderColor: chartTheme.borderLight,
           borderWidth: 1,
-          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+          textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
           formatter: (params: any) => {
             if (!Array.isArray(params) || params.length === 0) return ''
             let html = `<div style="font-weight:600;margin-bottom:4px">${params[0].axisValue}</div>`
@@ -115,43 +115,43 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
         },
         legend: {
           data: ['中美利差 (bp)', '中国10Y %', '美国10Y %'],
-          textStyle: { color: THEME.textSecondary, fontSize: 11 },
+          textStyle: { color: chartTheme.textSecondary, fontSize: 11 },
           top: 0,
         },
         grid: { left: 60, right: 60, top: 40, bottom: 56 },
         xAxis: {
           type: 'category',
           data: dates,
-          axisLabel: { color: THEME.textMuted, fontSize: 10 },
-          axisLine: { lineStyle: { color: THEME.borderColor } },
+          axisLabel: { color: chartTheme.textMuted, fontSize: 10 },
+          axisLine: { lineStyle: { color: chartTheme.borderColor } },
           splitLine: { show: false },
         },
         yAxis: [
           {
             type: 'value',
             name: '利差(bp)',
-            nameTextStyle: { color: THEME.textMuted, fontSize: 10 },
+            nameTextStyle: { color: chartTheme.textMuted, fontSize: 10 },
             position: 'left',
-            axisLabel: { color: THEME.textMuted, fontSize: 10, formatter: '{value}' },
-            splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } },
+            axisLabel: { color: chartTheme.textMuted, fontSize: 10, formatter: '{value}' },
+            splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } },
           },
           {
             type: 'value',
             name: '收益率(%)',
-            nameTextStyle: { color: THEME.textMuted, fontSize: 10 },
+            nameTextStyle: { color: chartTheme.textMuted, fontSize: 10 },
             position: 'right',
-            axisLabel: { color: THEME.textMuted, fontSize: 10, formatter: '{value}%' },
+            axisLabel: { color: chartTheme.textMuted, fontSize: 10, formatter: '{value}%' },
             splitLine: { show: false },
           },
         ],
         dataZoom: [
           {
             type: 'slider', start: 70, end: 100, height: 18, bottom: 14,
-            borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)',
-            fillerColor: 'rgba(245,158,11,0.15)',
-            handleIcon: 'M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z',
+            borderColor: chartTheme.borderColor, backgroundColor: chartTheme.bgCard,
+            fillerColor: chartTheme.goldDim,
+            handleIcon: 'path://M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z',
             handleSize: '80%',
-            handleStyle: { color: THEME.gold, borderColor: THEME.gold },
+            handleStyle: { color: chartTheme.gold, borderColor: chartTheme.gold },
           },
         ],
         series: [
@@ -162,14 +162,14 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             smooth: true,
             showSymbol: false,
             yAxisIndex: 0,
-            itemStyle: { color: THEME.gold },
-            lineStyle: { width: 2, color: THEME.gold },
+            itemStyle: { color: chartTheme.gold },
+            lineStyle: { width: 2, color: chartTheme.gold },
             areaStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
                 colorStops: [
-                  { offset: 0, color: 'rgba(245,158,11,0.25)' },
-                  { offset: 1, color: 'rgba(245,158,11,0.02)' },
+                  { offset: 0, color: chartTheme.goldDim },
+                  { offset: 1, color: 'transparent' },
                 ],
               },
             },
@@ -186,8 +186,8 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             smooth: true,
             showSymbol: false,
             yAxisIndex: 1,
-            itemStyle: { color: THEME.red },
-            lineStyle: { width: 1.5, color: THEME.red, opacity: 0.8 },
+            itemStyle: { color: chartTheme.red },
+            lineStyle: { width: 1.5, color: chartTheme.red, opacity: 0.8 },
           },
           {
             type: 'line',
@@ -196,24 +196,24 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
             smooth: true,
             showSymbol: false,
             yAxisIndex: 1,
-            itemStyle: { color: THEME.blue },
-            lineStyle: { width: 1.5, color: THEME.blue, opacity: 0.8 },
+            itemStyle: { color: chartTheme.blue },
+            lineStyle: { width: 1.5, color: chartTheme.blue, opacity: 0.8 },
           },
         ],
       } as any
-    }, [history, warningLines]),
-    [history, warningLines],
+    }, [history, warningLines, chartTheme]),
+    [history, warningLines, chartTheme],
   )
 
   if (!history || history.length === 0)
     return (
-      <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.textMuted, fontSize: '13px' }}>
+      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
         NO DATA
       </div>
     )
 
   return (
-    <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+    <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0' }}>
       <div ref={ref} style={{ width: '100%', height: '380px' }} />
     </div>
   )
@@ -222,9 +222,9 @@ function SpreadChart({ history, warningLines }: { history: SpreadPoint[]; warnin
 // ── 解读区域辅助组件 ──
 function DataRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${THEME.borderLight}` }}>
-      <span style={{ fontSize: '12px', color: THEME.textMuted }}>{label}</span>
-      <span style={{ fontSize: '13px', fontFamily: THEME.fontMono, fontWeight: 600, color: valueColor || THEME.textPrimary }}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid var(--border-light)` }}>
+      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: valueColor || 'var(--text-primary)' }}>{value}</span>
     </div>
   )
 }
@@ -235,8 +235,8 @@ function SpreadEducation() {
   const [open, setOpen] = useState(SPREAD_EDU_OPEN)
   return (
     <div style={{
-      borderRadius: '14px', border: `1px solid ${THEME.borderLight}`,
-      background: THEME.bgCard, overflow: 'hidden',
+      borderRadius: '14px',
+      background: 'var(--bg-card)', overflow: 'hidden',
     }}>
       <div
         onClick={() => setOpen(!open)}
@@ -245,29 +245,29 @@ function SpreadEducation() {
           padding: '14px 18px', cursor: 'pointer', userSelect: 'none',
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={THEME.cyan} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke='var(--accent-cyan)' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
         </svg>
-        <span style={{ flex: 1, fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.03em', color: THEME.textPrimary }}>
+        <span style={{ flex: 1, fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.03em', color: 'var(--text-primary)' }}>
           利差科普 · 一图读懂
         </span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={THEME.textMuted} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke='var(--text-muted)' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
           style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </div>
       {open && (
-        <div style={{ padding: '0 18px 16px', fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
+        <div style={{ padding: '0 18px 16px', fontSize: '13px', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
           <p style={{ margin: '0 0 14px 0' }}>
-            <span style={{ color: THEME.textPrimary, fontWeight: 700 }}>利差（Spread）</span>是指两个不同国家或不同期限的国债收益率之间的差值。它是国际资本流动、汇率走势和宏观经济预期的核心参考指标。
+            <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>利差（Spread）</span>是指两个不同国家或不同期限的国债收益率之间的差值。它是国际资本流动、汇率走势和宏观经济预期的核心参考指标。
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {/* 利差为正 */}
-            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+            <div style={{ borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
-                color: THEME.green, background: 'rgba(8,153,129,0.06)', borderBottom: `1px solid rgba(8,153,129,0.15)`,
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+                color: 'var(--green)', background: 'var(--green-bg)', borderBottom: `1px solid var(--green-bg)`,
               }}>
                 ✅ 利差为正（正常区间）
               </div>
@@ -284,10 +284,10 @@ function SpreadEducation() {
             </div>
 
             {/* 利差倒挂 */}
-            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+            <div style={{ borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
-                color: THEME.gold, background: 'rgba(245,158,11,0.06)', borderBottom: `1px solid rgba(245,158,11,0.15)`,
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+                color: 'var(--accent-gold)', background: 'var(--accent-gold-dim)', borderBottom: `1px solid var(--accent-gold-dim)`,
               }}>
                 ⚠️ 利差倒挂（负值区间）
               </div>
@@ -304,10 +304,10 @@ function SpreadEducation() {
             </div>
 
             {/* 深度解读 */}
-            <div style={{ gridColumn: 'span 2', borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+            <div style={{ gridColumn: 'span 2', borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
-                color: THEME.cyan, background: 'rgba(6,182,212,0.06)', borderBottom: `1px solid rgba(6,182,212,0.15)`,
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+                color: 'var(--accent-cyan)', background: 'var(--accent-cyan-dim)', borderBottom: `1px solid var(--accent-cyan-dim)`,
               }}>
                 📊 影响利差的核心因素
               </div>
@@ -384,8 +384,8 @@ export default function CnUsSpreadDashboard() {
     return (
       <div style={{
         padding: '14px 18px', borderRadius: '12px',
-        background: THEME.redBg, color: THEME.red, fontSize: '13px',
-        border: `1px solid rgba(242,54,69,0.2)`,
+        background: 'var(--red-bg)', color: 'var(--red)', fontSize: '13px',
+        border: `1px solid var(--red-bg)`,
       }}>
         ⚠️ {error}
       </div>
@@ -410,37 +410,37 @@ export default function CnUsSpreadDashboard() {
           <div style={{
             padding: '14px 16px',
             background: isCritical
-              ? 'rgba(242,54,69,0.12)'
+              ? 'var(--red-bg)'
               : isWarning
-              ? 'rgba(245,158,11,0.10)'
-              : 'rgba(8,153,129,0.08)',
+              ? 'var(--accent-gold-dim)'
+              : 'var(--green-bg)',
             borderRadius: '10px',
             border: `1px solid ${
-              isCritical ? 'rgba(242,54,69,0.4)' : isWarning ? 'rgba(245,158,11,0.35)' : 'rgba(8,153,129,0.3)'
+              isCritical ? 'var(--red-bg)' : isWarning ? 'var(--accent-gold-dim)' : 'var(--green-bg)'
             }`,
             display: 'flex',
             flexDirection: 'column',
             gap: '6px',
           }}>
-            <div style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               最新利差 ({data.latestDate || '--'})
             </div>
             <div style={{
-              fontSize: '36px', fontWeight: 700, fontFamily: THEME.fontMono, lineHeight: 1.1,
-              color: isCritical ? THEME.red : isWarning ? THEME.gold : THEME.green,
+              fontSize: '36px', fontWeight: 700, fontFamily: 'var(--font-mono)', lineHeight: 1.1,
+              color: isCritical ? 'var(--red)' : isWarning ? 'var(--accent-gold)' : 'var(--green)',
             }}>
               {spreadBp == null ? '--' : `${spreadBp > 0 ? '+' : ''}${spreadBp.toFixed(1)}`}<span style={{ fontSize: '16px', marginLeft: '4px' }}>bp</span>
             </div>
             <div style={{
-              fontSize: '12px', color: isCritical ? THEME.red : isWarning ? THEME.gold : THEME.green, fontWeight: 600,
+              fontSize: '12px', color: isCritical ? 'var(--red)' : isWarning ? 'var(--accent-gold)' : 'var(--green)', fontWeight: 600,
             }}>
               {isCritical ? '⚠ 深度倒挂' : isWarning ? '⚠ 利差倒挂' : '正常区间'} ·
               中国10Y {data.latest.cn10y?.toFixed(3) ?? '--'}% − 美国10Y {data.latest.us10y?.toFixed(3) ?? '--'}%
             </div>
             {data.latest.change != null && (
               <div style={{
-                fontSize: '11px', fontWeight: 700, fontFamily: THEME.fontMono,
-                color: data.latest.change >= 0 ? THEME.green : THEME.red,
+                fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                color: data.latest.change >= 0 ? 'var(--green)' : 'var(--red)',
               }}>
                 日变动 {data.latest.change >= 0 ? '↑' : '↓'} {Math.abs(data.latest.change * 100).toFixed(1)}bp
               </div>
@@ -456,7 +456,7 @@ export default function CnUsSpreadDashboard() {
       {/* 利差走势图 */}
       <MacroCard title={`中美利差时间序列 (${timeRange || '近 1 年'})`} variant="elevated">
         <SpreadChart history={data.history} warningLines={data.warningLines} />
-        <div style={{ marginTop: '10px', fontSize: '11px', color: THEME.textMuted, display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <span>● 金色：中美 10Y 利差 (bp，左轴)</span>
           <span>● 红色：中国 10Y 国债收益率 (右轴)</span>
           <span>● 蓝色：美国 10Y 国债收益率 (右轴)</span>
@@ -472,32 +472,32 @@ export default function CnUsSpreadDashboard() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 16px', borderRadius: '10px', marginBottom: '16px',
             background: isCritical
-              ? 'rgba(242,54,69,0.1)'
+              ? 'var(--red-bg)'
               : isWarning
-              ? 'rgba(245,158,11,0.1)'
-              : 'rgba(8,153,129,0.08)',
+              ? 'var(--accent-gold-dim)'
+              : 'var(--green-bg)',
             border: `1px solid ${
-              isCritical ? 'rgba(242,54,69,0.3)' : isWarning ? 'rgba(245,158,11,0.25)' : 'rgba(8,153,129,0.25)'
+              isCritical ? 'var(--red-bg)' : isWarning ? 'var(--accent-gold-dim)' : 'var(--green-bg)'
             }`,
           }}>
             <div>
-              <div style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
                 当前状态
               </div>
               <span style={{
                 fontSize: '15px', fontWeight: 700,
-                color: isCritical ? THEME.red : isWarning ? THEME.gold : THEME.green,
+                color: isCritical ? 'var(--red)' : isWarning ? 'var(--accent-gold)' : 'var(--green)',
               }}>
                 {isCritical ? '深度倒挂' : isWarning ? '利差倒挂' : '正常区间'}
               </span>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
                 中美 10Y 利差
               </div>
               <span style={{
-                fontSize: '22px', fontWeight: 800, fontFamily: THEME.fontMono,
-                color: isCritical ? THEME.red : isWarning ? THEME.gold : THEME.green,
+                fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-mono)',
+                color: isCritical ? 'var(--red)' : isWarning ? 'var(--accent-gold)' : 'var(--green)',
               }}>
                 {spreadBp == null ? '--' : `${spreadBp > 0 ? '+' : ''}${spreadBp.toFixed(1)}`}
                 <span style={{ fontSize: '12px', marginLeft: '2px' }}>bp</span>
@@ -514,7 +514,7 @@ export default function CnUsSpreadDashboard() {
               value={data.latest.change != null
                 ? `${data.latest.change >= 0 ? '↑' : '↓'} ${Math.abs(data.latest.change * 100).toFixed(1)}bp`
                 : '--'}
-              valueColor={data.latest.change != null ? (data.latest.change >= 0 ? THEME.green : THEME.red) : undefined}
+              valueColor={data.latest.change != null ? (data.latest.change >= 0 ? 'var(--green)' : 'var(--red)') : undefined}
             />
             <DataRow label="近 1 年分位" value={data.percentile1y != null ? `${data.percentile1y.toFixed(1)}%` : '--'} />
             <DataRow label="近 5 年分位" value={data.percentile5y != null ? `${data.percentile5y.toFixed(1)}%` : '--'} />
@@ -529,10 +529,10 @@ export default function CnUsSpreadDashboard() {
                 return (
                   <div key={w.label} style={{
                     padding: '6px 12px', borderRadius: '6px', fontSize: '11px',
-                    background: isBreached ? 'rgba(242,54,69,0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${isBreached ? 'rgba(242,54,69,0.25)' : THEME.borderLight}`,
-                    color: isBreached ? THEME.red : THEME.textMuted,
-                    fontFamily: THEME.fontMono, fontWeight: 600,
+                    background: isBreached ? 'var(--red-bg)' : 'var(--bg-elevated)',
+                    border: `1px solid ${isBreached ? 'var(--red-bg)' : 'var(--border-light)'}`,
+                    color: isBreached ? 'var(--red)' : 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)', fontWeight: 600,
                   }}>
                     {isBreached ? '⚠' : ''} {w.label} ({w.valueBp}bp)
                     {isBreached && ' - 已触及'}
@@ -547,7 +547,7 @@ export default function CnUsSpreadDashboard() {
       {/* ===== 利差与跨境资金联动 ===== */}
       {flowData.length > 0 && (
         <MacroCard title="利差与跨境资金联动" variant="elevated">
-          <div style={{ marginBottom: '12px', fontSize: '12px', color: THEME.textSecondary, lineHeight: 1.6 }}>
+          <div style={{ marginBottom: '12px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             利差变动与跨境资金流动存在双向反馈——利差倒挂时北向资金倾向于流出，而人民币汇率也面临压力。下方图表直观展示三者联动关系。2024-08-19起，北向资金买入/卖出/净买入额不再公布。
           </div>
           <FlowCorrelationChart flowHistory={flowData} />
@@ -561,6 +561,7 @@ export default function CnUsSpreadDashboard() {
 }
 
 function FlowCorrelationChart({ flowHistory }: { flowHistory: FlowPoint[] }) {
+  const chartTheme = useChartTheme()
   const { ref: refFlow } = useChart(
     useMemo(() => {
       if (!flowHistory || flowHistory.length === 0) return null
@@ -570,28 +571,28 @@ function FlowCorrelationChart({ flowHistory }: { flowHistory: FlowPoint[] }) {
       const spreadVals = flowHistory.map((p) => (p.spread != null ? +(p.spread * 100).toFixed(2) : null))
       return {
         tooltip: {
-          trigger: 'axis', backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
-          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+          trigger: 'axis', backgroundColor: chartTheme.bgCard, borderColor: chartTheme.borderLight, borderWidth: 1,
+          textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
         },
         legend: {
           data: ['北向净流入(亿元)', '南向净流入(亿元)', '中美利差(bp)'],
-          textStyle: { color: THEME.textSecondary, fontSize: 11 }, top: 0,
+          textStyle: { color: chartTheme.textSecondary, fontSize: 11 }, top: 0,
         },
         grid: { left: 70, right: 70, top: 40, bottom: 40 },
-        xAxis: { type: 'category', data: dates, axisLabel: { color: THEME.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: THEME.borderColor } } },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: chartTheme.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: chartTheme.borderColor } } },
         yAxis: [
-          { type: 'value', name: '净流入(亿元)', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
-          { type: 'value', name: '利差(bp)', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, position: 'right', axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { show: false } },
+          { type: 'value', name: '净流入(亿元)', nameTextStyle: { color: chartTheme.textMuted, fontSize: 10 }, axisLabel: { color: chartTheme.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } } },
+          { type: 'value', name: '利差(bp)', nameTextStyle: { color: chartTheme.textMuted, fontSize: 10 }, position: 'right', axisLabel: { color: chartTheme.textMuted, fontSize: 10 }, splitLine: { show: false } },
         ],
-        dataZoom: [{ type: 'slider', start: 60, end: 100, height: 14, bottom: 6, borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)', fillerColor: 'rgba(245,158,11,0.15)' }],
+        dataZoom: [{ type: 'slider', start: 60, end: 100, height: 14, bottom: 6, borderColor: chartTheme.borderColor, backgroundColor: chartTheme.bgCard, fillerColor: chartTheme.goldDim, handleIcon: 'path://M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z', handleSize: '80%', handleStyle: { color: chartTheme.gold, borderColor: chartTheme.gold } }],
         series: [
-          { type: 'bar', name: '北向净流入(亿元)', data: northVals, yAxisIndex: 0, itemStyle: { color: THEME.red } },
-          { type: 'bar', name: '南向净流入(亿元)', data: southVals, yAxisIndex: 0, itemStyle: { color: THEME.blue } },
-          { type: 'line', name: '中美利差(bp)', data: spreadVals, yAxisIndex: 1, smooth: true, showSymbol: false, itemStyle: { color: THEME.gold }, lineStyle: { width: 2, color: THEME.gold } },
+          { type: 'bar', name: '北向净流入(亿元)', data: northVals, yAxisIndex: 0, itemStyle: { color: chartTheme.red } },
+          { type: 'bar', name: '南向净流入(亿元)', data: southVals, yAxisIndex: 0, itemStyle: { color: chartTheme.blue } },
+          { type: 'line', name: '中美利差(bp)', data: spreadVals, yAxisIndex: 1, smooth: true, showSymbol: false, itemStyle: { color: chartTheme.gold }, lineStyle: { width: 2, color: chartTheme.gold } },
         ],
       } as any
-    }, [flowHistory]),
-    [flowHistory],
+    }, [flowHistory, chartTheme]),
+    [flowHistory, chartTheme],
   )
 
   const { ref: refFx } = useChart(
@@ -602,35 +603,35 @@ function FlowCorrelationChart({ flowHistory }: { flowHistory: FlowPoint[] }) {
       const spreadVals = flowHistory.map((p) => (p.spread != null ? +(p.spread * 100).toFixed(2) : null))
       return {
         tooltip: {
-          trigger: 'axis', backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
-          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+          trigger: 'axis', backgroundColor: chartTheme.bgCard, borderColor: chartTheme.borderLight, borderWidth: 1,
+          textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
         },
         legend: {
           data: ['USDCNY(在岸)', '中美利差(bp)'],
-          textStyle: { color: THEME.textSecondary, fontSize: 11 }, top: 0,
+          textStyle: { color: chartTheme.textSecondary, fontSize: 11 }, top: 0,
         },
         grid: { left: 70, right: 70, top: 40, bottom: 40 },
-        xAxis: { type: 'category', data: dates, axisLabel: { color: THEME.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: THEME.borderColor } } },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: chartTheme.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: chartTheme.borderColor } } },
         yAxis: [
-          { type: 'value', name: 'USDCNH', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
-          { type: 'value', name: '利差(bp)', nameTextStyle: { color: THEME.textMuted, fontSize: 10 }, position: 'right', axisLabel: { color: THEME.textMuted, fontSize: 10 }, splitLine: { show: false } },
+          { type: 'value', name: 'USDCNH', nameTextStyle: { color: chartTheme.textMuted, fontSize: 10 }, axisLabel: { color: chartTheme.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } } },
+          { type: 'value', name: '利差(bp)', nameTextStyle: { color: chartTheme.textMuted, fontSize: 10 }, position: 'right', axisLabel: { color: chartTheme.textMuted, fontSize: 10 }, splitLine: { show: false } },
         ],
-        dataZoom: [{ type: 'slider', start: 60, end: 100, height: 14, bottom: 6, borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)', fillerColor: 'rgba(245,158,11,0.15)' }],
+        dataZoom: [{ type: 'slider', start: 60, end: 100, height: 14, bottom: 6, borderColor: chartTheme.borderColor, backgroundColor: chartTheme.bgCard, fillerColor: chartTheme.goldDim, handleIcon: 'path://M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z', handleSize: '80%', handleStyle: { color: chartTheme.gold, borderColor: chartTheme.gold } }],
         series: [
-          { type: 'line', name: 'USDCNY(在岸)', data: fxVals, smooth: true, showSymbol: false, lineStyle: { width: 2, color: THEME.cyan }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(6,182,212,0.2)' }, { offset: 1, color: 'rgba(6,182,212,0.02)' }] } } },
-          { type: 'line', name: '中美利差(bp)', data: spreadVals, yAxisIndex: 1, smooth: true, showSymbol: false, itemStyle: { color: THEME.gold }, lineStyle: { width: 2, color: THEME.gold } },
+          { type: 'line', name: 'USDCNY(在岸)', data: fxVals, smooth: true, showSymbol: false, lineStyle: { width: 2, color: chartTheme.cyan }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: chartTheme.cyanDim }, { offset: 1, color: 'transparent' }] } } },
+          { type: 'line', name: '中美利差(bp)', data: spreadVals, yAxisIndex: 1, smooth: true, showSymbol: false, itemStyle: { color: chartTheme.gold }, lineStyle: { width: 2, color: chartTheme.gold } },
         ],
       } as any
-    }, [flowHistory]),
-    [flowHistory],
+    }, [flowHistory, chartTheme]),
+    [flowHistory, chartTheme],
   )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+      <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0' }}>
         <div ref={refFlow} style={{ width: '100%', height: '340px' }} />
       </div>
-      <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+      <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0' }}>
         <div ref={refFx} style={{ width: '100%', height: '340px' }} />
       </div>
     </div>

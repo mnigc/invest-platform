@@ -1,5 +1,3 @@
-import { THEME } from './theme'
-
 interface Props {
   rows?: number
   type?: 'card' | 'table' | 'chart'
@@ -8,7 +6,7 @@ interface Props {
 
 export function LoadingSkeleton({ rows = 3, type = 'card', height }: Props) {
   const shimmerBase: React.CSSProperties = {
-    background: `linear-gradient(90deg, ${THEME.bgCard} 25%, ${THEME.bgCardHover} 50%, ${THEME.bgCard} 75%)`,
+    background: `linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%)`,
     backgroundSize: '200% 100%',
     animation: 'shimmer 1.5s ease-in-out infinite',
     borderRadius: '8px',

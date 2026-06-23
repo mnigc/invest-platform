@@ -1,5 +1,3 @@
-import { THEME } from './theme'
-
 interface Props {
   title?: string
   icon?: React.ReactNode
@@ -11,16 +9,7 @@ interface Props {
 
 export function MacroCard({ title, icon, badge, variant = 'default', children, className }: Props) {
   return (
-    <div
-      className={className}
-      style={{
-        background: THEME.bgCard,
-        border: `1px solid ${THEME.borderLight}`,
-        borderRadius: '16px',
-        padding: '16px',
-        boxShadow: variant === 'elevated' ? `0 4px 12px rgba(0,0,0,0.6)` : '0 1px 2px rgba(0,0,0,0.5)',
-      }}
-    >
+    <div className={className} style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '16px' }}>
       {title && (
         <div style={{
           display: 'flex',
@@ -28,16 +17,15 @@ export function MacroCard({ title, icon, badge, variant = 'default', children, c
           justifyContent: 'space-between',
           marginBottom: '10px',
           paddingBottom: '8px',
-          borderBottom: `1px solid ${THEME.borderLight}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {icon && <span style={{ color: THEME.blue, display: 'flex' }}>{icon}</span>}
+            {icon && <span style={{ color: 'var(--accent-blue)', display: 'flex' }}>{icon}</span>}
             <span style={{
               fontSize: '15px',
               fontWeight: 600,
-              fontFamily: THEME.fontDisplay,
+              fontFamily: 'var(--font-display)',
               letterSpacing: '0.04em',
-              color: THEME.textPrimary,
+              color: 'var(--text-primary)',
             }}>
               {title}
             </span>
@@ -47,9 +35,9 @@ export function MacroCard({ title, icon, badge, variant = 'default', children, c
               fontSize: '12px',
               padding: '4px 12px',
               borderRadius: '8px',
-              background: THEME.cyanDim,
-              color: THEME.cyan,
-              fontFamily: THEME.fontMono,
+              background: 'var(--accent-cyan-dim)',
+              color: 'var(--accent-cyan)',
+              fontFamily: 'var(--font-mono)',
               letterSpacing: '0.04em',
               fontWeight: 600,
             }}>

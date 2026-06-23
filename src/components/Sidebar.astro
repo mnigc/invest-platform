@@ -6,6 +6,7 @@ const usIndicators = [
   { label: '个人消费支出', href: '/indicators/US/PCE' },
   { label: '消费者信心指数', href: '/indicators/US/UMCSENT' },
   { label: '零售销售', href: '/indicators/US/RSXFS' },
+  { label: 'PMI', href: '/indicators/US/pmi' },
   { label: '国债收益率', href: '/indicators/US/bonds' },
 ];
 
@@ -21,7 +22,7 @@ const cnIndicators = [
 const navSections = [
   {
     items: [
-      { label: '市场仪表盘', href: '/' },
+      { label: '市场总览', href: '/' },
     ],
   },
   {
@@ -37,8 +38,9 @@ const navSections = [
     items: [
       { label: '中美 10Y 利差', href: '/indicators/cn-us-spread' },
       { label: '全球流动性', href: '/indicators/global-liquidity' },
-      { label: '指标热力图', href: '/indicators/heatmap' },
+      { label: '经济冷暖指标', href: '/indicators/heatmap' },
       { label: 'Z-Score 矩阵', href: '/indicators/zscore-matrix' },
+      { label: '汇率总览', href: '/indicators/forex' },
     ],
   },
   {
@@ -99,8 +101,80 @@ function isActive(href: string) {
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <span>FRED · Yahoo · akshare</span>
     </div>
+    <button id="themeToggleBtn" class="theme-toggle" title="切换主题" aria-label="切换主题" aria-pressed="false">
+      <span id="themeToggleIcon">🖥️</span>
+    </button>
   </div>
 </aside>
+
+<script>
+  (function() {
+    var btn = document.getElementById('themeToggleBtn');
+    var icon = document.getElementById('themeToggleIcon');
+    if (!btn || !icon) return;
+
+    var THEME_COLORS = { dark: '#000000', light: '#f5f7fa' };
+    var PREF_ICONS = { dark: '🌙', light: '☀️', auto: '🖥️' };
+    var PREF_LABELS = { dark: '深色模式', light: '浅色模式', auto: '跟随系统' };
+
+    function getPref() {
+      var pref = document.documentElement.dataset.themePref;
+      if (pref !== 'dark' && pref !== 'light' && pref !== 'auto') {
+        pref = 'auto';
+      }
+      return pref;
+    }
+
+    function resolveTheme(pref) {
+      if (pref === 'dark' || pref === 'light') return pref;
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+
+    function updateUI() {
+      var pref = getPref();
+      var theme = document.documentElement.dataset.theme;
+      icon.textContent = PREF_ICONS[pref];
+      var themeLabel = theme === 'dark' ? '深色' : '浅色';
+      btn.title = PREF_LABELS[pref] + '（当前: ' + themeLabel + '）';
+      btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', THEME_COLORS[theme]);
+    }
+
+    function applyAndSync(pref) {
+      var doc = document.documentElement;
+      var theme = resolveTheme(pref);
+      doc.dataset.theme = theme;
+      doc.dataset.themePref = pref;
+      var bg = theme === 'light' ? '#f5f7fa' : '#000000';
+      var text = theme === 'light' ? '#1a1a2e' : '#FFFFFF';
+      doc.style.backgroundColor = bg;
+      doc.style.color = text;
+      doc.style.setProperty('--bg-primary', bg);
+      doc.style.setProperty('--text-primary', text);
+      doc.style.colorScheme = theme;
+      doc.classList.add('theme-transitioning');
+      setTimeout(function() { doc.classList.remove('theme-transitioning'); }, 400);
+      try { localStorage.setItem('theme', pref); } catch(e) {}
+      updateUI();
+    }
+
+    updateUI();
+
+    btn.addEventListener('click', function() {
+      var pref = getPref();
+      var next = pref === 'dark' ? 'light' : pref === 'light' ? 'auto' : 'dark';
+      applyAndSync(next);
+    });
+
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', function() {
+      if (getPref() === 'auto') {
+        applyAndSync('auto');
+      }
+    });
+  })();
+</script>
 
 <style>
   .sidebar {
@@ -109,8 +183,7 @@ function isActive(href: string) {
     left: 0;
     width: var(--sidebar-width);
     height: 100vh;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border-light);
+    background: var(--bg-primary);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -122,7 +195,7 @@ function isActive(href: string) {
     align-items: center;
     gap: 10px;
     padding: 18px 16px 16px;
-    background: var(--bg-card);
+    background: var(--bg-primary);
   }
 
   .brand-icon {
@@ -240,6 +313,9 @@ function isActive(href: string) {
 
   .sidebar-footer {
     padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .sidebar-footer-text {
@@ -249,4 +325,27 @@ function isActive(href: string) {
     font-size: 10px;
     color: var(--text-muted);
   }
+
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all var(--transition-fast);
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .theme-toggle:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-blue);
+  }
 </style>
+
+

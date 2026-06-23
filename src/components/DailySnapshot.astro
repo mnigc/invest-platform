@@ -1,5 +1,6 @@
 ---
 import type { UsSnapshotData, CnSnapshotData } from '../lib/api'
+import { getUsSnapshot, getCnSnapshot } from '../lib/snapshot'
 
 import CnHeader from './snapshot/cn/CnHeader'
 import CnHeroPanel from './snapshot/cn/CnHeroPanel'
@@ -13,26 +14,16 @@ import UsHeroPanel from './regime/UsHeroPanel'
 import AnomalyAlertPanel from './regime/AnomalyAlertPanel'
 import BacktestPanel from './regime/BacktestPanel'
 
-const PORT = import.meta.env.PORT || 4321
 let usData: UsSnapshotData | null = null
 let cnData: CnSnapshotData | null = null
 
 try {
-  const API_BASE = import.meta.env.API_BASE || `http://127.0.0.1:${PORT}/api/v1`
-  const [usRes, cnRes] = await Promise.all([
-    fetch(`${API_BASE}/snapshot/us.json`, { headers: { 'Accept': 'application/json' } }),
-    fetch(`${API_BASE}/snapshot/cn.json`, { headers: { 'Accept': 'application/json' } }),
+  [usData, cnData] = await Promise.all([
+    getUsSnapshot(),
+    getCnSnapshot(),
   ])
-  if (usRes.ok) {
-    const json = await usRes.json()
-    if (json.success) usData = json.data
-  }
-  if (cnRes.ok) {
-    const json = await cnRes.json()
-    if (json.success) cnData = json.data
-  }
 } catch (e: any) {
-  console.error('[DailySnapshot] SSR fetch failed:', e.message)
+  console.error('[DailySnapshot] SSR data fetch failed:', e.message)
 }
 ---
 
@@ -44,7 +35,7 @@ try {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
         <div class="header-text">
-          <h1>市场仪表盘</h1>
+          <h1>市场总览</h1>
           <p>每日市场快照 · 专业宏观数据分析</p>
         </div>
       </div>
@@ -154,8 +145,8 @@ try {
   .header-main { display: flex; align-items: center; gap: 12px; }
   .header-icon {
     display: flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px; border-radius: var(--radius-md);
-    background: var(--gradient-brand); color: #fff; flex-shrink: 0;
+    width: 36px; height: 36px;
+    color: var(--accent-blue); flex-shrink: 0;
   }
   .header-text h1 {
     font-size: 20px; font-weight: 700; font-family: var(--font-display);
@@ -165,27 +156,34 @@ try {
   .header-meta { display: flex; align-items: center; gap: 16px; }
   .live-indicator {
     display: flex; align-items: center; gap: 6px; padding: 6px 12px;
-    border-radius: 20px; background: var(--accent-cyan-dim);
-    border: 1px solid rgba(6, 182, 212, 0.2);
+    background: var(--accent-cyan-dim);
   }
   .live-indicator .live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent-cyan); animation: neonPulse 2s ease-in-out infinite;
+    width: 6px; height: 6px;
+    background: var(--accent-cyan);
   }
   .live-indicator span { font-size: 12px; font-weight: 600; color: var(--accent-cyan); font-family: var(--font-display); letter-spacing: 0.06em; }
   .tabs-container {
-    display: flex; gap: 8px; background: var(--bg-card);
-    border-radius: var(--radius-lg); padding: 4px; border: 1px solid var(--border-light);
+    display: flex; gap: 4px; padding: 4px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
   }
   .tab-btn {
-    display: flex; align-items: center; gap: 8px; padding: 8px 20px;
-    border-radius: var(--radius-md); border: none; background: transparent;
-    color: var(--text-muted); font-size: 14px; font-weight: 600;
-    font-family: var(--font-display); letter-spacing: 0.04em;
-    cursor: pointer; transition: all var(--transition-base);
+    display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 18px;
+    border: none; background: transparent;
+    color: var(--text-secondary); font-size: 14px; font-weight: 600;
+    font-family: var(--font-body); letter-spacing: 0.02em;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
   }
-  .tab-btn:hover { color: var(--text-secondary); background: var(--bg-card-hover); }
-  .tab-btn.active { color: var(--text-primary); background: var(--accent-blue-dim); box-shadow: var(--shadow-sm); }
+  .tab-btn.active {
+    background: var(--accent-blue);
+    color: #FFFFFF;
+  }
+  .tab-btn:not(.active):hover {
+    color: var(--text-primary);
+  }
   .panels-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -218,10 +216,9 @@ try {
 
   .indicator-links-panel {
     margin-top: 16px;
-    padding: 16px 18px;
     background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-xl);
+    border-radius: 16px;
+    padding: 16px 18px;
   }
   .indicator-links-title {
     display: flex; align-items: center; gap: 8px;
@@ -235,16 +232,10 @@ try {
   }
   .indicator-link {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 8px 14px; border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border-light);
+    background: var(--bg-elevated);
+    border-radius: 8px;
+    padding: 8px 14px;
     color: var(--text-secondary); text-decoration: none;
-    transition: all var(--transition-fast);
-  }
-  .indicator-link:hover {
-    background: var(--accent-blue-dim);
-    border-color: var(--accent-blue);
-    color: var(--text-primary);
   }
   .indicator-code {
     font-family: var(--font-mono); font-size: 11px; font-weight: 700;

@@ -1,5 +1,4 @@
 import { MacroCard } from '../../ui/MacroCard'
-import { THEME } from '../../ui/theme'
 
 const regime = 'RISK_ON'
 const riskLevel = 1
@@ -16,36 +15,36 @@ export default function UsMarketRegime() {
   return (
     <MacroCard title="市场制式" badge={regime}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-        <div style={{ padding: '14px 16px', background: THEME.blueDim, borderRadius: '10px', border: '1px solid rgba(59,130,246,0.2)' }}>
-          <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: THEME.fontDisplay, letterSpacing: '0.06em', color: THEME.blue }}>{regime}</div>
-          <div style={{ fontSize: '12px', color: THEME.textSecondary, marginTop: '4px' }}>
+        <div style={{ padding: '14px 16px', background: 'var(--accent-blue-dim)', borderRadius: '10px', border: '1px solid rgba(59,130,246,0.2)' }}>
+          <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '0.06em', color: 'var(--accent-blue)' }}>{regime}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             <div>规避/偏好 {riskRatio}</div>
             <div>风险等级 {riskLevel}</div>
           </div>
         </div>
-        <div style={{ padding: '12px 14px', background: THEME.bgCard, borderRadius: '10px', border: `1px solid ${THEME.borderLight}` }}>
+        <div style={{ padding: '12px 14px', background: 'var(--bg-card)', borderRadius: '10px', border: `1px solid var(--border-light)` }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '10px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>VIX</span>
-            <span style={{ fontSize: '24px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary }}>{vix}</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: THEME.fontMono, color: vixUp ? THEME.red : THEME.green }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>VIX</span>
+            <span style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{vix}</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: vixUp ? 'var(--red)' : 'var(--green)' }}>
               {vixUp ? '+' : ''}{vixChange.toFixed(2)}
             </span>
           </div>
-          <div style={{ fontSize: '9px', color: THEME.textMuted, fontFamily: THEME.fontMono }}>{vixTerm}</div>
+          <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{vixTerm}</div>
         </div>
       </div>
-      <div style={{ borderTop: `1px solid ${THEME.borderLight}`, paddingTop: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>市场情绪</div>
+      <div style={{ borderTop: `1px solid var(--border-light)`, paddingTop: '12px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>市场情绪</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
           {[
             { label: 'Put/Call', val: putCall.toFixed(2) },
-            { label: 'AAII 牛', val: `${aaiiBull}%`, color: THEME.red },
-            { label: 'AAII 熊', val: `${aaiiBear}%`, color: THEME.green },
-            { label: '牛熊差', val: `${(aaiiBull - aaiiBear).toFixed(1)}%`, color: THEME.red },
+            { label: 'AAII 牛', val: `${aaiiBull}%`, color: 'var(--red)' },
+            { label: 'AAII 熊', val: `${aaiiBear}%`, color: 'var(--green)' },
+            { label: '牛熊差', val: `${(aaiiBull - aaiiBear).toFixed(1)}%`, color: 'var(--red)' },
           ].map(s => (
-            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '8px 6px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}` }}>
-              <span style={{ fontSize: '11px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>{s.label}</span>
-              <span style={{ fontSize: '16px', fontWeight: 700, fontFamily: THEME.fontMono, color: s.color || THEME.textPrimary }}>{s.val}</span>
+            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '8px 6px', background: 'var(--bg-card)', borderRadius: '8px', border: `1px solid var(--border-light)` }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>{s.label}</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: s.color || 'var(--text-primary)' }}>{s.val}</span>
             </div>
           ))}
         </div>

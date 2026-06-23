@@ -13,11 +13,45 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
+    <script is:inline>
+      // 防闪烁：在首次渲染前从 localStorage + 系统偏好确定主题
+      // 必须用 is:inline，确保在 CSS 加载前同步执行
+      // localStorage 存用户偏好：'dark' / 'light' / 'auto'，未设置时默认 'auto'
+      (function() {
+        var pref = null;
+        try { pref = localStorage.getItem('theme'); } catch(e) {}
+        if (pref !== 'dark' && pref !== 'light' && pref !== 'auto') {
+          pref = 'auto';
+        }
+        var theme;
+        if (pref === 'dark' || pref === 'light') {
+          theme = pref;
+        } else {
+          // auto：跟随系统
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        var doc = document.documentElement;
+        doc.dataset.theme = theme;
+        doc.dataset.themePref = pref; // 供按钮读取用户偏好
+        // CSS 加载前就直接设置 html 背景色和文字色，消除任何闪烁
+        var isLight = theme === 'light';
+        var bg = isLight ? '#f5f7fa' : '#000000';
+        var text = isLight ? '#1a1a2e' : '#FFFFFF';
+        doc.style.backgroundColor = bg;
+        doc.style.color = text;
+        doc.style.setProperty('--bg-primary', bg);
+        doc.style.setProperty('--text-primary', text);
+        doc.style.colorScheme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', bg);
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="description" content="投资数据与内容平台 - 宏观经济数据、投资大师文献、A股数据" />
+    <meta name="theme-color" content="#f5f7fa" />
   </head>
   <body>
     <div id="globalLoader" class="global-loader" aria-hidden="true">
@@ -126,8 +160,9 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     left: var(--sidebar-width);
     right: 0;
     height: var(--header-height);
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--bg-primary) 35%, transparent);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -184,7 +219,7 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     letter-spacing: 0.08em;
     color: var(--accent-cyan);
     background: var(--accent-cyan-dim);
-    border: 1px solid rgba(6, 182, 212, 0.2);
+    border: 1px solid var(--accent-cyan-dim);
   }
 
   .status-dot {
@@ -207,7 +242,6 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     margin-top: var(--header-height);
     min-height: calc(100vh - var(--header-height));
     padding: 28px 32px;
-    animation: fadeIn 0.3s ease;
   }
 
   .global-loader {
@@ -230,7 +264,7 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     height: 100%;
     width: 0%;
     background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
-    box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    box-shadow: 0 0 10px var(--accent-cyan);
     transition: width 0.2s ease;
   }
 </style>

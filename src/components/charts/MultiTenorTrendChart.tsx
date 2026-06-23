@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useChart } from './useChart'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
-import { THEME } from '../ui/theme'
+import { useChartTheme } from '../ui/theme'
 
 interface SeriesPoint {
   date: string
@@ -24,35 +24,31 @@ interface Props {
   height?: number
 }
 
-// 默认选中的关键期限
 const DEFAULT_TENORS = ['2Y', '5Y', '10Y', '30Y']
-// 可选期限
 const ALL_TENORS = ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y']
 
-const TENOR_COLORS: Record<string, string> = {
-  '1M': '#A855F7',
-  '3M': '#A855F7',
-  '6M': '#EC4899',
-  '1Y': '#EC4899',
-  '2Y': THEME.red,
-  '3Y': THEME.gold,
-  '5Y': THEME.cyan,
-  '7Y': '#84CC16',
-  '10Y': THEME.blue,
-  '20Y': '#F97316',
-  '30Y': THEME.green,
-}
-
 export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
+  const chartTheme = useChartTheme()
+  const TENOR_COLORS: Record<string, string> = {
+    '1M': chartTheme.purple,
+    '3M': chartTheme.purple,
+    '6M': chartTheme.pink,
+    '1Y': chartTheme.pink,
+    '2Y': chartTheme.red,
+    '3Y': chartTheme.gold,
+    '5Y': chartTheme.cyan,
+    '7Y': chartTheme.green,
+    '10Y': chartTheme.blue,
+    '20Y': chartTheme.orange,
+    '30Y': chartTheme.green,
+  }
   const [selected, setSelected] = useState<string[]>(DEFAULT_TENORS)
 
   const { ref } = useChart(
     useMemo(() => {
-      // 只取选中的期限
       const picked = series.filter((s) => selected.includes(s.maturity))
       if (picked.length === 0) return null
 
-      // 收集所有日期（取并集，按升序）
       const dateSet = new Set<string>()
       picked.forEach((s) => s.history.forEach((p) => dateSet.add(p.date)))
       const dates = Array.from(dateSet).sort()
@@ -60,42 +56,42 @@ export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
       return {
         tooltip: {
           trigger: 'axis',
-          backgroundColor: THEME.bgCard,
-          borderColor: THEME.borderLight,
+          backgroundColor: chartTheme.bgCard,
+          borderColor: chartTheme.borderLight,
           borderWidth: 1,
-          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+          textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
           valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(3) + '%'),
         },
         legend: {
           data: picked.map((s) => s.maturity),
-          textStyle: { color: THEME.textSecondary, fontSize: 11 },
+          textStyle: { color: chartTheme.textSecondary, fontSize: 11 },
           top: 0,
         },
         grid: { left: 55, right: 20, top: 40, bottom: 56 },
         xAxis: {
           type: 'category',
           data: dates,
-          axisLabel: { color: THEME.textMuted, fontSize: 10 },
-          axisLine: { lineStyle: { color: THEME.borderColor } },
+          axisLabel: { color: chartTheme.textMuted, fontSize: 10 },
+          axisLine: { lineStyle: { color: chartTheme.borderColor } },
           splitLine: { show: false },
         },
         yAxis: {
           type: 'value',
           axisLabel: {
-            color: THEME.textMuted,
+            color: chartTheme.textMuted,
             fontSize: 11,
             formatter: '{value}%',
           },
-          splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } },
+          splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } },
         },
         dataZoom: [
           {
             type: 'slider', start: 70, end: 100, height: 18, bottom: 14,
-            borderColor: THEME.borderColor, backgroundColor: 'rgba(19,23,34,0.6)',
-            fillerColor: 'rgba(59,130,246,0.15)',
-            handleIcon: 'M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z',
+            borderColor: chartTheme.borderColor, backgroundColor: chartTheme.bgCard,
+            fillerColor: chartTheme.blueDim,
+            handleIcon: 'path://M0,0 v9h9v-9H0z M-11,-1 h22v11 h-22 Z M-11,10 h22v11 h-22 Z',
             handleSize: '80%',
-            handleStyle: { color: THEME.blue, borderColor: THEME.blue },
+            handleStyle: { color: chartTheme.blue, borderColor: chartTheme.blue },
           },
         ],
         series: picked.map((s) => {
@@ -107,19 +103,19 @@ export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
             smooth: true,
             showSymbol: false,
             connectNulls: false,
-            lineStyle: { width: 2, color: TENOR_COLORS[s.maturity] || THEME.cyan },
+            lineStyle: { width: 2, color: TENOR_COLORS[s.maturity] || chartTheme.cyan },
             emphasis: { focus: 'series' },
           }
         }),
       } as any
-    }, [series, selected]),
-    [series, selected],
+    }, [series, selected, chartTheme]),
+    [series, selected, chartTheme],
   )
 
   if (loading) return <LoadingSkeleton type="chart" height={height} />
   if (!series || series.length === 0)
     return (
-      <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.textMuted, fontSize: '13px' }}>
+      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
         NO DATA
       </div>
     )
@@ -131,12 +127,12 @@ export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
   }
 
   return (
-    <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+    <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0' }}>
       {/* 期限选择器 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '0 12px 8px' }}>
         {series.map((s) => {
           const active = selected.includes(s.maturity)
-          const color = TENOR_COLORS[s.maturity] || THEME.cyan
+          const color = TENOR_COLORS[s.maturity] || 'var(--accent-cyan)'
           return (
             <button
               key={s.maturity}
@@ -145,12 +141,12 @@ export function MultiTenorTrendChart({ series, loading, height = 340 }: Props) {
                 padding: '3px 10px',
                 fontSize: '11px',
                 fontWeight: 600,
-                fontFamily: THEME.fontMono,
+                fontFamily: 'var(--font-mono)',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                border: `1px solid ${active ? color : THEME.borderLight}`,
+                border: `1px solid ${active ? color : 'var(--border-light)'}`,
                 background: active ? `${color}20` : 'transparent',
-                color: active ? color : THEME.textMuted,
+                color: active ? color : 'var(--text-muted)',
                 transition: 'all 0.15s ease',
               }}
             >

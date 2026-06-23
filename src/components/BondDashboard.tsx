@@ -4,7 +4,7 @@ import { MultiTenorTrendChart } from './charts/MultiTenorTrendChart'
 import { CurveDynamicsChart } from './charts/CurveDynamicsChart'
 import { MacroCard } from './ui/MacroCard'
 import { LoadingSkeleton } from './ui/LoadingSkeleton'
-import { THEME } from './ui/theme'
+import { useChartTheme } from './ui/theme'
 
 interface SeriesPoint {
   date: string
@@ -64,21 +64,21 @@ function SpreadCard({ label, value, change }: { label: string; value: number | n
   const isUp = (change || 0) >= 0
   return (
     <div style={{
-      padding: '18px 20px', background: THEME.bgCard, borderRadius: '14px',
-      border: `1px solid ${THEME.borderLight}`, display: 'flex', flexDirection: 'column',
+      padding: '18px 20px', background: 'var(--bg-card)', borderRadius: '14px',
+      display: 'flex', flexDirection: 'column',
       alignItems: 'center', textAlign: 'center', gap: '8px', minWidth: 0,
     }}>
-      <div style={{ fontSize: '11px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.1 }}>
+      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', lineHeight: 1.1 }}>
         {value > 0 ? '+' : ''}{value.toFixed(2)}%
       </div>
       {change != null && (
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '3px',
           padding: '2px 8px', borderRadius: '6px',
-          fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontMono,
-          color: isUp ? THEME.green : THEME.red,
-          background: isUp ? THEME.greenBg : THEME.redBg,
+          fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-mono)',
+          color: isUp ? 'var(--green)' : 'var(--red)',
+          background: isUp ? 'var(--green-bg)' : 'var(--red-bg)',
         }}>
           {isUp ? '↑' : '↓'} {Math.abs(change * 100).toFixed(1)}bp
         </div>
@@ -88,31 +88,33 @@ function SpreadCard({ label, value, change }: { label: string; value: number | n
 }
 
 function CurveShapeBadge({ shape }: { shape?: CurveShapeAssessment | null }) {
+  const chartTheme = useChartTheme()
   if (!shape) return null
   const colorMap: Record<string, string> = {
-    inverted: THEME.red,
-    steepening: THEME.gold,
-    flattening: THEME.cyan,
-    normal: THEME.green,
+    inverted: chartTheme.red,
+    steepening: chartTheme.gold,
+    flattening: chartTheme.cyan,
+    normal: chartTheme.green,
   }
   const bgMap: Record<string, string> = {
-    inverted: 'rgba(242,54,69,0.12)',
-    steepening: 'rgba(245,158,11,0.12)',
-    flattening: 'rgba(6,182,212,0.12)',
-    normal: 'rgba(8,153,129,0.12)',
+    inverted: chartTheme.redBg,
+    steepening: chartTheme.goldDim,
+    flattening: chartTheme.cyanDim,
+    normal: chartTheme.greenBg,
   }
-  const color = colorMap[shape.shape] || THEME.textSecondary
+  const color = colorMap[shape.shape] || chartTheme.textSecondary
   return (
     <span style={{
       fontSize: '11px',
       padding: '4px 10px',
       borderRadius: '8px',
-      background: bgMap[shape.shape] || THEME.blueDim,
+      background: bgMap[shape.shape] || chartTheme.blueDim,
       color,
-      fontFamily: THEME.fontMono,
+      fontFamily: 'var(--font-mono)',
       letterSpacing: '0.04em',
       fontWeight: 600,
-      border: `1px solid ${color}40`,
+      border: `1px solid ${color}`,
+      opacity: 0.85,
     }}>
       {shape.label}
     </span>
@@ -123,29 +125,29 @@ function CurveShapeBadge({ shape }: { shape?: CurveShapeAssessment | null }) {
 function CurveShapeSummary({ shape }: { shape?: CurveShapeAssessment | null }) {
   if (!shape) return null
   const colorMap: Record<string, string> = {
-    inverted: THEME.red,
-    steepening: THEME.gold,
-    flattening: THEME.cyan,
-    normal: THEME.green,
+    inverted: 'var(--red)',
+    steepening: 'var(--accent-gold)',
+    flattening: 'var(--accent-cyan)',
+    normal: 'var(--green)',
   }
-  const color = colorMap[shape.shape] || THEME.textSecondary
+  const color = colorMap[shape.shape] || 'var(--text-secondary)'
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
       padding: '12px 16px', marginTop: '12px',
-      background: 'rgba(255,255,255,0.02)', borderRadius: '8px',
-      border: `1px solid ${THEME.borderLight}`,
+      background: 'var(--bg-elevated)', borderRadius: '8px',
+      border: `1px solid var(--border-light)`,
       fontSize: '12px', lineHeight: 1.5,
     }}>
       <CurveShapeBadge shape={shape} />
-      <span style={{ color: THEME.textSecondary }}>{shape.description}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{shape.description}</span>
       {shape.spread10y2y != null && (
-        <span style={{ fontFamily: THEME.fontMono, color: shape.spread10y2y >= 0 ? THEME.green : THEME.red, fontWeight: 600 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', color: shape.spread10y2y >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
           10Y-2Y = {(shape.spread10y2y * 100).toFixed(1)}bp
         </span>
       )}
       {shape.spreadPercentile1y != null && (
-        <span style={{ color: THEME.textMuted }}>
+        <span style={{ color: 'var(--text-muted)' }}>
           1Y分位 {shape.spreadPercentile1y.toFixed(0)}%
         </span>
       )}
@@ -179,18 +181,18 @@ function DailyBondSummary({
 
   return (
     <div style={{
-      padding: '18px 20px', background: THEME.bgElevated, borderRadius: '14px',
-      border: `1px solid ${THEME.borderLight}`,
+      padding: '18px 20px', background: 'var(--bg-elevated)', borderRadius: '14px',
+      border: `1px solid var(--border-light)`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={THEME.cyan} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke='var(--accent-cyan)' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
         </svg>
-        <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.03em', color: THEME.textPrimary }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.03em', color: 'var(--text-primary)' }}>
           今日债市 · {latestDate}
         </span>
       </div>
-      <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
+      <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
         {summaryItems.join('；')}。
       </p>
     </div>
@@ -200,13 +202,14 @@ function DailyBondSummary({
 const BOND_EDUCATION_OPEN = true
 
 function BondEducation({ region }: { region: 'US' | 'CN' }) {
+  const chartTheme = useChartTheme()
   const title = region === 'US' ? '美国国债' : '中国国债'
   const [open, setOpen] = useState(BOND_EDUCATION_OPEN)
 
   return (
     <div style={{
-      borderRadius: '14px', border: `1px solid ${THEME.borderLight}`,
-      background: THEME.bgCard, overflow: 'hidden',
+      borderRadius: '14px', border: `1px solid var(--border-light)`,
+      background: 'var(--bg-card)', overflow: 'hidden',
     }}>
       <div
         onClick={() => setOpen(!open)}
@@ -215,43 +218,43 @@ function BondEducation({ region }: { region: 'US' | 'CN' }) {
           padding: '14px 18px', cursor: 'pointer', userSelect: 'none',
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={THEME.cyan} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke='var(--accent-cyan)' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
         </svg>
-        <span style={{ flex: 1, fontSize: '13px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.03em', color: THEME.textPrimary }}>
+        <span style={{ flex: 1, fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.03em', color: 'var(--text-primary)' }}>
           {title}收益率 · 一图读懂
         </span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={THEME.textMuted} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke='var(--text-muted)' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
           style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </div>
       {open && (
-        <div style={{ padding: '0 18px 16px', fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
+        <div style={{ padding: '0 18px 16px', fontSize: '13px', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
           <p style={{ margin: '0 0 14px 0' }}>
-            <span style={{ color: THEME.textPrimary, fontWeight: 700 }}>{title}</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{title}</span>
             是{region === 'US' ? '美国联邦政府' : '中国中央政府'}为筹集财政资金而发行的债券，以国家信用为担保，被公认为全球最安全的资产之一。其<strong>收益率（利率）</strong>不仅是政府的借钱成本，更是全球金融市场的"定海神针"——所有资产的定价都或多或少参考它。
           </p>
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
           }}>
             {/* 利率上行 */}
-            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+            <div style={{ borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
-                color: THEME.red, background: 'rgba(242,54,69,0.06)', borderBottom: '1px solid rgba(242,54,69,0.15)',
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+                color: 'var(--red)', background: chartTheme.redBg, borderBottom: `1px solid var(--border-light)`,
               }}>
                 📈 利率上行
               </div>
               <div style={{ padding: '10px 14px' }}>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>触发因素：</div>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>触发因素：</div>
                 <ul style={{ margin: '6px 0 12px 0', paddingLeft: '18px' }}>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>经济过热、通胀高企</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>央行加息（FOMC / 人行）</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>国债供给大增（财政赤字扩大）</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>全球避险情绪降温，资金从债市流出</li>
                 </ul>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>市场影响：</div>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>市场影响：</div>
                 <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px' }}>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>债市价格下跌，债券持有人亏损</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>股市估值承压（贴现率上升）</li>
@@ -263,22 +266,22 @@ function BondEducation({ region }: { region: 'US' | 'CN' }) {
             </div>
 
             {/* 利率下行 */}
-            <div style={{ borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+            <div style={{ borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
-                color: THEME.green, background: 'rgba(8,153,129,0.06)', borderBottom: '1px solid rgba(8,153,129,0.15)',
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+                color: 'var(--green)', background: chartTheme.greenBg, borderBottom: `1px solid var(--border-light)`,
               }}>
                 📉 利率下行
               </div>
               <div style={{ padding: '10px 14px' }}>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>触发因素：</div>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>触发因素：</div>
                 <ul style={{ margin: '6px 0 12px 0', paddingLeft: '18px' }}>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>经济放缓、衰退风险</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>央行降息 / 宽松政策</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>通胀回落、通缩压力</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>避险资金涌入（地缘危机 / 金融危机）</li>
                 </ul>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: THEME.textMuted, marginBottom: '4px' }}>市场影响：</div>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>市场影响：</div>
                 <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px' }}>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>债市价格上涨，债券持有人盈利</li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>股市估值修复，成长风格受益</li>
@@ -290,34 +293,34 @@ function BondEducation({ region }: { region: 'US' | 'CN' }) {
             </div>
 
             {/* 利差说明 */}
-            <div style={{ gridColumn: 'span 2', borderRadius: '10px', border: `1px solid ${THEME.borderLight}`, background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+            <div style={{ gridColumn: 'span 2', borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em',
-                color: THEME.cyan, background: 'rgba(6,182,212,0.06)', borderBottom: '1px solid rgba(6,182,212,0.15)',
+                padding: '10px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+                color: 'var(--accent-cyan)', background: chartTheme.cyanDim, borderBottom: `1px solid var(--border-light)`,
               }}>
                 📊 利差（期限利差）
               </div>
               <div style={{ padding: '10px 14px' }}>
                 <p style={{ margin: '0 0 10px 0', fontSize: '12.5px', lineHeight: 1.6 }}>
-                  <span style={{ color: THEME.textPrimary, fontWeight: 700 }}>期限利差</span> = 长期国债收益率 − 短期国债收益率（如 10Y-2Y），是债券市场最重要的信号之一。
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>期限利差</span> = 长期国债收益率 − 短期国债收益率（如 10Y-2Y），是债券市场最重要的信号之一。
                 </p>
                 <ul style={{ margin: '0 0 10px 0', paddingLeft: '18px' }}>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
-                    <span style={{ color: THEME.green, fontWeight: 700 }}>利差为正（曲线正常）</span>：长端利率高于短端，反映市场预期经济正常增长、通胀合理。利差越大，说明市场对未来经济越乐观。
+                    <span style={{ color: 'var(--green)', fontWeight: 700 }}>利差为正（曲线正常）</span>：长端利率高于短端，反映市场预期经济正常增长、通胀合理。利差越大，说明市场对未来经济越乐观。
                   </li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
-                    <span style={{ color: THEME.red, fontWeight: 700 }}>利差倒挂（曲线倒挂）</span>：短端利率高于长端，是历史上最精准的衰退预警信号之一。逻辑：市场预期未来经济走弱、央行会降息，所以长端利率反而低于短端。
+                    <span style={{ color: 'var(--red)', fontWeight: 700 }}>利差倒挂（曲线倒挂）</span>：短端利率高于长端，是历史上最精准的衰退预警信号之一。逻辑：市场预期未来经济走弱、央行会降息，所以长端利率反而低于短端。
                   </li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
-                    <span style={{ color: THEME.textPrimary, fontWeight: 600 }}>利差收窄 / 平坦化</span>：市场对未来增长趋于谨慎，货币政策可能面临转折。
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>利差收窄 / 平坦化</span>：市场对未来增长趋于谨慎，货币政策可能面临转折。
                   </li>
                   <li style={{ marginBottom: '3px', fontSize: '12.5px', lineHeight: 1.6 }}>
-                    <span style={{ color: THEME.textPrimary, fontWeight: 600 }}>利差走阔 / 陡峭化</span>：通常出现在降息周期初期——短端利率快速下降（央行降息），长端利率还在反映通胀预期，二者差距拉大。
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>利差走阔 / 陡峭化</span>：通常出现在降息周期初期——短端利率快速下降（央行降息），长端利率还在反映通胀预期，二者差距拉大。
                   </li>
                 </ul>
                 <div style={{
                   marginTop: '10px', padding: '10px 14px', borderRadius: '8px',
-                  background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)',
+                  background: chartTheme.cyanDim, border: `1px solid var(--border-light)`,
                   fontSize: '12px', lineHeight: 1.6,
                 }}>
                   📌 自 1970 年代以来，美国历次经济衰退之前几乎都出现了 10Y-2Y 收益率曲线倒挂，是公认的最可靠领先指标之一。
@@ -382,8 +385,8 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
     return (
       <div style={{
         padding: '14px 18px', borderRadius: '12px',
-        background: THEME.redBg, color: THEME.red, fontSize: '13px',
-        border: `1px solid rgba(242,54,69,0.2)`,
+        background: 'var(--red-bg)', color: 'var(--red)', fontSize: '13px',
+        border: `1px solid var(--red-bg)`,
       }}>
         ⚠️ {error}
       </div>
@@ -392,16 +395,16 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
   if (!history || history.length === 0 || !meta?.latest) return null
 
   const factors = [
-    { key: 'level', label: '水平 (Level β₀)', desc: '反映长期利率水平，受长期通胀预期与中性利率影响', color: THEME.blue },
-    { key: 'slope', label: '斜率 (Slope β₁)', desc: '短端减长端的利差，负值代表曲线倒挂', color: THEME.gold },
-    { key: 'curvature', label: '曲率 (Curvature β₂)', desc: '中期凸起程度，反映曲线弯曲方向', color: THEME.cyan },
+    { key: 'level', label: '水平 (Level β₀)', desc: '反映长期利率水平，受长期通胀预期与中性利率影响', color: 'var(--accent-blue)' },
+    { key: 'slope', label: '斜率 (Slope β₁)', desc: '短端减长端的利差，负值代表曲线倒挂', color: 'var(--accent-gold)' },
+    { key: 'curvature', label: '曲率 (Curvature β₂)', desc: '中期凸起程度，反映曲线弯曲方向', color: 'var(--accent-cyan)' },
   ] as const
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: SECTION_GAP, alignItems: 'stretch' }}>
       <MacroCard title="Nelson-Siegel 三因子分解 (近 250 交易日)" variant="elevated">
         <CurveDynamicsChart history={history} height={340} />
-        <div style={{ marginTop: '10px', fontSize: '11px', color: THEME.textMuted, fontFamily: THEME.fontMono }}>
+        <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
           &lambda; = {meta.lambda} &nbsp;&middot;&nbsp; 拟合 RMSE = {meta.latestRmse?.toFixed(4) ?? '--'}
         </div>
       </MacroCard>
@@ -414,23 +417,23 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
             return (
               <div key={f.key} style={{
                 padding: '14px 16px',
-                background: THEME.bgElevated,
+                background: 'var(--bg-elevated)',
                 borderRadius: '12px',
-                border: `1px solid ${THEME.borderLight}`,
+                border: `1px solid var(--border-light)`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', color: THEME.textSecondary, fontWeight: 600 }}>{f.label}</span>
-                  <span style={{ fontSize: '20px', fontWeight: 700, fontFamily: THEME.fontMono, color: f.color }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>{f.label}</span>
+                  <span style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: f.color }}>
                     {v == null ? '--' : v.toFixed(3)}
                   </span>
                 </div>
-                <div style={{ fontSize: '11px', color: THEME.textMuted, marginBottom: '10px', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.5 }}>
                   {f.desc}
                 </div>
                 {p != null && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '10px', color: THEME.textMuted, fontWeight: 600 }}>分位</span>
-                    <div style={{ flex: 1, height: '6px', background: THEME.borderColor, borderRadius: '3px', overflow: 'hidden' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>分位</span>
+                    <div style={{ flex: 1, height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
                       <div style={{
                         width: `${Math.min(100, Math.max(0, p))}%`,
                         height: '100%',
@@ -438,7 +441,7 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
                         borderRadius: '3px',
                       }} />
                     </div>
-                    <span style={{ fontSize: '12px', fontFamily: THEME.fontMono, color: f.color, fontWeight: 700, minWidth: '40px', textAlign: 'right' }}>
+                    <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: f.color, fontWeight: 700, minWidth: '40px', textAlign: 'right' }}>
                       {p.toFixed(0)}%
                     </span>
                   </div>
@@ -453,6 +456,7 @@ function CurveDynamicsSection({ region }: { region: 'US' | 'CN' }) {
 }
 
 export default function BondDashboard({ data: regionData, region }: Props) {
+  const chartTheme = useChartTheme()
   const tenYear = useMemo(() => findSeries(regionData, '10Y'), [regionData])
 
   const curveSeries = useMemo(() => {
@@ -502,10 +506,10 @@ export default function BondDashboard({ data: regionData, region }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
             {/* 10Y 大数字 */}
             <div>
-              <div style={{ fontSize: '11px', color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 600 }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 600 }}>
                 最新值 &middot; {regionData.latestDate || '--'}
               </div>
-              <div style={{ fontSize: '44px', fontWeight: 800, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.1 }}>
+              <div style={{ fontSize: '44px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', lineHeight: 1.1 }}>
                 {tenYear?.latest ? tenYear.latest.value.toFixed(3) : '--'}<span style={{ fontSize: '24px' }}>%</span>
               </div>
             </div>
@@ -513,9 +517,9 @@ export default function BondDashboard({ data: regionData, region }: Props) {
             {tenYear?.change != null && (
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 14px',
-                borderRadius: '8px', alignSelf: 'flex-start', fontSize: '14px', fontWeight: 700, fontFamily: THEME.fontMono,
-                color: tenYear.change >= 0 ? THEME.green : THEME.red,
-                background: tenYear.change >= 0 ? 'rgba(8,153,129,0.12)' : 'rgba(242,54,69,0.12)',
+                borderRadius: '8px', alignSelf: 'flex-start', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                color: tenYear.change >= 0 ? chartTheme.green : chartTheme.red,
+                background: tenYear.change >= 0 ? chartTheme.greenBg : chartTheme.redBg,
               }}>
                 {tenYear.change >= 0 ? '↑' : '↓'} {Math.abs(tenYear.change * 100).toFixed(1)} bp
               </div>
@@ -525,7 +529,7 @@ export default function BondDashboard({ data: regionData, region }: Props) {
             {heroTenors.length > 0 && (
               <>
                 <div style={{
-                  height: '1px', background: THEME.borderLight, margin: '4px 0',
+                  height: '1px', background: 'var(--border-light)', margin: '4px 0',
                 }} />
                 <div style={{
                   display: 'grid', gridTemplateColumns: `repeat(${heroTenors.length}, 1fr)`,
@@ -535,17 +539,17 @@ export default function BondDashboard({ data: regionData, region }: Props) {
                     const isUp = (s.change || 0) >= 0
                     return (
                       <div key={s.maturity} style={{
-                        padding: '10px 12px', background: THEME.bgElevated, borderRadius: '10px',
-                        border: `1px solid ${THEME.borderLight}`, display: 'flex', flexDirection: 'column', gap: '3px',
+                        padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: '10px',
+                        border: `1px solid var(--border-light)`, display: 'flex', flexDirection: 'column', gap: '3px',
                       }}>
-                        <span style={{ fontSize: '11px', color: THEME.textMuted, fontFamily: THEME.fontMono, fontWeight: 600 }}>{s.maturity}</span>
-                        <span style={{ fontSize: '17px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.2 }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{s.maturity}</span>
+                        <span style={{ fontSize: '17px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', lineHeight: 1.2 }}>
                           {s.latest ? s.latest.value.toFixed(3) : '--'}%
                         </span>
                         {s.change != null && (
                           <span style={{
-                            fontSize: '11px', fontFamily: THEME.fontMono, fontWeight: 700,
-                            color: isUp ? THEME.green : THEME.red,
+                            fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                            color: isUp ? 'var(--green)' : 'var(--red)',
                           }}>
                             {isUp ? '+' : ''}{(s.change * 100).toFixed(1)}bp
                           </span>
@@ -558,7 +562,7 @@ export default function BondDashboard({ data: regionData, region }: Props) {
             )}
 
             {/* 数据来源 */}
-            <div style={{ fontSize: '11px', color: THEME.textMuted, marginTop: 'auto', paddingTop: '6px', borderTop: `1px solid ${THEME.borderLight}` }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 'auto', paddingTop: '6px', borderTop: `1px solid var(--border-light)` }}>
               来源: {region === 'US' ? 'FRED / 美国财政部' : '中债登 / akshare'}
             </div>
           </div>
@@ -588,7 +592,7 @@ export default function BondDashboard({ data: regionData, region }: Props) {
         <MacroCard
           title={`${region === 'US' ? '美国' : '中国'}国债收益率走势（多期限对比）`}
           variant="elevated"
-          badge={<span style={{ fontSize: '11px', color: THEME.textMuted, fontFamily: THEME.fontMono }}>点击下方按钮切换期限</span>}
+          badge={<span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>点击下方按钮切换期限</span>}
         >
           <MultiTenorTrendChart series={regionData.series} height={360} />
         </MacroCard>
@@ -597,10 +601,10 @@ export default function BondDashboard({ data: regionData, region }: Props) {
           <div style={{ overflow: 'auto', flex: 1 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
-                <tr style={{ borderBottom: `2px solid ${THEME.borderColor}` }}>
-                  <th style={{ textAlign: 'left', padding: '10px 12px', color: THEME.textMuted, fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>期限</th>
-                  <th style={{ textAlign: 'right', padding: '10px 12px', color: THEME.textMuted, fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>收益率</th>
-                  <th style={{ textAlign: 'right', padding: '10px 12px', color: THEME.textMuted, fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>日变动</th>
+                <tr style={{ borderBottom: `2px solid var(--border-color)` }}>
+                  <th style={{ textAlign: 'left', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>期限</th>
+                  <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>收益率</th>
+                  <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-muted)', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>日变动</th>
                 </tr>
               </thead>
               <tbody>
@@ -611,17 +615,17 @@ export default function BondDashboard({ data: regionData, region }: Props) {
                     <tr
                       key={s.maturity}
                       style={{
-                        borderBottom: `1px solid ${THEME.borderLight}`,
+                        borderBottom: `1px solid var(--border-light)`,
                         transition: 'background 0.15s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.06)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = chartTheme.blueDim)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <td style={{ padding: '10px 12px', color: THEME.textPrimary, fontFamily: THEME.fontMono, fontWeight: 600 }}>{s.maturity}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: THEME.textPrimary, fontFamily: THEME.fontMono, fontWeight: 700 }}>
+                      <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{s.maturity}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                         {s.latest ? s.latest.value.toFixed(3) + '%' : '--'}
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: THEME.fontMono, fontWeight: 700, color: isUp ? THEME.green : THEME.red }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: isUp ? 'var(--green)' : 'var(--red)' }}>
                         {change != null ? (isUp ? '+' : '') + (change * 100).toFixed(1) + 'bp' : '--'}
                       </td>
                     </tr>

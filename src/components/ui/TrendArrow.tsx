@@ -1,12 +1,10 @@
-import { THEME } from './theme'
-
 interface Props {
   value: number | null
   variant?: 'percent' | 'value'
 }
 
 export function TrendArrow({ value, variant = 'percent' }: Props) {
-  if (value == null) return <span style={{ color: THEME.textMuted, fontSize: '12px', fontFamily: THEME.fontMono }}>--</span>
+  if (value == null) return <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>--</span>
 
   const isUp = value >= 0
   const arrow = isUp ? '▲' : '▼'
@@ -21,8 +19,8 @@ export function TrendArrow({ value, variant = 'percent' }: Props) {
       gap: '2px',
       fontSize: '12px',
       fontWeight: 600,
-      fontFamily: THEME.fontMono,
-      color: isUp ? THEME.green : THEME.red,
+      fontFamily: 'var(--font-mono)',
+      color: isUp ? 'var(--green)' : 'var(--red)',
     }}>
       {arrow}{display}
     </span>

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { THEME } from './ui/theme'
 import { LoadingSkeleton } from './ui/LoadingSkeleton'
 
 interface Industry {
@@ -11,69 +10,10 @@ interface Industry {
 
 type SortKey = 'name' | 'pe_asc' | 'pe_desc' | 'pb_asc' | 'pb_desc'
 
-const btnBase: React.CSSProperties = {
-  padding: '4px 10px',
-  borderRadius: '6px',
-  fontSize: '10px',
-  fontWeight: 600,
-  fontFamily: THEME.fontDisplay,
-  letterSpacing: '0.03em',
-  border: 'none',
-  cursor: 'pointer',
-  transition: 'all 0.15s',
-}
 
-const cardCss = {
-  container: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-    gap: '10px',
-  } as React.CSSProperties,
-  card: {
-    background: 'var(--bg-elevated)',
-    borderRadius: '10px',
-    border: '1px solid var(--border-light)',
-    padding: '12px 14px',
-    cursor: 'default',
-    transition: 'all 0.2s',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '6px',
-  },
-  name: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: 'var(--text-primary)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  row: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    gap: '6px',
-  },
-  label: {
-    fontSize: '10px',
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.06em',
-  },
-  value: {
-    fontSize: '15px',
-    fontWeight: 600,
-    fontFamily: THEME.fontMono,
-  } as React.CSSProperties,
-  valueSmall: {
-    fontSize: '13px',
-    fontWeight: 500,
-    fontFamily: THEME.fontMono,
-  } as React.CSSProperties,
-}
 
 function PctDot({ pct }: { pct: number }) {
-  const c = pct >= 80 ? THEME.red : pct >= 60 ? '#f59e0b' : pct >= 40 ? '#94a3b8' : pct >= 20 ? '#22c55e' : THEME.green
+  const c = pct >= 80 ? 'var(--red)' : pct >= 60 ? 'var(--accent-gold)' : pct >= 40 ? 'var(--text-muted)' : pct >= 20 ? 'var(--green)' : 'var(--green)'
   return (
     <span style={{
       display: 'inline-block',
@@ -121,6 +61,62 @@ export default function ShenwanValuation() {
   if (loading) return <div style={{ height: 200 }}><LoadingSkeleton type="card" height={200} /></div>
   if (!industries.length) return null
 
+  const btnBase: React.CSSProperties = {
+    padding: '4px 10px',
+    fontSize: '10px',
+    fontWeight: 600,
+    fontFamily: 'var(--font-display)',
+    letterSpacing: '0.03em',
+    border: 'none',
+    cursor: 'pointer',
+  }
+
+  const cardCss = {
+    container: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+      gap: '10px',
+    } as React.CSSProperties,
+    card: {
+      background: 'var(--bg-elevated)',
+      borderRadius: 10,
+      padding: '12px 14px',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '6px',
+    },
+    name: {
+      fontSize: '13px',
+      fontWeight: 600,
+      color: 'var(--text-primary)',
+      whiteSpace: 'nowrap' as const,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+    row: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      gap: '6px',
+    },
+    label: {
+      fontSize: '10px',
+      color: 'var(--text-muted)',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.06em',
+    },
+    value: {
+      fontSize: '15px',
+      fontWeight: 600,
+      fontFamily: 'var(--font-mono)',
+    } as React.CSSProperties,
+    valueSmall: {
+      fontSize: '13px',
+      fontWeight: 500,
+      fontFamily: 'var(--font-mono)',
+    } as React.CSSProperties,
+  }
+
   const peList = industries.filter(i => i.pe > 0).map(i => i.pe).sort((a, b) => a - b)
   const pbList = industries.filter(i => i.pb > 0).map(i => i.pb).sort((a, b) => a - b)
 
@@ -131,7 +127,7 @@ export default function ShenwanValuation() {
   }
 
   return (
-    <div style={{ marginTop: 16, background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 20 }}>
+    <div style={{ marginTop: 16, background: 'var(--bg-card)', borderRadius: 16, padding: 20 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         申万一级行业估值扫描
@@ -141,8 +137,8 @@ export default function ShenwanValuation() {
             <button key={opt.key} onClick={() => setSortKey(opt.key)}
               style={{
                 ...btnBase,
-                background: sortKey === opt.key ? THEME.blue : 'var(--bg-elevated)',
-                color: sortKey === opt.key ? THEME.textPrimary : 'var(--text-muted)',
+                background: sortKey === opt.key ? 'var(--accent-blue)' : 'transparent',
+                color: sortKey === opt.key ? '#FFFFFF' : 'var(--text-muted)',
               }}
             >{opt.label}</button>
           ))}
@@ -153,13 +149,10 @@ export default function ShenwanValuation() {
         {sorted.map(ind => {
           const pc = pct(peList, ind.pe)
           const pbc = pct(pbList, ind.pb)
-          const peColor = pc >= 80 ? THEME.red : pc >= 60 ? '#f59e0b' : pc >= 40 ? '#94a3b8' : pc >= 20 ? '#22c55e' : THEME.green
-          const pbColor = pbc >= 80 ? THEME.red : pbc >= 60 ? '#f59e0b' : pbc >= 40 ? '#94a3b8' : pbc >= 20 ? '#22c55e' : THEME.green
+          const peColor = pc >= 80 ? 'var(--red)' : pc >= 60 ? 'var(--accent-gold)' : pc >= 40 ? 'var(--text-muted)' : pc >= 20 ? 'var(--green)' : 'var(--green)'
+          const pbColor = pbc >= 80 ? 'var(--red)' : pbc >= 60 ? 'var(--accent-gold)' : pbc >= 40 ? 'var(--text-muted)' : pbc >= 20 ? 'var(--green)' : 'var(--green)'
           return (
-            <div key={ind.name} style={cardCss.card}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-blue)'; e.currentTarget.style.background = 'var(--bg-card-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-elevated)' }}
-            >
+            <div key={ind.name} style={cardCss.card}>
               <div style={cardCss.name} title={ind.name}>{ind.name}</div>
               <div style={cardCss.row}>
                 <span style={cardCss.label}>PE</span>
@@ -180,11 +173,11 @@ export default function ShenwanValuation() {
       </div>
 
       <div style={{ marginTop: 10, fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 10, alignItems: 'center' }}>
-        <span style={{ color: THEME.red }}>● 高估</span>
-        <span style={{ color: '#f59e0b' }}>● 偏高</span>
-        <span style={{ color: '#94a3b8' }}>● 中等</span>
-        <span style={{ color: '#22c55e' }}>● 偏低</span>
-        <span style={{ color: THEME.green }}>● 低估</span>
+        <span style={{ color: 'var(--red)' }}>● 高估</span>
+        <span style={{ color: 'var(--accent-gold)' }}>● 偏高</span>
+        <span style={{ color: 'var(--text-muted)' }}>● 中等</span>
+        <span style={{ color: 'var(--green)' }}>● 偏低</span>
+        <span style={{ color: 'var(--green)' }}>● 低估</span>
         <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--text-muted)' }}>左圆点=PE 右圆点=PB</span>
       </div>
     </div>

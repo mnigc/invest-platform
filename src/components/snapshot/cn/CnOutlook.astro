@@ -61,17 +61,16 @@ const action = hasData
 </div>
 
 <style>
-  .snapshot-panel { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-xl); padding: 16px; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
-  .snapshot-panel:hover { border-color: var(--accent-blue); box-shadow: var(--shadow-blue); }
-  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .snapshot-panel { background: var(--bg-card); border-radius: 16px; padding: 16px; }
+  .snapshot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .snapshot-panel-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; font-family: var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); }
   .snapshot-panel-title svg { color: var(--accent-blue); flex-shrink: 0; }
-  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-gold-dim); color: var(--accent-gold); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
+  .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; background: var(--accent-gold-dim); color: var(--accent-gold); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
   .outlook-container { display: flex; flex-direction: column; gap: 10px; }
-  .evidence-block, .falsify-block, .action-block { padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
-  .evidence-block { background: rgba(8,153,129,0.06); border-color: rgba(8,153,129,0.2); }
-  .falsify-block { background: rgba(242,54,69,0.06); border-color: rgba(242,54,69,0.2); }
-  .action-block { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.2); }
+  .evidence-block, .falsify-block, .action-block { border-radius: 8px; padding: 10px 12px; }
+  .evidence-block { background: var(--green-bg); }
+  .falsify-block { background: var(--red-bg); }
+  .action-block { background: var(--accent-blue-dim); }
   .block-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   .block-header svg { flex-shrink: 0; }
   .evidence-block .block-header svg { color: var(--green); }
@@ -82,7 +81,7 @@ const action = hasData
   .action-title { font-size: 12px; font-weight: 600; font-family: var(--font-display); color: var(--accent-blue); }
   .outlook-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
   .outlook-item { font-size: 12px; line-height: 1.5; color: var(--text-secondary); padding-left: 12px; position: relative; }
-  .outlook-item::before { content: ''; position: absolute; left: 0; top: 7px; width: 4px; height: 4px; border-radius: 50%; }
+  .outlook-item::before { content: ''; position: absolute; left: 0; top: 7px; width: 4px; height: 4px; }
   .evidence-item::before { background: var(--green); }
   .falsify-item::before { background: var(--red); }
   .action-item::before { background: var(--accent-blue); }

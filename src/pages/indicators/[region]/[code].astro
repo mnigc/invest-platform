@@ -182,8 +182,8 @@ const indicatorInfo = INDICATOR_INFO[region]?.[code];
 let cpiAssessment: { label: string; description: string; bc: string; bg: string; ic: string; tc: string } | null = null;
 if (code === 'CPI' && stats?.yoy != null) {
   const yoy = stats.yoy;
-  const R = 'rgba(242,54,69,0.10)', G = 'rgba(8,153,129,0.10)', Y = 'rgba(245,158,11,0.10)';
-  const Rc = '#f23645', Gc = '#089981', Yc = '#f59e0b';
+  const R = 'var(--red-bg)', G = 'var(--green-bg)', Y = 'var(--accent-gold-dim)';
+  const Rc = 'var(--red)', Gc = 'var(--green)', Yc = 'var(--accent-gold)';
   function hot(label: string, desc: string)  { cpiAssessment = { label, bc: Rc, bg: R, ic: Rc, tc: Rc, description: desc }; }
   function warm(label: string, desc: string) { cpiAssessment = { label, bc: Gc, bg: G, ic: Gc, tc: Gc, description: desc }; }
   function cool(label: string, desc: string) { cpiAssessment = { label, bc: Yc, bg: Y, ic: Yc, tc: Yc, description: desc }; }
@@ -209,7 +209,7 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     <div class="page-header">
       <h1>数据加载失败</h1>
       <p class="subtitle" style="color: var(--red);">{dbError}</p>
-      <p class="subtitle">请检查数据库连接或返回 <a href="/">市场仪表盘</a></p>
+      <p class="subtitle">请检查数据库连接或返回 <a href="/">市场总览</a></p>
     </div>
   ) : indicator ? (
     <div class="page-animate">
@@ -227,7 +227,7 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
 
       {cpiAssessment && (
         <div class="cpi-banner" style={`border-left-color: ${cpiAssessment.bc}; background: ${cpiAssessment.bg};`}>
-          <div class="cpi-banner-icon" style={`background: ${cpiAssessment.ic}; color: #fff;`}>{cpiAssessment.label === '通缩预警' ? '⚠' : cpiAssessment.label === '通胀偏高' ? '🔥' : cpiAssessment.label === '通胀偏低' ? '💧' : '✅'}</div>
+          <div class="cpi-banner-icon" style={`background: ${cpiAssessment.ic}; color: var(--text-primary);`}>{cpiAssessment.label === '通缩预警' ? '⚠' : cpiAssessment.label === '通胀偏高' ? '🔥' : cpiAssessment.label === '通胀偏低' ? '💧' : '✅'}</div>
           <div class="cpi-banner-body">
             <div class="cpi-banner-title" style={`color: ${cpiAssessment.tc};`}>{cpiAssessment.label}</div>
             <div class="cpi-banner-text">{cpiAssessment.description}</div>
@@ -346,7 +346,7 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   ) : (
     <div class="page-header">
       <h1>指标未找到</h1>
-      <p class="subtitle">请检查 URL 或返回 <a href="/">市场仪表盘</a></p>
+      <p class="subtitle">请检查 URL 或返回 <a href="/">市场总览</a></p>
     </div>
   )}
 </Layout>
@@ -413,29 +413,13 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   .hero-card {
     position: relative;
     background: var(--bg-card);
-    border: 1px solid transparent;
-    border-radius: var(--radius-xl);
+    border-radius: 16px;
     padding: 20px;
-    overflow: hidden;
-    transition: all var(--transition-base);
     display: flex;
     flex-direction: column;
   }
 
-  .hero-card:hover {
-    border-color: var(--accent-blue);
-    box-shadow: var(--shadow-blue);
-  }
-
-  .hero-glow {
-    position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-    pointer-events: none;
-  }
+  .hero-glow { display: none; }
 
   .hero-content {
     position: relative;
@@ -485,7 +469,6 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     color: var(--text-primary);
     letter-spacing: -0.03em;
     line-height: 1.1;
-    text-shadow: 0 0 40px rgba(59, 130, 246, 0.15);
   }
 
   .hero-meta {
@@ -517,8 +500,7 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   }
 
   .change-item {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border-light);
+    background: var(--bg-elevated);
     border-radius: 8px;
     padding: 8px 14px;
     min-width: 100px;
@@ -530,16 +512,6 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
       width: 100%;
       box-sizing: border-box;
     }
-  }
-
-  .change-item.positive {
-    background: rgba(8, 153, 129, 0.08);
-    border-color: rgba(8, 153, 129, 0.25);
-  }
-
-  .change-item.negative {
-    background: rgba(242, 54, 69, 0.08);
-    border-color: rgba(242, 54, 69, 0.25);
   }
 
   .change-label {
@@ -573,7 +545,6 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   }
 
   .hero-stats {
-    border-top: 1px solid var(--border-light);
     padding-top: 12px;
     display: flex;
     flex-direction: column;
@@ -587,8 +558,7 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   }
 
   .stat-cell {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border-light);
+    background: var(--bg-elevated);
     border-radius: 6px;
     padding: 8px 10px;
   }
@@ -617,8 +587,7 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   }
 
   .range-container {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border-light);
+    background: var(--bg-elevated);
     border-radius: 8px;
     padding: 10px 12px;
   }
@@ -636,7 +605,6 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     position: relative;
     height: 5px;
     background: var(--border-light);
-    border-radius: 3px;
     overflow: visible;
   }
 
@@ -646,8 +614,6 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     top: 0;
     height: 100%;
     background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
-    border-radius: 3px;
-    transition: width 0.3s ease;
   }
 
   .range-marker {
@@ -656,10 +622,9 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     transform: translate(-50%, -50%);
     width: 12px;
     height: 12px;
-    background: var(--text-primary);
+    background: var(--bg-card);
     border: 2px solid var(--accent-cyan);
     border-radius: 50%;
-    box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
   }
 
   .range-percentile {
@@ -677,15 +642,8 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
   .info-card {
     position: relative;
     background: var(--bg-card);
-    border: 1px solid transparent;
-    border-radius: var(--radius-xl);
+    border-radius: 16px;
     padding: 24px;
-    transition: all var(--transition-base);
-  }
-
-  .info-card:hover {
-    border-color: var(--accent-cyan);
-    box-shadow: 0 4px 16px rgba(6, 182, 212, 0.15);
   }
 
   .info-label {
@@ -733,18 +691,14 @@ const regionLabel = region === 'CN' ? '中国' : '美国';
     letter-spacing: 0.08em;
     color: var(--text-secondary);
     margin-bottom: 4px;
-    padding-bottom: 3px;
-    border-bottom: 1px solid var(--border-light);
   }
 
   .info-item-title.up {
     color: var(--green);
-    border-bottom-color: rgba(8, 153, 129, 0.25);
   }
 
   .info-item-title.down {
     color: var(--red);
-    border-bottom-color: rgba(242, 54, 69, 0.25);
   }
 
   .info-item-text {

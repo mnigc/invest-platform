@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import echarts from '../../lib/echarts'
 import type { EChartsOption } from 'echarts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
-import { THEME } from '../ui/theme'
+import { useChartTheme } from '../ui/theme'
 
 interface DataPoint {
   period_date: string
@@ -21,7 +21,8 @@ interface Props {
   showBoomLine?: boolean
 }
 
-export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 360 }: Props) {
+export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 360, showBoomLine }: Props) {
+  const chartTheme = useChartTheme()
   const containerRef = useRef<HTMLDivElement>(null)
   const chartInstance = useRef<echarts.ECharts | null>(null)
 
@@ -36,14 +37,14 @@ export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 3
         type: 'line', name: name_zh,
         data: data.map((d, i) => i > lastComplete ? null : d.value),
         smooth: true, showSymbol: false,
-        lineStyle: { width: 2, color: THEME.cyan },
-        areaStyle: { color: THEME.blueArea },
+        lineStyle: { width: 2, color: chartTheme.cyan },
+        areaStyle: { color: chartTheme.blueArea },
       })
       series.push({
         type: 'line', name: `${name_zh} (预测)`,
         data: data.map((d, i) => i < lastComplete ? null : d.value),
         smooth: true, showSymbol: false,
-        lineStyle: { width: 2, type: 'dashed', color: THEME.cyan },
+        lineStyle: { width: 2, type: 'dashed', color: chartTheme.cyan },
         connectNulls: true,
       })
     } else {
@@ -51,29 +52,39 @@ export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 3
         type: 'line', name: name_zh,
         data: data.map(d => d.value),
         smooth: true, showSymbol: false,
-        lineStyle: { width: 2, color: THEME.cyan },
-        areaStyle: { color: THEME.blueArea },
+        lineStyle: { width: 2, color: chartTheme.cyan },
+        areaStyle: { color: chartTheme.blueArea },
       })
+    }
+
+    const mainSeries = series[0]
+    if (showBoomLine && mainSeries) {
+      mainSeries.markLine = {
+        symbol: ['none', 'none'], animation: false,
+        data: [{ yAxis: 50 }],
+        lineStyle: { color: chartTheme.red, width: 1.5, type: 'dashed' },
+        label: { show: true, position: 'insideEndTop', formatter: '50 荣枯线', color: chartTheme.red, fontSize: 10, fontWeight: 600 },
+      }
     }
 
     return {
       tooltip: {
         trigger: 'axis',
-        backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
-        textStyle: { color: THEME.textPrimary, fontSize: 12 },
+        backgroundColor: chartTheme.bgCard, borderColor: chartTheme.borderLight, borderWidth: 1,
+        textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
         formatter: (params: any) => {
           const arr = Array.isArray(params) ? params : [params]
           const p = arr.find((p: any) => p.value != null && (!name_zh || p.seriesName === name_zh)) || arr.find((p: any) => p.value != null)
           if (!p) return ''
-          return `${p.axisValue}<br/>${code || ''}: <strong style="color:${THEME.cyan}">${Number(p.value).toFixed(3)}</strong> ${unit || ''}`
+          return `${p.axisValue}<br/>${code || ''}: <strong style="color:${chartTheme.cyan}">${Number(p.value).toFixed(3)}</strong> ${unit || ''}`
         },
       },
       grid: { left: 60, right: 20, top: 20, bottom: 30 },
-      xAxis: { type: 'category', data: data.map(d => d.period_date), axisLabel: { color: THEME.textMuted, fontSize: 11 }, axisLine: { lineStyle: { color: THEME.borderColor } }, splitLine: { show: false } },
-      yAxis: { type: 'value', scale: true, axisLabel: { color: THEME.textMuted, fontSize: 11, formatter: (v: any) => (typeof v === 'number' ? v : parseFloat(v)).toFixed(3) }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
+      xAxis: { type: 'category', data: data.map(d => d.period_date), axisLabel: { color: chartTheme.textMuted, fontSize: 11 }, axisLine: { lineStyle: { color: chartTheme.borderColor } }, splitLine: { show: false } },
+      yAxis: { type: 'value', scale: true, axisLabel: { color: chartTheme.textMuted, fontSize: 11, formatter: (v: any) => (typeof v === 'number' ? v : parseFloat(v)).toFixed(3) }, splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } } },
       series,
     }
-  }, [data, code, name_zh, unit])
+  }, [data, code, name_zh, unit, chartTheme, showBoomLine])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -95,7 +106,7 @@ export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 3
       window.removeEventListener('resize', onResize)
       ro.disconnect()
     }
-  }, [option])
+  }, [option, chartTheme])
 
   useEffect(() => {
     return () => {
@@ -105,10 +116,10 @@ export function TimeSeriesChart({ data, loading, code, name_zh, unit, height = 3
   }, [])
 
   if (loading) return <LoadingSkeleton type="chart" height={height} />
-  if (data.length === 0) return <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.textMuted, fontSize: '13px' }}>NO DATA</div>
+  if (data.length === 0) return <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>NO DATA</div>
 
   return (
-    <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0', height: `${height}px` }}>
+    <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0', height: `${height}px` }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>
   )

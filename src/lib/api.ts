@@ -27,14 +27,6 @@ export interface UsSnapshotData {
   summary: { evidence: string[]; falsify: string[]; action: string[] }
 }
 
-export interface Indicator {
-  code: string
-  region: string
-  name_zh: string
-  unit: string
-  frequency: string
-}
-
 export interface CnSnapshotData {
   header: { tradeDate: string; sentiment: string; conclusion: string }
   indices: Array<{ symbol: string; name: string; price: number; change: number }>

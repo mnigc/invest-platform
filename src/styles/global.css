@@ -54,6 +54,8 @@
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;
+
+  color-scheme: dark;
 }
 
 * {
@@ -73,6 +75,7 @@ html {
 body {
   min-height: 100vh;
   overflow-x: hidden;
+  background: var(--bg-primary);
 }
 
 a {
@@ -121,6 +124,61 @@ a:hover {
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+/* 深色主题覆盖 */
+[data-theme="light"] {
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #eef1f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f2f5;
+  --bg-elevated: #f8f9fb;
+
+  --border-color: #dde1e6;
+  --border-subtle: #e8ecf0;
+  --border-light: rgba(0, 0, 0, 0.08);
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #5a6a7a;
+  --text-muted: #8a9aa9;
+
+  --accent-blue: #0055FF;
+  --accent-blue-hover: #3377FF;
+  --accent-blue-dim: rgba(0, 85, 255, 0.10);
+
+  --accent-gold: #D97706;
+  --accent-gold-hover: #F59E0B;
+  --accent-gold-dim: rgba(217, 119, 6, 0.10);
+
+  --accent-cyan: #0089A7;
+  --accent-cyan-hover: #00ACC1;
+  --accent-cyan-dim: rgba(0, 137, 167, 0.10);
+
+  --red: #E53935;
+  --red-bg: rgba(229, 57, 53, 0.10);
+  --green: #388E3C;
+  --green-bg: rgba(56, 142, 60, 0.10);
+
+  --gradient-brand: linear-gradient(135deg, #0055FF 0%, #0089A7 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-blue: 0 4px 16px rgba(0, 85, 255, 0.15);
+
+  color-scheme: light;
+}
+
+/* 主题切换过渡动画 — 仅通过 theme-transitioning 类触发，避免全局性能损耗 */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.3s ease,
+              color 0.3s ease,
+              border-color 0.3s ease,
+              box-shadow 0.3s ease,
+              fill 0.3s ease !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -8,7 +8,7 @@ PyMySQL>=1.1.0
 # ===== 金融数据源 =====
 yfinance>=0.2.40           # 美股/ETF/A股主要指数 —— 海外直连稳定
 requests>=2.31.0           # FRED 等 REST API
-akshare>=1.18.64           # A 股行业 / 中国宏观 —— 海外环境建议配置 HTTP_PROXY 回国内
+akshare>=1.18.64           # A 股指数 / 中国宏观 / 国债 / 北向资金 / PMI —— 海外环境建议配置 HTTP_PROXY 回国内
 
 # ===== 通用 =====
 pandas>=2.0.0              # 所有脚本均用 pandas 处理返回

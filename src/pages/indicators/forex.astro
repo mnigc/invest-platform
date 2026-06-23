@@ -2,24 +2,24 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import IndicatorHeatmapDashboard from '../../components/IndicatorHeatmapDashboard';
+import { ForexDashboard } from '../../components/ForexDashboard';
 ---
 
-<Layout title="经济冷暖指标热力图 - CN-US MACRO">
+<Layout title="汇率总览 - CN-US MACRO">
   <div class="page-animate">
     <div class="page-header">
       <div class="breadcrumb">
         <a href="/">首页</a>
         <span class="sep">/</span>
-        <span>跨市场分析</span>
+        <a href="/indicators/cn-us-spread">跨市场分析</a>
         <span class="sep">/</span>
-        <span>经济冷暖指标</span>
+        <span>汇率总览</span>
       </div>
-      <h1>经济冷暖指标</h1>
-      <p class="subtitle">一目了然看经济冷暖 · Z-Score 偏离度 · 近 24 个月</p>
+      <h1>汇率总览</h1>
+      <p class="subtitle">美元指数 · 主要货币对 · 成分权重拆解 · 交叉资产联动</p>
     </div>
 
-    <IndicatorHeatmapDashboard client:load />
+    <ForexDashboard client:load />
   </div>
 </Layout>
 

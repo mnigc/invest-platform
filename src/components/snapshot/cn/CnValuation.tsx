@@ -1,5 +1,4 @@
 import { MacroCard } from '../../ui/MacroCard'
-import { THEME } from '../../ui/theme'
 
 interface Industry {
   name: string
@@ -43,12 +42,12 @@ export default function CnValuation({ data }: { data?: ValuationData | null }) {
   return (
     <MacroCard title="估值体系" badge={overallSignal}>
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>全市场</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 14px', background: THEME.blueDim, borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>
-          <span style={{ fontSize: '32px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.blue }}>{overallPE.toFixed(2)}</span>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>全市场</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 14px', background: 'var(--accent-blue-dim)', borderRadius: '8px', border: `1px solid var(--accent-blue-dim)` }}>
+          <span style={{ fontSize: '32px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-blue)' }}>{overallPE.toFixed(2)}</span>
           <div style={{ flex: 1 }}>
-            <span style={{ fontSize: '11px', color: THEME.textMuted }}>全部 A 股 PE (TTM)</span>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: THEME.textMuted, marginTop: '6px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>全部 A 股 PE (TTM)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>
               <span>{overallSignal}</span>
               {data?.overallPB != null && <span>PB {data.overallPB.toFixed(2)}</span>}
             </div>
@@ -57,25 +56,25 @@ export default function CnValuation({ data }: { data?: ValuationData | null }) {
       </div>
 
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>高估行业 TOP3</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>高估行业 TOP3</div>
         {top3.map(s => (
-          <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 60px', gap: '8px', alignItems: 'center', padding: '8px 10px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}`, marginBottom: '4px' }}>
-            <span style={{ fontSize: '13px', color: THEME.textPrimary, fontWeight: 500 }}>{s.name}</span>
-            <span style={{ fontSize: '12px', color: THEME.textSecondary, fontFamily: THEME.fontMono }}>PE {(s.pe ?? 0).toFixed(1)}</span>
-            <span style={{ fontSize: '12px', color: THEME.textSecondary, fontFamily: THEME.fontMono }}>PB {(s.pb ?? 0).toFixed(1)}</span>
-            <span style={{ fontSize: '12px', fontFamily: THEME.fontMono, color: '#F59E0B', textAlign: 'right' }}>{s.stockCount ?? '--'}</span>
+          <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 60px', gap: '8px', alignItems: 'center', padding: '8px 10px', background: 'var(--bg-card)', borderRadius: '8px', border: `1px solid var(--border-light)`, marginBottom: '4px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{s.name}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>PE {(s.pe ?? 0).toFixed(1)}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>PB {(s.pb ?? 0).toFixed(1)}</span>
+            <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--accent-gold)', textAlign: 'right' }}>{s.stockCount ?? '--'}</span>
           </div>
         ))}
       </div>
 
-      <div style={{ borderTop: `1px solid ${THEME.borderLight}`, paddingTop: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>低估行业 BOTTOM 3</div>
+      <div style={{ borderTop: `1px solid var(--border-light)`, paddingTop: '12px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>低估行业 BOTTOM 3</div>
         {bottom3.map(s => (
-          <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 60px', gap: '8px', alignItems: 'center', padding: '8px 10px', background: THEME.bgCard, borderRadius: '8px', border: `1px solid ${THEME.borderLight}`, marginBottom: '4px' }}>
-            <span style={{ fontSize: '13px', color: THEME.textPrimary, fontWeight: 500 }}>{s.name}</span>
-            <span style={{ fontSize: '12px', color: THEME.textSecondary, fontFamily: THEME.fontMono }}>PE {(s.pe ?? 0).toFixed(1)}</span>
-            <span style={{ fontSize: '12px', color: THEME.textSecondary, fontFamily: THEME.fontMono }}>PB {(s.pb ?? 0).toFixed(1)}</span>
-            <span style={{ fontSize: '12px', fontFamily: THEME.fontMono, color: THEME.cyan, textAlign: 'right' }}>{s.stockCount ?? '--'}</span>
+          <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 60px', gap: '8px', alignItems: 'center', padding: '8px 10px', background: 'var(--bg-card)', borderRadius: '8px', border: `1px solid var(--border-light)`, marginBottom: '4px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{s.name}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>PE {(s.pe ?? 0).toFixed(1)}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>PB {(s.pb ?? 0).toFixed(1)}</span>
+            <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', textAlign: 'right' }}>{s.stockCount ?? '--'}</span>
           </div>
         ))}
       </div>

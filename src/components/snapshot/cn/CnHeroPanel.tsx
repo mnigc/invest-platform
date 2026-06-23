@@ -1,5 +1,4 @@
 import { MacroCard } from "../../ui/MacroCard"
-import { THEME } from "../../ui/theme"
 
 interface IndexItem { name: string; code: string; value: number; change: number }
 
@@ -31,29 +30,29 @@ export default function CnHeroPanel({ indices }: { indices?: IndexItem[] | null 
 
   return (
     <MacroCard title="中国市场概览" variant="elevated">
-      <div style={{ fontSize: "10px", color: THEME.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>核心指数</div>
+      <div style={{ fontSize: "10px", color: 'var(--text-muted)', letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>核心指数</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px" }}>
         {items.map((idx: any) => {
           const isUp = idx.change >= 0
           const realChange = idx.hasRealChange !== false
           return (
             <div key={idx.code} style={{
-              padding: "10px 12px", background: THEME.bgCard, borderRadius: "10px",
-              border: `1px solid ${THEME.borderLight}`, display: "flex", flexDirection: "column", gap: "4px",
+              padding: "10px 12px", background: 'var(--bg-card)', borderRadius: "10px",
+              border: `1px solid var(--border-light)`, display: "flex", flexDirection: "column", gap: "4px",
             }}>
               <div style={{ marginBottom: "2px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: THEME.textPrimary, fontFamily: THEME.fontMono }}>{idx.name}</div>
-                <div style={{ fontSize: "9px", color: THEME.textMuted, marginTop: "1px", fontFamily: THEME.fontMono }}>{idx.code}</div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{idx.name}</div>
+                <div style={{ fontSize: "9px", color: 'var(--text-muted)', marginTop: "1px", fontFamily: 'var(--font-mono)' }}>{idx.code}</div>
               </div>
-              <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.2 }}>
+              <div style={{ fontSize: "18px", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', lineHeight: 1.2 }}>
                 {idx.value != null ? idx.value.toFixed(2) : "--"}
               </div>
               <div style={{
                 display: "inline-flex", alignItems: "center", gap: "2px",
-                fontSize: "11px", fontWeight: 700, fontFamily: THEME.fontMono,
-                color: realChange ? (isUp ? THEME.green : THEME.red) : THEME.textMuted,
+                fontSize: "11px", fontWeight: 700, fontFamily: 'var(--font-mono)',
+                color: realChange ? (isUp ? 'var(--green)' : 'var(--red)') : 'var(--text-muted)',
                 padding: "2px 6px", borderRadius: "4px", alignSelf: "flex-start",
-                background: realChange ? (isUp ? "rgba(8,153,129,0.12)" : "rgba(242,54,69,0.12)") : THEME.bgHover,
+                background: realChange ? (isUp ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-card-hover)',
               }}>
                 {realChange ? (isUp ? "↑" : "↓") : "-"} {realChange ? Math.abs(idx.change).toFixed(2) + "%" : "--"}
               </div>

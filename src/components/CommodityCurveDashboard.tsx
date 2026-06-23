@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MacroCard } from './ui/MacroCard'
-import { THEME } from './ui/theme'
+import { useChartTheme } from './ui/theme'
 import { LoadingSkeleton } from './ui/LoadingSkeleton'
 import { CommodityCurveChart } from './CommodityCurveChart'
 import { useChart } from './charts/useChart'
@@ -53,12 +53,12 @@ const COMMODITY_ICONS: Record<string, string> = {
 function MiniCard({ icon, title, children, accent }: { icon: string; title: string; children: React.ReactNode; accent?: string }) {
   return (
     <div style={{
-      background: THEME.bgCard, borderRadius: '12px', border: `1px solid ${THEME.borderLight}`,
+      background: 'var(--bg-card)', borderRadius: '12px',
       padding: '12px 14px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px' }}>
         <span style={{ fontSize: '12px' }}>{icon}</span>
-        <span style={{ fontSize: '10px', color: THEME.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
       </div>
       {children}
     </div>
@@ -72,41 +72,41 @@ function HeroRow({ data }: { data: CommodityData }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
       <MiniCard icon={COMMODITY_ICONS[data.code] || '📦'} title={`${data.name_cn} 最新`}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary }}>
+          <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
             {data.frontPrice != null ? data.frontPrice.toFixed(2) : '--'}
           </span>
-          <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: THEME.fontMono, color: changeUp ? THEME.red : THEME.green }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: changeUp ? 'var(--red)' : 'var(--green)' }}>
             {data.frontChange != null ? `${changeUp ? '↑' : '↓'} ${Math.abs(data.frontChange).toFixed(2)}%` : '--'}
           </span>
         </div>
-        <div style={{ fontSize: '10px', color: THEME.textMuted, marginTop: '2px' }}>
+        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
           {data.updatedAt || '--'}
         </div>
       </MiniCard>
 
       <MiniCard icon="📐" title="期限结构">
-        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: THEME.fontMono, color: isContango ? THEME.cyan : THEME.gold }}>
+        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: isContango ? 'var(--accent-cyan)' : 'var(--accent-gold)' }}>
           {isContango ? '远月升水' : data.contango === false ? '远月贴水' : '--'}
         </div>
-        <div style={{ fontSize: '11px', color: THEME.textSecondary, marginTop: '2px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
           {isContango ? `Contango ${data.spread?.toFixed(2)}%` : data.contango === false ? `Backwardation ${Math.abs(data.spread || 0).toFixed(2)}%` : '暂无数据'}
         </div>
       </MiniCard>
 
       <MiniCard icon="↕️" title="近远月价差">
-        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: THEME.fontMono, color: data.spread != null ? (data.spread >= 0 ? THEME.green : THEME.red) : THEME.textMuted }}>
+        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: data.spread != null ? (data.spread >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text-muted)' }}>
           {data.spread != null ? `${data.spread >= 0 ? '+' : ''}${data.spread.toFixed(2)}%` : '--'}
         </div>
-        <div style={{ fontSize: '11px', color: THEME.textSecondary, marginTop: '2px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
           {data.curve.length > 0 ? `${data.curve[0]?.contract || ''} → ${data.curve[data.curve.length - 1]?.contract || ''}` : ''}
         </div>
       </MiniCard>
 
       <MiniCard icon="📊" title="合约数量">
-        <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.blue }}>
+        <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-blue)' }}>
           {data.curve.filter(p => p.price != null).length}
         </div>
-        <div style={{ fontSize: '11px', color: THEME.textSecondary, marginTop: '2px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
           有效合约月份
         </div>
       </MiniCard>
@@ -126,13 +126,12 @@ function CommodityTabs({ active, onChange }: { active: string; onChange: (code: 
             borderRadius: '8px',
             fontSize: '12px',
             fontWeight: 600,
-            fontFamily: THEME.fontDisplay,
+            fontFamily: 'var(--font-display)',
             letterSpacing: '0.03em',
             cursor: 'pointer',
-            transition: 'all 0.2s',
-            background: active === code ? THEME.cyan : THEME.bgCard,
-            color: active === code ? THEME.textPrimary : THEME.textSecondary,
-            border: `1px solid ${active === code ? THEME.cyan : 'transparent'}`,
+            background: active === code ? 'var(--accent-cyan)' : 'var(--bg-card)',
+            color: active === code ? '#FFFFFF' : 'var(--text-secondary)',
+            border: 'none',
           }}
         >
           {COMMODITY_ICONS[code] || ''} {COMMODITY_LABELS[code] || code}
@@ -143,6 +142,7 @@ function CommodityTabs({ active, onChange }: { active: string; onChange: (code: 
 }
 
 function CrossCommodityChart({ commodities }: { commodities: Record<string, CommodityData> }) {
+  const chartTheme = useChartTheme()
   const codes = COMMODITY_LIST.filter(c => commodities[c]?.curve?.length > 0)
 
   const option = useMemo(() => {
@@ -154,7 +154,7 @@ function CrossCommodityChart({ commodities }: { commodities: Record<string, Comm
       if (prices.length < 2) return null
       const base = prices[0]
       const normalized = prices.map(p => ((p - base) / base) * 100)
-      const colors = [THEME.cyan, THEME.gold, THEME.red, THEME.green, '#A855F7', '#EC4899', '#F97316']
+      const colors = [chartTheme.cyan, chartTheme.gold, chartTheme.red, chartTheme.green, chartTheme.blue]
       return {
         type: 'line',
         name: COMMODITY_LABELS[code] || code,
@@ -170,8 +170,8 @@ function CrossCommodityChart({ commodities }: { commodities: Record<string, Comm
     return {
       tooltip: {
         trigger: 'axis',
-        backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
-        textStyle: { color: THEME.textPrimary, fontSize: 12 },
+        backgroundColor: chartTheme.bgCard, borderColor: chartTheme.borderLight, borderWidth: 1,
+        textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
         formatter: (params: any) => {
           if (!Array.isArray(params)) return ''
           let html = `<div style="font-weight:600;margin-bottom:4px">跨商品曲线对比（归一化）</div>`
@@ -184,34 +184,34 @@ function CrossCommodityChart({ commodities }: { commodities: Record<string, Comm
       },
       legend: {
         data: series.map((s: any) => s.name),
-        textStyle: { color: THEME.textSecondary, fontSize: 10 },
+        textStyle: { color: chartTheme.textSecondary, fontSize: 10 },
         top: 0,
       },
       grid: { left: 60, right: 20, top: 40, bottom: 30 },
       xAxis: {
         type: 'category',
         data: Array.from({ length: Math.max(...series.map((s: any) => s.data.length)) }, (_, i) => `M${i + 1}`),
-        axisLabel: { color: THEME.textMuted, fontSize: 11 },
-        axisLine: { lineStyle: { color: THEME.borderColor } },
+        axisLabel: { color: chartTheme.textMuted, fontSize: 11 },
+        axisLine: { lineStyle: { color: chartTheme.borderColor } },
         splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
-        axisLabel: { color: THEME.textMuted, fontSize: 11, formatter: '{value}%' },
-        splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } },
+        axisLabel: { color: chartTheme.textMuted, fontSize: 11, formatter: '{value}%' },
+        splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } },
         axisLine: { show: false },
       },
       series,
     } as any
-  }, [commodities])
+  }, [commodities, chartTheme])
 
-  const { ref } = useChart(option, [commodities])
+  const { ref } = useChart(option, [commodities, chartTheme])
 
   if (codes.length === 0) return null
 
   return (
     <MacroCard title="跨商品曲线归一化对比" badge={`${codes.length} 个`}>
-      <div style={{ fontSize: '11px', color: THEME.textMuted, marginBottom: '8px' }}>
+      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
         所有商品以 M1 价格为基准归一化至 0%，展示期限结构斜率差异
       </div>
       <div ref={ref} style={{ width: '100%', height: '300px' }} />
@@ -243,12 +243,12 @@ export default function CommodityCurveDashboard() {
 
   if (loading) return <LoadingSkeleton type="card" height={600} />
   if (error) return (
-    <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.red, fontSize: '14px' }}>
+    <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--red)', fontSize: '14px' }}>
       ⚠️ {error}
     </div>
   )
   if (!data || !Object.keys(data.commodities).length) return (
-    <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.textMuted, fontSize: '14px' }}>
+    <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
       暂无数据，请先运行同步脚本
     </div>
   )
@@ -273,25 +273,22 @@ export default function CommodityCurveDashboard() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
-                  <tr style={{ background: THEME.bgElevated }}>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, color: THEME.textMuted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: THEME.fontMono }}>合约</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, color: THEME.textMuted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: THEME.fontMono }}>相对月</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500, color: THEME.textMuted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: THEME.fontMono }}>价格</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500, color: THEME.textMuted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: THEME.fontMono }}>日变动</th>
+                  <tr style={{ background: 'var(--bg-elevated)' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>合约</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>相对月</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500, color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>价格</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500, color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>日变动</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeCommodity.curve.map((p, i) => (
-                    <tr key={p.contract} style={{ transition: 'background 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = THEME.bgElevated)}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <td style={{ padding: '8px 12px', borderTop: `1px solid ${THEME.borderLight}`, color: THEME.textSecondary, fontFamily: THEME.fontMono }}>{p.contract}</td>
-                      <td style={{ padding: '8px 12px', borderTop: `1px solid ${THEME.borderLight}`, color: THEME.textMuted }}>M{i + 1}</td>
-                      <td style={{ padding: '8px 12px', borderTop: `1px solid ${THEME.borderLight}`, textAlign: 'right', color: THEME.textPrimary, fontWeight: 600, fontFamily: THEME.fontMono }}>
+                    <tr key={p.contract}>
+                      <td style={{ padding: '8px 12px', borderTop: `1px solid var(--border-light)`, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{p.contract}</td>
+                      <td style={{ padding: '8px 12px', borderTop: `1px solid var(--border-light)`, color: 'var(--text-muted)' }}>M{i + 1}</td>
+                      <td style={{ padding: '8px 12px', borderTop: `1px solid var(--border-light)`, textAlign: 'right', color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
                         {p.price != null ? p.price.toFixed(2) : '-'}
                       </td>
-                      <td style={{ padding: '8px 12px', borderTop: `1px solid ${THEME.borderLight}`, textAlign: 'right', color: p.change != null ? (p.change >= 0 ? THEME.green : THEME.red) : THEME.textMuted, fontFamily: THEME.fontMono }}>
+                      <td style={{ padding: '8px 12px', borderTop: `1px solid var(--border-light)`, textAlign: 'right', color: p.change != null ? (p.change >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                         {p.change != null ? `${p.change >= 0 ? '+' : ''}${p.change.toFixed(2)}%` : '-'}
                       </td>
                     </tr>

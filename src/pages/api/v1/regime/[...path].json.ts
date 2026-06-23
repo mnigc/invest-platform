@@ -15,16 +15,43 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
-async function valAtDate(code: string, asOf: string): Promise<number | null> {
+async function valAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
   try {
     const row = await queryOne<any>(
       `SELECT d.value FROM indicator_data d
        JOIN indicators i ON i.id = d.indicator_id
-       WHERE i.code = ? AND d.period_date <= ? AND d.value IS NOT NULL
+       WHERE i.code = ? AND i.region = ? AND d.period_date <= ? AND d.value IS NOT NULL
        ORDER BY d.period_date DESC LIMIT 1`,
-      [code, asOf]
+      [code, region, asOf]
     )
     return row ? Number(row.value) : null
+  } catch { return null }
+}
+
+async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
+  try {
+    const rows = await query<any>(
+      `SELECT d.period_date, d.value FROM indicator_data d
+       JOIN indicators i ON i.id = d.indicator_id
+       WHERE i.code = ? AND i.region = ? AND d.period_date <= ? AND d.value IS NOT NULL
+       ORDER BY d.period_date DESC LIMIT 24`,
+      [code, region, asOf]
+    )
+    if (!rows || rows.length < 2) return null
+    const current = Number(rows[0].value)
+    const asOfDate = String(rows[0].period_date)
+    const yearAgoTarget = new Date(asOfDate)
+    yearAgoTarget.setFullYear(new Date(asOfDate).getFullYear() - 1)
+    const yearAgoStr = yearAgoTarget.toISOString().slice(0, 10)
+    let yearAgo: number | null = null
+    let minDiff = Number.POSITIVE_INFINITY
+    for (const r of rows) {
+      const d = String(r.period_date)
+      const diff = Math.abs(new Date(d).getTime() - new Date(yearAgoStr).getTime())
+      if (diff < minDiff) { minDiff = diff; yearAgo = Number(r.value) }
+    }
+    if (yearAgo == null || yearAgo === 0) return null
+    return +(((current - yearAgo) / yearAgo) * 100).toFixed(2)
   } catch { return null }
 }
 
@@ -55,15 +82,16 @@ const LABELS: Record<RegimeType, string> = {
 }
 
 async function detectRegime(asOf?: string) {
-  const cfnai = await valAtDate('CFNAI', asOf ?? new Date().toISOString().slice(0, 10))
-  const cpi = await valAtDate('CPI', asOf ?? new Date().toISOString().slice(0, 10))
-  const fedfunds = await valAtDate('FEDFUNDS', asOf ?? new Date().toISOString().slice(0, 10))
-  const dgs10 = await valAtDate('DGS10', asOf ?? new Date().toISOString().slice(0, 10))
-  const dgs2 = await valAtDate('DGS2', asOf ?? new Date().toISOString().slice(0, 10))
-  const t10yie = await valAtDate('T10YIE', asOf ?? new Date().toISOString().slice(0, 10))
-  const vix = await valAtDate('VIXCLS', asOf ?? new Date().toISOString().slice(0, 10))
-  const bbb = await valAtDate('BAMLC0A4CBBB', asOf ?? new Date().toISOString().slice(0, 10))
-  const dfii10 = await valAtDate('DFII10', asOf ?? new Date().toISOString().slice(0, 10))
+  const asOfDate = asOf ?? new Date().toISOString().slice(0, 10)
+  const cfnai = await valAtDate('CFNAI', asOfDate, 'US')
+  const cpi = await yoyAtDate('CPI', asOfDate, 'US')
+  const fedfunds = await valAtDate('FEDFUNDS', asOfDate, 'US')
+  const dgs10 = await valAtDate('DGS10', asOfDate, 'US')
+  const dgs2 = await valAtDate('DGS2', asOfDate, 'US')
+  const t10yie = await valAtDate('T10YIE', asOfDate, 'US')
+  const vix = await valAtDate('VIXCLS', asOfDate, 'US')
+  const bbb = await valAtDate('BAMLC0A4CBBB', asOfDate, 'US')
+  const dfii10 = await valAtDate('DFII10', asOfDate, 'US')
 
   const f = (v: number | null, fallback: number) => v ?? fallback
   const gCfnai = f(cfnai, 0.05)
@@ -77,9 +105,12 @@ async function detectRegime(asOf?: string) {
   const gDfii10 = f(dfii10, 1.80)
   const slope = +(gDgs10 - gDgs2).toFixed(4)
 
-  const sig = (code: string, val: number | string, score: -1 | 0 | 1, detail?: string): RegimeSignal => ({
-    name: SIGNAL_NAMES[code] || code, value: val, score, detail,
-  })
+  const signalMap = new Map<string, RegimeSignal>()
+  const sig = (code: string, val: number | string, score: -1 | 0 | 1, detail?: string): RegimeSignal => {
+    const s: RegimeSignal = { name: SIGNAL_NAMES[code] || code, value: val, score, detail }
+    signalMap.set(code, s)
+    return s
+  }
 
   const signals: RegimeSignal[] = [
     sig('cfnai', gCfnai.toFixed(3), gCfnai > 0 ? 1 : gCfnai < -0.5 ? -1 : 0,
@@ -100,9 +131,7 @@ async function detectRegime(asOf?: string) {
       gDfii10 < 2 ? '实际利率偏低，流动性宽松' : '实际利率偏高'),
   ]
 
-  const smap = new Map<string, RegimeSignal>()
-  signals.forEach(s => smap.set(s.name, s))
-  const { regime, score } = decideRegime(smap)
+  const { regime, score } = decideRegime(signalMap)
 
   const signalCount = signals.filter(s => s.score !== 0).length
   const maxScore = signalCount * 0.15
@@ -113,27 +142,31 @@ async function detectRegime(asOf?: string) {
   return { signals, confidence: Math.round(confidence), regime, label: LABELS[regime] }
 }
 
-async function latestVal(code: string): Promise<number | null> {
+async function latestVal(code: string, region: string = 'US'): Promise<number | null> {
   try {
     const row = await queryOne<any>(
       `SELECT d.value FROM indicator_data d
        JOIN indicators i ON i.id = d.indicator_id
-       WHERE i.code = ? AND d.value IS NOT NULL
+       WHERE i.code = ? AND i.region = ? AND d.value IS NOT NULL
        ORDER BY d.period_date DESC LIMIT 1`,
-      [code]
+      [code, region]
     )
     return row ? Number(row.value) : null
   } catch { return null }
 }
 
-async function valNDaysAgo(code: string, offset: number): Promise<number | null> {
+async function latestYoY(code: string, region: string = 'US'): Promise<number | null> {
+  return yoyAtDate(code, new Date().toISOString().slice(0, 10), region)
+}
+
+async function valNDaysAgo(code: string, offset: number, region: string = 'US'): Promise<number | null> {
   try {
     const row = await queryOne<any>(
       `SELECT d.value FROM indicator_data d
        JOIN indicators i ON i.id = d.indicator_id
-       WHERE i.code = ? AND d.value IS NOT NULL
+       WHERE i.code = ? AND i.region = ? AND d.value IS NOT NULL
        ORDER BY d.period_date DESC LIMIT 1 OFFSET ?`,
-      [code, offset]
+      [code, region, offset]
     )
     return row ? Number(row.value) : null
   } catch { return null }
@@ -146,7 +179,7 @@ async function detectAnomalies(): Promise<Anomaly[]> {
   const dgs2 = await latestVal('DGS2')
   const vix = await latestVal('VIXCLS')
   const bbb = await latestVal('BAMLC0A4CBBB')
-  const cpi = await latestVal('CPI')
+  const cpi = await latestYoY('CPI')
   const fedfunds = await latestVal('FEDFUNDS')
   const cfnai = await latestVal('CFNAI')
   const dfii10 = await latestVal('DFII10')

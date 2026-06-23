@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useChart } from './useChart'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
-import { THEME } from '../ui/theme'
+import { useChartTheme } from '../ui/theme'
 
 interface FactorPoint {
   date: string
@@ -17,6 +17,7 @@ interface Props {
 }
 
 export function CurveDynamicsChart({ history, loading, height = 320 }: Props) {
+  const chartTheme = useChartTheme()
   const { ref } = useChart(
     useMemo(() => {
       if (!history || history.length === 0) return null
@@ -26,33 +27,33 @@ export function CurveDynamicsChart({ history, loading, height = 320 }: Props) {
       return {
         tooltip: {
           trigger: 'axis',
-          backgroundColor: THEME.bgCard,
-          borderColor: THEME.borderLight,
+          backgroundColor: chartTheme.bgCard,
+          borderColor: chartTheme.borderLight,
           borderWidth: 1,
-          textStyle: { color: THEME.textPrimary, fontSize: 12 },
+          textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
           valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(3)),
         },
         legend: {
           data: ['水平 (Level β₀)', '斜率 (Slope β₁)', '曲率 (Curvature β₂)'],
-          textStyle: { color: THEME.textSecondary, fontSize: 11 },
+          textStyle: { color: chartTheme.textSecondary, fontSize: 11 },
           top: 0,
         },
         grid: { left: 50, right: 20, top: 40, bottom: 30 },
         xAxis: {
           type: 'category',
           data: dates,
-          axisLabel: { color: THEME.textMuted, fontSize: 10 },
-          axisLine: { lineStyle: { color: THEME.borderColor } },
+          axisLabel: { color: chartTheme.textMuted, fontSize: 10 },
+          axisLine: { lineStyle: { color: chartTheme.borderColor } },
           splitLine: { show: false },
         },
         yAxis: {
           type: 'value',
           axisLabel: {
-            color: THEME.textMuted,
+            color: chartTheme.textMuted,
             fontSize: 11,
             formatter: (v: any) => (typeof v === 'number' ? v.toFixed(2) : v),
           },
-          splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } },
+          splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } },
         },
         series: [
           {
@@ -61,7 +62,7 @@ export function CurveDynamicsChart({ history, loading, height = 320 }: Props) {
             data: history.map((h) => h.level),
             smooth: true,
             showSymbol: false,
-            lineStyle: { width: 2, color: THEME.blue },
+            lineStyle: { width: 2, color: chartTheme.blue },
           },
           {
             type: 'line',
@@ -69,7 +70,7 @@ export function CurveDynamicsChart({ history, loading, height = 320 }: Props) {
             data: history.map((h) => h.slope),
             smooth: true,
             showSymbol: false,
-            lineStyle: { width: 2, color: THEME.gold },
+            lineStyle: { width: 2, color: chartTheme.gold },
           },
           {
             type: 'line',
@@ -77,24 +78,24 @@ export function CurveDynamicsChart({ history, loading, height = 320 }: Props) {
             data: history.map((h) => h.curvature),
             smooth: true,
             showSymbol: false,
-            lineStyle: { width: 2, color: THEME.cyan },
+            lineStyle: { width: 2, color: chartTheme.cyan },
           },
         ],
       } as any
-    }, [history]),
-    [history],
+    }, [history, chartTheme]),
+    [history, chartTheme],
   )
 
   if (loading) return <LoadingSkeleton type="chart" height={height} />
   if (!history || history.length === 0)
     return (
-      <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.textMuted, fontSize: '13px' }}>
+      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
         NO DATA
       </div>
     )
 
   return (
-    <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0' }}>
+    <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0' }}>
       <div ref={ref} style={{ width: '100%', height: `${height}px` }} />
     </div>
   )

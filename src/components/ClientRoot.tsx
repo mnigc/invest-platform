@@ -7,5 +7,7 @@ export default function ClientRoot({ children }: { children: ReactNode }) {
       queries: { retry: false, staleTime: 5 * 60 * 1000, gcTime: Infinity },
     },
   }))
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  )
 }

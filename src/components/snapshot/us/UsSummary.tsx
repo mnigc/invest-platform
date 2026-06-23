@@ -1,5 +1,4 @@
 import { MacroCard } from '../../ui/MacroCard'
-import { THEME } from '../../ui/theme'
 
 interface Props {
   data?: { evidence: string[]; falsify: string[]; action: string[] } | null
@@ -31,7 +30,7 @@ export default function UsSummary({ data }: Props) {
   ]
 
   const itemStyle = (color: string): React.CSSProperties => ({
-    fontSize: '12px', lineHeight: '1.5', color: THEME.textSecondary,
+    fontSize: '12px', lineHeight: '1.5', color: 'var(--text-secondary)',
     paddingLeft: '12px', position: 'relative',
     listStyle: 'none',
   })
@@ -39,22 +38,22 @@ export default function UsSummary({ data }: Props) {
   return (
     <MacroCard title="三段式方法论" badge="RISK ON">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={block('#089981', 'rgba(8,153,129,0.06)', 'rgba(8,153,129,0.2)')}>
-          <div style={{ ...headerStyle, color: '#089981' }}>证据</div>
+        <div style={block('var(--green)', 'var(--green-bg)', 'var(--border-light)')}>
+          <div style={{ ...headerStyle, color: 'var(--green)' }}>证据</div>
           <ul style={{ margin: 0, padding: 0 }}>
-            {evidence.map((e, i) => <li key={i} style={itemStyle('#089981')}>{e}</li>)}
+            {evidence.map((e, i) => <li key={i} style={itemStyle('var(--green)')}>{e}</li>)}
           </ul>
         </div>
-        <div style={block('#F23645', 'rgba(242,54,69,0.06)', 'rgba(242,54,69,0.2)')}>
-          <div style={{ ...headerStyle, color: '#F23645' }}>证伪</div>
+        <div style={block('var(--red)', 'var(--red-bg)', 'var(--border-light)')}>
+          <div style={{ ...headerStyle, color: 'var(--red)' }}>证伪</div>
           <ul style={{ margin: 0, padding: 0 }}>
-            {falsify.map((f, i) => <li key={i} style={itemStyle('#F23645')}>{f}</li>)}
+            {falsify.map((f, i) => <li key={i} style={itemStyle('var(--red)')}>{f}</li>)}
           </ul>
         </div>
-        <div style={block(THEME.blue, 'rgba(59,130,246,0.06)', 'rgba(59,130,246,0.2)')}>
-          <div style={{ ...headerStyle, color: THEME.blue }}>行动</div>
+        <div style={block('var(--accent-blue)', 'var(--accent-blue-dim)', 'var(--border-light)')}>
+          <div style={{ ...headerStyle, color: 'var(--accent-blue)' }}>行动</div>
           <ul style={{ margin: 0, padding: 0 }}>
-            {action.map((a, i) => <li key={i} style={itemStyle(THEME.blue)}>{a}</li>)}
+            {action.map((a, i) => <li key={i} style={itemStyle('var(--accent-blue)')}>{a}</li>)}
           </ul>
         </div>
       </div>

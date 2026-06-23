@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { MacroCard } from './ui/MacroCard'
-import { THEME } from './ui/theme'
 import { LoadingSkeleton } from './ui/LoadingSkeleton'
 
 interface ZScoreEntry {
@@ -29,19 +28,19 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 function zColor(z: number): string {
-  if (z > 1.5) return THEME.red
-  if (z > 1.0) return '#f59e0b'
-  if (z > -1.0) return THEME.green
-  if (z > -1.5) return '#f59e0b'
-  return '#3b82f6'
+  if (z > 1.5) return 'var(--red)'
+  if (z > 1.0) return 'var(--accent-gold)'
+  if (z > -1.0) return 'var(--green)'
+  if (z > -1.5) return 'var(--accent-gold)'
+  return 'var(--accent-blue)'
 }
 
 function zBg(z: number): string {
-  if (z > 1.5) return THEME.redBg
-  if (z > 1.0) return 'rgba(245,158,11,0.15)'
-  if (z > -1.0) return THEME.greenBg
-  if (z > -1.5) return 'rgba(245,158,11,0.15)'
-  return 'rgba(59,130,246,0.15)'
+  if (z > 1.5) return 'var(--red-bg)'
+  if (z > 1.0) return 'var(--accent-gold-dim)'
+  if (z > -1.0) return 'var(--green-bg)'
+  if (z > -1.5) return 'var(--accent-gold-dim)'
+  return 'var(--accent-blue-dim)'
 }
 
 function zLabel(z: number): string {
@@ -70,27 +69,27 @@ function MatrixTable({ entries }: { entries: ZScoreEntry[] }) {
     <div style={{ overflowX: 'auto' }}>
       <table style={{
         width: '100%', borderCollapse: 'collapse', fontSize: '12px',
-        fontFamily: THEME.fontMono,
+        fontFamily: 'var(--font-mono)',
       }}>
         <thead>
           <tr>
             <th style={{
-              textAlign: 'left', padding: '8px 12px', color: THEME.textMuted, fontWeight: 600,
-              borderBottom: `1px solid ${THEME.borderLight}`, position: 'sticky', left: 0,
-              background: THEME.bgCard, zIndex: 1, minWidth: '140px',
+              textAlign: 'left', padding: '8px 12px', color: 'var(--text-muted)', fontWeight: 600,
+              borderBottom: `1px solid var(--border-light)`, position: 'sticky', left: 0,
+              background: 'var(--bg-card)', zIndex: 1, minWidth: '140px',
             }}>
               资产
             </th>
             <th style={{
-              textAlign: 'right', padding: '8px 12px', color: THEME.textMuted, fontWeight: 600,
-              borderBottom: `1px solid ${THEME.borderLight}`, minWidth: '80px',
+              textAlign: 'right', padding: '8px 12px', color: 'var(--text-muted)', fontWeight: 600,
+              borderBottom: `1px solid var(--border-light)`, minWidth: '80px',
             }}>
               当前值
             </th>
             {LOOKBACK_KEYS.map(key => (
               <th key={key} style={{
-                textAlign: 'center', padding: '8px 6px', color: THEME.textMuted,
-                fontWeight: 600, borderBottom: `1px solid ${THEME.borderLight}`, width: '80px',
+                textAlign: 'center', padding: '8px 6px', color: 'var(--text-muted)',
+                fontWeight: 600, borderBottom: `1px solid var(--border-light)`, width: '80px',
               }}>
                 {key}
               </th>
@@ -103,26 +102,26 @@ function MatrixTable({ entries }: { entries: ZScoreEntry[] }) {
             const categoryLabel = CATEGORY_LABELS[entry.category] || entry.category
 
             return (
-              <tr key={entry.code} style={{ borderBottom: `1px solid ${THEME.borderLight}` }}>
+              <tr key={entry.code} style={{ borderBottom: `1px solid var(--border-light)` }}>
                 <td style={{
                   padding: '10px 12px', position: 'sticky', left: 0,
-                  background: THEME.bgCard, zIndex: 0,
+                  background: 'var(--bg-card)', zIndex: 0,
                   display: 'flex', alignItems: 'center', gap: '8px',
                 }}>
                   {showCategory && (
                     <span style={{
                       fontSize: '9px', padding: '1px 5px', borderRadius: '3px',
-                      background: THEME.blueDim, color: THEME.blue,
+                      background: 'var(--accent-blue-dim)', color: 'var(--accent-blue)',
                       fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
                     }}>
                       {categoryLabel}
                     </span>
                   )}
-                  <span style={{ color: THEME.textPrimary, fontWeight: 600, fontSize: '12px' }}>{entry.label}</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '12px' }}>{entry.label}</span>
                 </td>
                 <td style={{
-                  padding: '10px 12px', color: THEME.textSecondary, whiteSpace: 'nowrap',
-                  textAlign: 'right', fontFamily: THEME.fontMono,
+                  padding: '10px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+                  textAlign: 'right', fontFamily: 'var(--font-mono)',
                 }}>
                   {entry.currentValue != null ? fmtValue(entry.currentValue) : '--'}
                 </td>
@@ -131,7 +130,7 @@ function MatrixTable({ entries }: { entries: ZScoreEntry[] }) {
                   if (z == null) {
                     return (
                       <td key={key} style={{
-                        padding: '10px 6px', textAlign: 'center', color: THEME.textMuted,
+                        padding: '10px 6px', textAlign: 'center', color: 'var(--text-muted)',
                         fontSize: '11px', opacity: 0.5,
                       }}>
                         --
@@ -167,7 +166,7 @@ function MatrixTable({ entries }: { entries: ZScoreEntry[] }) {
 
 function EmptyHint({ region }: { region: string }) {
   return (
-    <div style={{ padding: '24px 16px', textAlign: 'center', color: THEME.textMuted, fontSize: '12px', lineHeight: 1.8 }}>
+    <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.8 }}>
       <div style={{ marginBottom: '6px', fontSize: '20px', opacity: 0.4 }}>
         {region === 'us' ? '🇺🇸' : '🇨🇳'}
       </div>
@@ -179,18 +178,27 @@ function EmptyHint({ region }: { region: string }) {
 function LegendBar() {
   return (
     <div style={{
-      marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${THEME.borderLight}`,
-      display: 'flex', gap: '16px', fontSize: '11px', color: THEME.textMuted, flexWrap: 'wrap',
+      marginTop: '12px', paddingTop: '10px', borderTop: `1px solid var(--border-light)`,
+      display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap',
       alignItems: 'center',
     }}>
-      <Legend color={THEME.red} label="过热 >1.5σ" />
-      <Legend color="#f59e0b" label="偏离 >1σ" />
-      <Legend color={THEME.green} label="正常 ±1σ" />
-      <Legend color="#3b82f6" label="低迷 <-1.5σ" />
-      <span style={{ marginLeft: 'auto', fontFamily: THEME.fontMono }}>
+      <Legend color="var(--red)" label="过热 >1.5σ" />
+      <Legend color="var(--accent-gold)" label="偏离 >1σ" />
+      <Legend color="var(--green)" label="正常 ±1σ" />
+      <Legend color="var(--accent-blue)" label="低迷 <-1.5σ" />
+      <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
         Z = (当前值 - 均值) / 标准差
       </span>
     </div>
+  )
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: color, display: 'inline-block' }} />
+      {label}
+    </span>
   )
 }
 
@@ -219,7 +227,7 @@ export function ZScoreMatrix() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <MacroCard title="🇺🇸 美国资产" badge={`${usEntries.length} 个`}>
         {loading && <LoadingSkeleton type="table" rows={6} />}
-        {!loading && error && <div style={{ padding: '16px', textAlign: 'center', color: THEME.red, fontSize: '13px' }}>{error}</div>}
+        {!loading && error && <div style={{ padding: '16px', textAlign: 'center', color: 'var(--red)', fontSize: '13px' }}>{error}</div>}
         {!loading && !error && usEntries.length === 0 && <EmptyHint region="us" />}
         {!loading && usEntries.length > 0 && <MatrixTable entries={usEntries} />}
         {!loading && usEntries.length > 0 && <LegendBar />}
@@ -227,20 +235,11 @@ export function ZScoreMatrix() {
 
       <MacroCard title="🇨🇳 中国资产" badge={`${cnEntries.length} 个`}>
         {loading && <LoadingSkeleton type="table" rows={6} />}
-        {!loading && error && <div style={{ padding: '16px', textAlign: 'center', color: THEME.red, fontSize: '13px' }}>{error}</div>}
+        {!loading && error && <div style={{ padding: '16px', textAlign: 'center', color: 'var(--red)', fontSize: '13px' }}>{error}</div>}
         {!loading && !error && cnEntries.length === 0 && <EmptyHint region="cn" />}
         {!loading && cnEntries.length > 0 && <MatrixTable entries={cnEntries} />}
         {!loading && cnEntries.length > 0 && <LegendBar />}
       </MacroCard>
     </div>
-  )
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-      <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: color, display: 'inline-block' }} />
-      {label}
-    </span>
   )
 }

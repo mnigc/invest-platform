@@ -2,23 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { TimeSeriesChart } from './charts/TimeSeriesChart'
 import { BarChart } from './charts/BarChart'
 import { PeriodSelector } from './ui/PeriodSelector'
-import { THEME } from './ui/theme'
 import { MacroBadge } from './ui/MacroBadge'
-
-interface Indicator {
-  code: string
-  region: string
-  name_zh: string
-  unit: string
-  frequency: string
-}
-
-interface DataPoint {
-  period_date: string
-  value: number
-  cnt?: number
-  expected_cnt?: number
-}
+import type { Indicator, DataPoint } from '../lib/core'
 
 const PERIODS = ['1M', '3M', '6M', '1Y', '5Y', '10Y', 'MAX'] as const
 const BAR_CODES = new Set(['GDP', 'RSXFS'])
@@ -100,8 +85,8 @@ export default function IndicatorChart({ indicator, showTable = true }: { indica
             style={{
               display: 'inline-flex',
               borderRadius: '8px',
-              background: THEME.bgCard,
-              border: `1px solid ${THEME.borderLight}`,
+              background: 'var(--bg-card)',
+              border: `1px solid var(--border-light)`,
               padding: '3px',
               gap: '2px',
             }}
@@ -122,13 +107,12 @@ export default function IndicatorChart({ indicator, showTable = true }: { indica
                     borderRadius: '6px',
                     fontSize: '12px',
                     fontWeight: 600,
-                    fontFamily: THEME.fontDisplay,
+                    fontFamily: 'var(--font-display)',
                     letterSpacing: '0.03em',
                     border: 'none',
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    background: active ? THEME.blue : 'transparent',
-                    color: active ? THEME.textPrimary : THEME.textSecondary,
+                    background: active ? 'var(--accent-blue)' : 'transparent',
+                    color: active ? '#FFFFFF' : 'var(--text-secondary)',
                   }}
                 >
                   {opt.label}
@@ -148,37 +132,54 @@ export default function IndicatorChart({ indicator, showTable = true }: { indica
           code={indicator.code}
           name_zh={indicator.name_zh}
           unit={indicator.unit}
-          showBoomLine
+          showBoomLine={indicator.code === 'PMI'}
         />
       )}
 
       {showTable && (
-        <div style={{ marginTop: '16px', background: THEME.bgCard, borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+        <div style={{ marginTop: '16px', background: 'var(--bg-card)', borderRadius: 12, overflow: 'hidden' }}>
+          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <colgroup>
+              <col style={{ width: '33%' }} />
+              <col style={{ width: '33%' }} />
+              <col style={{ width: '34%' }} />
+            </colgroup>
             <thead>
-              <tr style={{ background: THEME.bgElevated }}>
-                {['日期', '数值', '环比 (%)'].map(h => (
-                  <th key={h} style={{
-                    padding: '10px 16px', textAlign: 'left', fontWeight: 500,
-                    color: THEME.textMuted, fontSize: '10px', textTransform: 'uppercase',
-                    letterSpacing: '0.08em', fontFamily: THEME.fontMono,
-                  }}>
-                    {yearly ? h.replace('环比', '同比') : h}
-                  </th>
-                ))}
+              <tr>
+                <th style={{
+                  padding: '10px 16px', textAlign: 'left', fontWeight: 500,
+                  color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase',
+                  letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
+                  borderBottom: `1px solid var(--border-light)`,
+                }}>
+                  日期
+                </th>
+                <th style={{
+                  padding: '10px 16px', textAlign: 'right', fontWeight: 500,
+                  color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase',
+                  letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
+                  borderBottom: `1px solid var(--border-light)`,
+                }}>
+                  数值
+                </th>
+                <th style={{
+                  padding: '10px 16px', textAlign: 'right', fontWeight: 500,
+                  color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase',
+                  letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
+                  borderBottom: `1px solid var(--border-light)`,
+                }}>
+                  {yearly ? '同比 (%)' : '环比 (%)'}
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={'loading-' + i}>
-                    <td colSpan={3} style={{ padding: '12px 16px', borderTop: `1px solid ${THEME.borderLight}` }}>
+                    <td colSpan={3} style={{ padding: '12px 16px' }}>
                       <div style={{
                         height: '12px',
-                        background: `linear-gradient(90deg, ${THEME.bgCard} 25%, ${THEME.bgElevated} 50%, ${THEME.bgCard} 75%)`,
-                        backgroundSize: '200% 100%',
-                        animation: 'shimmer 1.5s ease-in-out infinite',
-                        borderRadius: '4px',
+                        color: 'var(--text-muted)',
                         width: 40 + (i * 13) % 60 + '%',
                       }} />
                     </td>
@@ -186,33 +187,33 @@ export default function IndicatorChart({ indicator, showTable = true }: { indica
                 ))
               ) : tableData.length === 0 ? (
                 <tr>
-                  <td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center', color: THEME.textMuted, fontSize: '13px' }}>
+                  <td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                     暂无数据
                   </td>
                 </tr>
               ) : (
                 tableData.map((row) => (
-                  <tr key={row.date} style={{ transition: 'background 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = THEME.bgElevated)}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
+                  <tr key={row.date}>
                     <td style={{
-                      padding: '12px 16px', borderTop: `1px solid ${THEME.borderLight}`,
-                      color: row.isEst ? THEME.textMuted : THEME.textSecondary,
+                      padding: '12px 16px',
+                      borderTop: `1px solid var(--border-light)`,
+                      color: row.isEst ? 'var(--text-muted)' : 'var(--text-secondary)',
                       fontStyle: row.isEst ? 'italic' : 'normal', fontSize: '12px',
                     }}>
                       {row.date}{row.isEst ? '*' : ''}
                     </td>
                     <td style={{
-                      padding: '12px 16px', borderTop: `1px solid ${THEME.borderLight}`,
-                      color: THEME.textPrimary, fontWeight: 500, fontFamily: THEME.fontMono,
-                      fontSize: '13px', letterSpacing: '0.02em',
+                      padding: '12px 16px',
+                      borderTop: `1px solid var(--border-light)`,
+                      color: 'var(--text-primary)', fontWeight: 500, fontFamily: 'var(--font-mono)',
+                      fontSize: '13px', letterSpacing: '0.02em', textAlign: 'right',
                     }}>
                       {row.value != null ? Number(row.value).toFixed(3) : '-'}
                     </td>
                     <td style={{
-                      padding: '12px 16px', borderTop: `1px solid ${THEME.borderLight}`,
-                      fontSize: '12px',
+                      padding: '12px 16px',
+                      borderTop: `1px solid var(--border-light)`,
+                      fontSize: '12px', textAlign: 'right',
                     }}>
                       {row.change != null ? (
                         <MacroBadge value={row.change} variant={row.change >= 0 ? 'up' : 'down'} />

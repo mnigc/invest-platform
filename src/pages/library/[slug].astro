@@ -231,11 +231,11 @@ const relatedArticles = articles.filter(a => a.slug !== slug && a.data.category 
   }
 
   .markdown-body pre {
-    background: #1a1b26; padding: 16px; border-radius: var(--radius-md);
+    background: var(--bg-elevated); padding: 16px; border-radius: var(--radius-md);
     overflow-x: auto; margin: 16px 0;
   }
 
-  .markdown-body pre code { background: none; padding: 0; color: #c9d1d9; }
+  .markdown-body pre code { background: none; padding: 0; color: var(--text-secondary); }
 
   .markdown-body blockquote {
     border-left: 3px solid var(--accent-blue); padding: 12px 20px; margin: 16px 0;
@@ -259,7 +259,7 @@ const relatedArticles = articles.filter(a => a.slug !== slug && a.data.category 
   }
 
   .markdown-body td { color: var(--text-secondary); }
-  .markdown-body tr:hover td { background: rgba(59, 130, 246, 0.05); }
+  .markdown-body tr:hover td { background: var(--accent-blue-dim); }
   .markdown-body hr { border: none; border-top: 1px solid var(--border-color); margin: 24px 0; }
   .markdown-body strong { color: var(--text-primary); }
   .markdown-body a { color: var(--accent-cyan); }

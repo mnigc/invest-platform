@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import * as echarts from 'echarts'
-import { THEME } from './theme'
+import echarts from '../../lib/echarts'
+import { useChartTheme } from './theme'
 
 interface Props {
   data: number[]
@@ -9,7 +9,9 @@ interface Props {
   width?: number
 }
 
-export function Sparkline({ data, color = THEME.cyan, height = 40, width }: Props) {
+export function Sparkline({ data, color, height = 40, width }: Props) {
+  const chartTheme = useChartTheme()
+  const lineColor = color || chartTheme.cyan
   const ref = useRef<HTMLDivElement>(null)
   const containerStyle: React.CSSProperties = { height, width: width || '100%' }
 
@@ -25,8 +27,8 @@ export function Sparkline({ data, color = THEME.cyan, height = 40, width }: Prop
         data,
         smooth: true,
         showSymbol: false,
-        lineStyle: { width: 1.5, color },
-        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: `${color}40` }, { offset: 1, color: `${color}05` }] } },
+        lineStyle: { width: 1.5, color: lineColor },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: chartTheme.cyanDim }, { offset: 1, color: 'transparent' }] } },
       }],
       animation: false,
     })
@@ -34,7 +36,7 @@ export function Sparkline({ data, color = THEME.cyan, height = 40, width }: Prop
     const observer = new ResizeObserver(handleResize)
     observer.observe(ref.current)
     return () => { chart.dispose(); observer.disconnect() }
-  }, [data, color])
+  }, [data, lineColor, chartTheme])
 
   if (data.length === 0) return <div style={containerStyle} />
 

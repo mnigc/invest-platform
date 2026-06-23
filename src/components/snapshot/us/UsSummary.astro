@@ -75,9 +75,9 @@ const action = hasData ? data!.action : [
   .snapshot-panel-badge { font-size: 12px; padding: 4px 12px; border-radius: 8px; background: var(--accent-gold-dim); color: var(--accent-gold); font-family: var(--font-mono); letter-spacing: 0.04em; font-weight: 600; }
   .summary-container { display: flex; flex-direction: column; gap: 12px; }
   .evidence-block, .falsify-block, .action-block { padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
-  .evidence-block { background: rgba(8, 153, 129, 0.06); border-color: rgba(8, 153, 129, 0.2); }
-  .falsify-block { background: rgba(242, 54, 69, 0.06); border-color: rgba(242, 54, 69, 0.2); }
-  .action-block { background: rgba(59, 130, 246, 0.06); border-color: rgba(59, 130, 246, 0.2); }
+  .evidence-block { background: var(--green-bg); border-color: var(--green-bg); }
+  .falsify-block { background: var(--red-bg); border-color: var(--red-bg); }
+  .action-block { background: var(--accent-blue-dim); border-color: var(--accent-blue-dim); }
   .evidence-header, .falsify-header, .action-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   .evidence-header svg { color: var(--green); }
   .falsify-header svg { color: var(--red); }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import echarts from '../../lib/echarts'
 import type { EChartsOption } from 'echarts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
-import { THEME } from '../ui/theme'
+import { useChartTheme } from '../ui/theme'
 
 interface DataPoint {
   period_date: string
@@ -20,6 +20,7 @@ interface Props {
 }
 
 export function BarChart({ data, loading, name_zh, unit, height = 360 }: Props) {
+  const chartTheme = useChartTheme()
   const containerRef = useRef<HTMLDivElement>(null)
   const chartInstance = useRef<echarts.ECharts | null>(null)
 
@@ -29,14 +30,14 @@ export function BarChart({ data, loading, name_zh, unit, height = 360 }: Props) 
     const series: any[] = [{
       type: 'bar', name: name_zh,
       data: data.map((d, i) => isIncomplete[i] ? null : d.value),
-      itemStyle: { color: THEME.blue, borderRadius: [2, 2, 0, 0] },
+      itemStyle: { color: chartTheme.blue, borderRadius: [2, 2, 0, 0] },
       barWidth: '50%',
     }]
     if (isIncomplete.some(Boolean)) {
       series.push({
         type: 'bar', name: `${name_zh} (预测)`,
         data: data.map((d, i) => isIncomplete[i] ? d.value : null),
-        itemStyle: { color: 'transparent', borderColor: THEME.blue, borderWidth: 2, borderType: 'dashed', borderRadius: [2, 2, 0, 0] },
+        itemStyle: { color: 'transparent', borderColor: chartTheme.blue, borderWidth: 2, borderType: 'dashed', borderRadius: [2, 2, 0, 0] },
         barWidth: '50%', barGap: '-100%', z: 10,
       })
     }
@@ -44,21 +45,21 @@ export function BarChart({ data, loading, name_zh, unit, height = 360 }: Props) 
     return {
       tooltip: {
         trigger: 'axis',
-        backgroundColor: THEME.bgCard, borderColor: THEME.borderLight, borderWidth: 1,
-        textStyle: { color: THEME.textPrimary, fontSize: 12 },
+        backgroundColor: chartTheme.bgCard, borderColor: chartTheme.borderLight, borderWidth: 1,
+        textStyle: { color: chartTheme.textPrimary, fontSize: 12 },
         formatter: (params: any) => {
           const arr = Array.isArray(params) ? params : [params]
           const p = arr.find((p: any) => p.value != null) || arr[0]
           if (!p || p.value == null) return ''
-          return `${p.axisValue}<br/><strong style="color:${THEME.blue}">${Number(p.value).toFixed(3)}</strong> ${unit || ''}`
+          return `${p.axisValue}<br/><strong style="color:${chartTheme.blue}">${Number(p.value).toFixed(3)}</strong> ${unit || ''}`
         },
       },
       grid: { left: 60, right: 20, top: 20, bottom: 30 },
-      xAxis: { type: 'category', data: data.map(d => d.period_date), axisLabel: { color: THEME.textMuted, fontSize: 11 }, axisLine: { lineStyle: { color: THEME.borderColor } }, splitLine: { show: false } },
-      yAxis: { type: 'value', axisLabel: { color: THEME.textMuted, fontSize: 11, formatter: (v: any) => (typeof v === 'number' ? v : parseFloat(v)).toFixed(3) }, splitLine: { lineStyle: { color: THEME.borderColor, type: 'dashed' } } },
+      xAxis: { type: 'category', data: data.map(d => d.period_date), axisLabel: { color: chartTheme.textMuted, fontSize: 11 }, axisLine: { lineStyle: { color: chartTheme.borderColor } }, splitLine: { show: false } },
+      yAxis: { type: 'value', axisLabel: { color: chartTheme.textMuted, fontSize: 11, formatter: (v: any) => (typeof v === 'number' ? v : parseFloat(v)).toFixed(3) }, splitLine: { lineStyle: { color: chartTheme.borderColor, type: 'dashed' } } },
       series,
     }
-  }, [data, name_zh, unit])
+  }, [data, name_zh, unit, chartTheme])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -80,7 +81,7 @@ export function BarChart({ data, loading, name_zh, unit, height = 360 }: Props) 
       window.removeEventListener('resize', onResize)
       ro.disconnect()
     }
-  }, [option])
+  }, [option, chartTheme])
 
   useEffect(() => {
     return () => {
@@ -90,10 +91,10 @@ export function BarChart({ data, loading, name_zh, unit, height = 360 }: Props) 
   }, [])
 
   if (loading) return <LoadingSkeleton type="chart" height={height} />
-  if (data.length === 0) return <div style={{ padding: '40px 0', textAlign: 'center', color: THEME.textMuted, fontSize: '13px' }}>NO DATA</div>
+  if (data.length === 0) return <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>NO DATA</div>
 
   return (
-    <div style={{ width: '100%', background: THEME.bgCard, borderRadius: '12px', padding: '12px 0', height: `${height}px` }}>
+    <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '12px', padding: '12px 0', height: `${height}px` }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>
   )

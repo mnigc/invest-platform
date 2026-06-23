@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MacroCard } from './ui/MacroCard'
-import { THEME } from './ui/theme'
 import { LoadingSkeleton } from './ui/LoadingSkeleton'
 import { HeatmapMatrix } from './charts/HeatmapMatrix'
 
@@ -163,11 +162,11 @@ function Summary({ text, color }: { text: string; color: string }) {
   return (
     <div style={{
       marginTop: '12px', padding: '10px 14px',
-      background: 'rgba(148,163,184,0.06)', borderRadius: '8px',
+      background: 'var(--bg-elevated)', borderRadius: '8px',
       border: `1px solid ${color}20`,
-      fontSize: '12px', lineHeight: 1.7, color: THEME.textSecondary,
+      fontSize: '12px', lineHeight: 1.7, color: 'var(--text-secondary)',
     }}>
-      <span style={{ color: THEME.textMuted, fontWeight: 600 }}>综合研判：</span>
+      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>综合研判：</span>
       {text}
     </div>
   )
@@ -202,34 +201,34 @@ export default function IndicatorHeatmapDashboard() {
   const cnSummary = useMemo(() => data ? generateCnSummary(data.cn) : '', [data])
 
   if (loading) return <LoadingSkeleton type="card" height={600} />
-  if (error) return <div style={{ padding: '14px 18px', borderRadius: '12px', background: THEME.redBg, color: THEME.red, fontSize: '13px', border: '1px solid rgba(242,54,69,0.2)' }}>⚠ {error}</div>
+  if (error) return <div style={{ padding: '14px 18px', borderRadius: '12px', background: 'var(--red-bg)', color: 'var(--red)', fontSize: '13px', border: `1px solid var(--red-bg)` }}>⚠ {error}</div>
   if (!data) return null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ padding: '14px 18px', background: THEME.bgCard, borderRadius: '12px', border: `1px solid ${THEME.borderLight}`, fontSize: '13px', lineHeight: 1.7, color: THEME.textSecondary }}>
-        <p style={{ margin: 0, fontWeight: 600, color: THEME.textPrimary }}>如何解读？</p>
+      <div style={{ padding: '14px 18px', background: 'var(--bg-card)', borderRadius: '12px', fontSize: '13px', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+        <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>如何解读？</p>
         <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
           每行是一个经济指标，每列是一个月份。颜色表示该指标当月值在自身历史中的位置：
         </p>
         <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '11px', alignItems: 'center' }}>
-          <span><span style={{ color: THEME.green }}>■</span> 偏冷 (低于均值)</span>
-          <span><span style={{ color: THEME.textMuted }}>■</span> 中性 (接近均值)</span>
-          <span><span style={{ color: THEME.red }}>■</span> 偏热 (高于均值)</span>
+          <span><span style={{ color: 'var(--green)' }}>■</span> 偏冷 (低于均值)</span>
+          <span><span style={{ color: 'var(--text-muted)' }}>■</span> 中性 (接近均值)</span>
+          <span><span style={{ color: 'var(--red)' }}>■</span> 偏热 (高于均值)</span>
         </div>
-        <p style={{ margin: '6px 0 0', fontSize: '11px', color: THEME.textMuted }}>
+        <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
           颜色深浅 = 偏离程度（Z-Score：-3 ~ +3）。红色越深→经济越热，绿色越深→经济越冷。底部综合研判基于最新月份各指标 Z-Score 自动生成。
         </p>
       </div>
 
       <MacroCard title="美国宏观经济热力图" variant="elevated">
         <HeatmapMatrix data={usCells} min={-3} max={3} height={400} />
-        <Summary text={usSummary} color={THEME.cyan} />
+        <Summary text={usSummary} color="var(--accent-cyan)" />
       </MacroCard>
 
       <MacroCard title="中国宏观经济热力图" variant="elevated">
         <HeatmapMatrix data={cnCells} min={-3} max={3} height={360} />
-        <Summary text={cnSummary} color={THEME.red} />
+        <Summary text={cnSummary} color="var(--red)" />
       </MacroCard>
     </div>
   )

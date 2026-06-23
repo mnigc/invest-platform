@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react'
 import { fetchApi } from '../../lib/api'
 import { MacroCard } from '../ui/MacroCard'
-import { THEME } from '../ui/theme'
 
 interface CoreIndex { name: string; code: string; value: number; change: number }
 interface RegimeSignal { name: string; value: number | string; score: -1 | 0 | 1; detail?: string }
 
-const REGIME_STYLES: Record<string, { label: string; color: string; bg: string }> = {
-  GOLDILOCKS: { label: '金发女孩', color: '#089981', bg: 'rgba(8,153,129,0.12)' },
-  RISK_ON: { label: '风险偏好', color: THEME.blue, bg: THEME.blueDim },
-  OVERHEAT: { label: '过热', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
-  STAGFLATION: { label: '滞胀', color: THEME.red, bg: THEME.redBg },
-  RISK_OFF: { label: '风险规避', color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
-  RECOVERY: { label: '复苏', color: THEME.cyan, bg: THEME.cyanDim },
-  UNKNOWN: { label: '不确定', color: THEME.textMuted, bg: THEME.bgCard },
+function getRegimeStyles(): Record<string, { label: string; color: string; bg: string }> {
+  return {
+    GOLDILOCKS: { label: '金发女孩', color: 'var(--green)', bg: 'var(--green-bg)' },
+    RISK_ON: { label: '风险偏好', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
+    OVERHEAT: { label: '过热', color: 'var(--accent-gold)', bg: 'var(--accent-gold-dim)' },
+    STAGFLATION: { label: '滞胀', color: 'var(--red)', bg: 'var(--red-bg)' },
+    RISK_OFF: { label: '风险规避', color: 'var(--red)', bg: 'var(--red-bg)' },
+    RECOVERY: { label: '复苏', color: 'var(--accent-cyan)', bg: 'var(--accent-cyan-dim)' },
+    UNKNOWN: { label: '不确定', color: 'var(--text-muted)', bg: 'var(--bg-card)' },
+  }
 }
 
 const FALLBACK_INDICES: CoreIndex[] = [
@@ -57,7 +58,7 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
 
   const finalIndices = filledIndices.length > 0 ? filledIndices : FALLBACK_INDICES
 
-  const rs = regime ? REGIME_STYLES[regime.regime] || REGIME_STYLES.UNKNOWN : REGIME_STYLES.UNKNOWN
+  const rs = regime ? getRegimeStyles()[regime.regime] || getRegimeStyles().UNKNOWN : getRegimeStyles().UNKNOWN
   const goodCount = regime ? regime.signals.filter((s: RegimeSignal) => s.score === 1).length : 0
   const badCount = regime ? regime.signals.filter((s: RegimeSignal) => s.score === -1).length : 0
   const neutralCount = regime ? regime.signals.length - goodCount - badCount : 0
@@ -67,10 +68,10 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
       <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '20px', alignItems: 'start' }}>
         <div style={{
           padding: '14px 16px', background: rs.bg, borderRadius: '12px',
-          border: `1px solid ${rs.color}30`, minHeight: '100%',
+          border: `1px solid var(--border-light)`, minHeight: '100%',
         }}>
-          <div style={{ fontSize: '10px', color: THEME.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '2px' }}>当前市场制式</div>
-          <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: THEME.fontDisplay, letterSpacing: '0.04em', color: rs.color, lineHeight: 1.2 }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '2px' }}>当前市场制式</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '0.04em', color: rs.color, lineHeight: 1.2 }}>
             {regime?.regime || '...'}
           </div>
           <div style={{ fontSize: '11px', color: rs.color, marginTop: '2px', fontWeight: 500 }}>
@@ -78,20 +79,20 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
           </div>
 
           <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', color: THEME.green, background: THEME.greenBg, padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>积极 {goodCount}</span>
-            <span style={{ fontSize: '11px', color: THEME.textMuted, background: THEME.bgCard, padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>中性 {neutralCount}</span>
-            <span style={{ fontSize: '11px', color: THEME.red, background: THEME.redBg, padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>风险 {badCount}</span>
+            <span style={{ fontSize: '11px', color: 'var(--green)', background: 'var(--green-bg)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>积极 {goodCount}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>中性 {neutralCount}</span>
+            <span style={{ fontSize: '11px', color: 'var(--red)', background: 'var(--red-bg)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>风险 {badCount}</span>
           </div>
 
           <div style={{ marginTop: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span style={{ fontSize: '10px', color: THEME.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase' }}>识别置信度</span>
-              <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary }}>{regime?.confidence || 0}%</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>识别置信度</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{regime?.confidence || 0}%</span>
             </div>
-            <div style={{ height: '5px', background: THEME.borderColor, borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{ height: '5px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', width: `${regime?.confidence || 0}%`,
-                background: `linear-gradient(90deg, ${THEME.red}, ${THEME.cyan}, ${THEME.green})`,
+                background: `linear-gradient(90deg, var(--red), var(--accent-cyan), var(--green))`,
                 borderRadius: '2px', transition: 'width 0.6s ease',
               }} />
             </div>
@@ -100,16 +101,16 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
           {regime && regime.signals.length > 0 && (
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
               {regime.signals.slice(0, 6).map((s: RegimeSignal) => {
-                const dotColor = s.score === 1 ? THEME.green : s.score === -1 ? THEME.red : THEME.textMuted
+                const dotColor = s.score === 1 ? 'var(--green)' : s.score === -1 ? 'var(--red)' : 'var(--text-muted)'
                 return (
                   <div key={s.name} style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '5px 8px', background: THEME.bgCard, borderRadius: '6px',
-                    border: `1px solid ${THEME.borderLight}`,
+                    padding: '5px 8px', background: 'var(--bg-card)', borderRadius: '6px',
+                    border: `1px solid var(--border-light)`,
                   }}>
                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                    <span style={{ fontSize: '11px', color: THEME.textSecondary, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary, flexShrink: 0 }}>{s.value}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', flexShrink: 0 }}>{s.value}</span>
                   </div>
                 )
               })}
@@ -118,29 +119,29 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
         </div>
 
         <div>
-          <div style={{ fontSize: '10px', color: THEME.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>核心指数 · 最近交易日</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>核心指数 · 最近交易日</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
             {finalIndices.map(idx => {
               const isUp = idx.change >= 0
               return (
                 <div key={idx.code} style={{
-                  padding: '12px 10px', background: THEME.bgCard, borderRadius: '10px',
-                  border: `1px solid ${THEME.borderLight}`, display: 'flex', flexDirection: 'column', gap: '6px',
+                  padding: '12px 10px', background: 'var(--bg-card)', borderRadius: '10px',
+                  border: `1px solid var(--border-light)`, display: 'flex', flexDirection: 'column', gap: '6px',
                   transition: 'all 0.2s',
                 }}>
                   <div style={{ marginBottom: '2px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: THEME.textPrimary, fontFamily: THEME.fontMono }}>{idx.code}</div>
-                    <div style={{ fontSize: '10px', color: THEME.textMuted, marginTop: '1px' }}>{idx.name}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{idx.code}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{idx.name}</div>
                   </div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: THEME.fontMono, color: THEME.textPrimary, lineHeight: 1.2 }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', lineHeight: 1.2 }}>
                     {typeof idx.value === 'number' ? idx.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                   </div>
                   <div style={{
                     display: 'inline-flex', alignItems: 'center', gap: '2px',
-                    fontSize: '11px', fontWeight: 700, fontFamily: THEME.fontMono,
-                    color: isUp ? THEME.green : THEME.red,
+                    fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    color: isUp ? 'var(--green)' : 'var(--red)',
                     padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start',
-                    background: isUp ? 'rgba(8,153,129,0.12)' : 'rgba(242,54,69,0.12)',
+                    background: isUp ? 'var(--green-bg)' : 'var(--red-bg)',
                   }}>
                     {isUp ? '↑' : '↓'} {Math.abs(idx.change).toFixed(2)}%
                   </div>
@@ -151,10 +152,10 @@ export default function UsHeroPanel({ indices }: { indices?: CoreIndex[] | null 
 
           <div style={{
             marginTop: '12px', padding: '10px 14px', fontSize: '12px',
-            background: THEME.blueDim, borderRadius: '8px', color: THEME.textSecondary,
-            border: `1px solid ${THEME.blue}30`, lineHeight: 1.5,
+            background: 'var(--accent-blue-dim)', borderRadius: '8px', color: 'var(--text-secondary)',
+            border: `1px solid var(--border-light)`, lineHeight: 1.5,
           }}>
-            <span style={{ fontWeight: 700, color: THEME.blue }}>解读：</span>
+            <span style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>解读：</span>
             {regime?.regime === 'RISK_ON' && '市场处于风险偏好状态，股指大概率维持上行趋势，关注 FOMC 会议纪要与通胀数据。'}
             {regime?.regime === 'GOLDILOCKS' && '经济处于金发女孩状态——增长温和、通胀可控，为风险资产提供有利环境。'}
             {regime?.regime === 'OVERHEAT' && '市场过热迹象明显，通胀压力上升，可能触发更激进的紧缩政策，关注防御性板块。'}
