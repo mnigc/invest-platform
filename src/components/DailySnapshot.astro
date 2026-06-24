@@ -203,15 +203,23 @@ try {
 
   .panels-grid-3col {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     margin-top: 12px;
   }
   @media (max-width: 1200px) {
-    .panels-grid-3col { grid-template-columns: repeat(2, 1fr); }
+    .panels-grid-3col { grid-template-columns: 1fr; }
   }
   @media (max-width: 900px) {
     .panels-grid-3col { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 767px) {
+    .header-text h1 { font-size: 16px; }
+    .header-text p { font-size: 11px; }
+    .tabs-container { width: 100%; }
+    .tab-btn { flex: 1; padding: 8px 10px; font-size: 12px; }
+    .panels-grid { grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+    .panels-grid-3col { grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
   }
 
   .indicator-links-panel {

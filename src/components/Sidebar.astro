@@ -66,7 +66,7 @@ function isActive(href: string) {
 }
 ---
 
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
     <div class="brand-icon">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -77,6 +77,12 @@ function isActive(href: string) {
       <div class="brand-title">CN-US MACRO</div>
       <div class="brand-sub">中美宏观数据研究平台</div>
     </div>
+    <button class="sidebar-close" id="sidebarCloseBtn" aria-label="关闭导航">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
   </div>
 
   <nav class="nav">
@@ -87,6 +93,7 @@ function isActive(href: string) {
           <a
             href={item.href}
             class={`nav-link ${isActive(item.href) ? 'active' : ''} ${section.title ? 'sub' : ''}`}
+            data-sidebar-link
           >
             <span class="nav-indicator"></span>
             <span class="label">{item.label}</span>
@@ -107,10 +114,15 @@ function isActive(href: string) {
   </div>
 </aside>
 
+<div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
 <script>
   (function() {
     var btn = document.getElementById('themeToggleBtn');
     var icon = document.getElementById('themeToggleIcon');
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    var closeBtn = document.getElementById('sidebarCloseBtn');
     if (!btn || !icon) return;
 
     var THEME_COLORS = { dark: '#000000', light: '#f5f7fa' };
@@ -159,6 +171,63 @@ function isActive(href: string) {
       updateUI();
     }
 
+    function openSidebar() {
+      if (!sidebar) return;
+      sidebar.classList.add('sidebar-open');
+      if (overlay) {
+        overlay.classList.add('sidebar-overlay-open');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      if (!sidebar) return;
+      sidebar.classList.remove('sidebar-open');
+      if (overlay) {
+        overlay.classList.remove('sidebar-overlay-open');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+      document.body.style.overflow = '';
+    }
+
+    // 汉堡按钮由 Layout.astro 提供，事件委托到 document
+    document.addEventListener('click', function(e) {
+      var target = e.target;
+      if (!target) return;
+      var hamburger = target.closest('[data-sidebar-toggle]');
+      if (hamburger) {
+        if (sidebar && sidebar.classList.contains('sidebar-open')) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+        return;
+      }
+      if (closeBtn && target.closest('#sidebarCloseBtn')) {
+        closeSidebar();
+        return;
+      }
+      if (target.closest('#sidebarOverlay')) {
+        closeSidebar();
+        return;
+      }
+      var link = target.closest('[data-sidebar-link]');
+      if (link) {
+        closeSidebar();
+      }
+    });
+
+    // Esc 关闭
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeSidebar();
+    });
+
+    // 切到桌面尺寸时自动关闭抽屉
+    var mqWidth = window.matchMedia('(min-width: 768px)');
+    mqWidth.addEventListener('change', function(e) {
+      if (e.matches) closeSidebar();
+    });
+
     updateUI();
 
     btn.addEventListener('click', function() {
@@ -186,7 +255,9 @@ function isActive(href: string) {
     background: var(--bg-primary);
     display: flex;
     flex-direction: column;
-    z-index: 100;
+    overflow: hidden;
+    z-index: 200;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
   }
 
   .sidebar-brand {
@@ -227,9 +298,24 @@ function isActive(href: string) {
     letter-spacing: 0.04em;
   }
 
+  .sidebar-close {
+    display: none;
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
   .nav {
     padding: 8px;
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
     min-height: 0;
   }
@@ -317,6 +403,7 @@ function isActive(href: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;
   }
 
   .sidebar-footer-text {
@@ -346,6 +433,42 @@ function isActive(href: string) {
   .theme-toggle:hover {
     background: var(--bg-card-hover);
     border-color: var(--accent-blue);
+  }
+
+  /* 遮罩层 — 仅在移动端抽屉状态显示 */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 150;
+    pointer-events: none;
+  }
+
+  /* 移动端响应式 */
+  @media (max-width: 767px) {
+    .sidebar {
+      transform: translateX(-100%);
+      width: 86vw;
+      max-width: 320px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .sidebar.sidebar-open {
+      transform: translateX(0);
+    }
+
+    .sidebar-overlay.sidebar-overlay-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .sidebar-close {
+      display: flex;
+    }
   }
 </style>
 

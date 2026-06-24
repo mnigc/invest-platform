@@ -105,7 +105,7 @@ export const GET = withCache(async () => {
     const forexSymbols = [
       'DX-Y.NYB',
       'EURUSD=X', 'USDJPY=X', 'GBPUSD=X', 'USDCNH=X',
-      'USDCHF=X', 'AUDUSD=X', 'USDCAD=X', 'NZDUSD=X',
+      'USDCHF=X', 'AUDUSD=X', 'USDCAD=X', 'KRW=X',
     ];
 
     const [priceDataArr, snapshotArr] = await Promise.all([
@@ -184,7 +184,7 @@ export const GET = withCache(async () => {
     const dxyMomentum30d = dxy30dAgo != null ? dxyCurrent - dxy30dAgo : null;
 
     // 货币对数据
-    const pairSymbols = ['EURUSD=X', 'USDJPY=X', 'GBPUSD=X', 'USDCNH=X', 'USDCHF=X', 'AUDUSD=X', 'USDCAD=X', 'NZDUSD=X'];
+    const pairSymbols = ['EURUSD=X', 'USDJPY=X', 'GBPUSD=X', 'USDCNH=X', 'USDCHF=X', 'AUDUSD=X', 'USDCAD=X', 'KRW=X'];
     const pairs = pairSymbols.map(symbol => {
       const data = priceMap.get(symbol) || [];
       const snapshot = snapshotMap.get(symbol);

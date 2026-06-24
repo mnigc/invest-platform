@@ -188,3 +188,60 @@ html.theme-transitioning *::after {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 移动端优化：触摸目标尺寸 + 表格横滚 + 字号缩放 */
+@media (max-width: 767px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  /* 保证点击区域 ≥ 44px（iOS 推荐） */
+  button, a {
+    min-height: 44px;
+  }
+
+  /* 所有表格默认可横滚 */
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* === 通用双列/三列 grid 工具类（被 Forex / Gold / CnUsSpread 仪表盘使用） === */
+.g-grid-2 { grid-template-columns: 1fr 1fr; }
+.g-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.g-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.g-grid-hero-4 { grid-template-columns: 1.4fr 1fr 1fr 1fr; }
+
+/* === 通用移动端适配规则（所有仪表盘） === */
+@media (max-width: 900px) {
+  .gold-dashboard h2,
+  .spread-dashboard h2 { font-size: 14px !important; }
+  .gold-dashboard p,
+  .spread-dashboard p { font-size: 12px !important; line-height: 1.6 !important; }
+}
+@media (max-width: 767px) {
+  .gold-dashboard .g-grid-2,
+  .gold-dashboard .g-grid-3,
+  .spread-dashboard .g-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .spread-dashboard .g-grid-hero-4 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .spread-dashboard .g-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@viewport {
+  width: device-width;
+}

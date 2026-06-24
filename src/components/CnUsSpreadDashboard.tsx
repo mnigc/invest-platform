@@ -262,7 +262,7 @@ function SpreadEducation() {
             <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>利差（Spread）</span>是指两个不同国家或不同期限的国债收益率之间的差值。它是国际资本流动、汇率走势和宏观经济预期的核心参考指标。
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="g-grid-2" style={{ display: 'grid', gap: '12px' }}>
             {/* 利差为正 */}
             <div style={{ borderRadius: '10px', border: `1px solid var(--border-light)`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
               <div style={{
@@ -402,10 +402,10 @@ export default function CnUsSpreadDashboard() {
     : ''
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="spread-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Hero + 关键数字 */}
       <MacroCard title="中美 10 年期国债利差" variant="elevated">
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: '12px', alignItems: 'stretch' }}>
+        <div className="g-grid-hero-4" style={{ display: 'grid', gap: '12px', alignItems: 'stretch' }}>
           {/* 主利差卡 */}
           <div style={{
             padding: '14px 16px',
@@ -506,7 +506,7 @@ export default function CnUsSpreadDashboard() {
           </div>
 
           {/* 数据明细表格 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
+          <div className="g-grid-2" style={{ display: 'grid', gap: '10px 24px' }}>
             <DataRow label="中国 10Y 收益率" value={data.latest.cn10y != null ? `${data.latest.cn10y.toFixed(3)}%` : '--'} />
             <DataRow label="美国 10Y 收益率" value={data.latest.us10y != null ? `${data.latest.us10y.toFixed(3)}%` : '--'} />
             <DataRow

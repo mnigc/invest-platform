@@ -247,7 +247,7 @@ function GoldPriceChart({ data }: { data: PriceData }) {
       axisLine: { lineStyle: { color: chartTheme.borderColor } },
     },
     yAxis: {
-      type: 'value', scale: true, axisLabel: { color: chartTheme.textSecondary, fontSize: 11, formatter: '$' },
+      type: 'value', scale: true, axisLabel: { color: chartTheme.textSecondary, fontSize: 11, formatter: '${value}' },
       splitLine: { lineStyle: { color: chartTheme.borderColor } },
       axisLine: { show: false },
     },
@@ -283,7 +283,7 @@ function RecentPriceChart({ data }: { data: PriceData }) {
     title: { text: '最近 30 个交易日（USD/oz）', left: 'left', textStyle: { fontSize: 13, fontWeight: 600, color: chartTheme.textPrimary, fontFamily: chartTheme.fontDisplay } },
     grid: { left: 60, right: 24, top: 40, bottom: 32 },
     xAxis: { type: 'category', data: data.series_30d.map(r => r.date), axisLabel: { color: chartTheme.textSecondary, fontSize: 10 }, axisLine: { lineStyle: { color: chartTheme.borderColor } } },
-    yAxis: { type: 'value', scale: true, axisLabel: { color: chartTheme.textSecondary, fontSize: 11, formatter: '$' }, splitLine: { lineStyle: { color: chartTheme.borderColor } }, axisLine: { show: false } },
+    yAxis: { type: 'value', scale: true, axisLabel: { color: chartTheme.textSecondary, fontSize: 11, formatter: '${value}' }, splitLine: { lineStyle: { color: chartTheme.borderColor } }, axisLine: { show: false } },
     series: [{
       type: 'bar', data: data.series_30d.map((r, i) => ({
         value: r.price,
@@ -346,7 +346,7 @@ function BuySellRanking({ data }: { data: ChangesData }) {
     series: [{ type: 'bar', data: data.top_sellers.map(r => ({ value: Math.abs(r.tonnes), itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: chartTheme.red }, { offset: 1, color: chartTheme.redBg }] }, borderRadius: [0, 4, 4, 0] } })), barMaxWidth: 16 }],
   })
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+    <div className="g-grid-2" style={{ display: 'grid', gap: 16 }}>
       <div ref={useEChart<HTMLDivElement>(buyerOpts, [data.top_buyers.length, data.latest_period, chartTheme])} style={{ width: '100%', height: 320 }} />
       <div ref={useEChart<HTMLDivElement>(sellerOpts, [data.top_sellers.length, data.latest_period, chartTheme])} style={{ width: '100%', height: 320 }} />
     </div>
@@ -397,7 +397,7 @@ function GoldDxyComparisonChart({ data }: { data: PriceData }) {
         name: '金价 USD/oz',
         position: 'left',
         nameTextStyle: { color: chartTheme.gold, fontSize: 10 },
-        axisLabel: { color: chartTheme.gold, fontSize: 11, formatter: '$' },
+        axisLabel: { color: chartTheme.gold, fontSize: 11, formatter: '${value}' },
         splitLine: { lineStyle: { color: chartTheme.borderColor } },
         axisLine: { show: false },
       },
@@ -703,7 +703,7 @@ export default function GoldDashboard() {
 
   // ---- render dashboard ----
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="gold-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* ===== Intro Card ===== */}
       <section style={CARD}>
         <h2 style={{ margin: '0 0 10px 0', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
@@ -724,7 +724,7 @@ export default function GoldDashboard() {
 
       {/* ===== Hero Metrics Row ===== */}
       <section style={CARD}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="g-grid-3" style={{ display: 'grid', gap: 12 }}>
           {/* 第一行 */}
           <MetricCard label="最新金价" unit="USD/oz" value={price!.latest_price} delta={price!.daily_change_pct} meta={price!.latest_date} accent="gold" large />
           <MetricCard label="年初至今" unit="" value={price!.ytd_change_pct ? price!.ytd_change_pct : null} isPct meta={price!.latest_date} />
@@ -759,7 +759,7 @@ export default function GoldDashboard() {
       </div>
 
       {/* ===== Holdings + 30-Day (2-col) ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="g-grid-2" style={{ display: 'grid', gap: 16 }}>
         <section style={CARD}><HoldingsTable data={overview!} /></section>
         <section style={CARD}><RecentPriceChart data={price!} /></section>
       </div>

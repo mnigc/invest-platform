@@ -40,7 +40,7 @@ const PAIR_LABELS: Record<string, { name: string; flag: string; desc: string }> 
   'USDCHF=X': { name: '美元/瑞郎', flag: '\u{1F1E8}\u{1F1ED}', desc: '避险货币对比' },
   'AUDUSD=X': { name: '澳元/美元', flag: '\u{1F1E6}\u{1F1FA}', desc: '商品货币与风险偏好' },
   'USDCAD=X': { name: '美元/加元', flag: '\u{1F1E8}\u{1F1E6}', desc: '加拿大能源出口' },
-  'NZDUSD=X': { name: '纽元/美元', flag: '\u{1F1F3}\u{1F1FF}', desc: '大洋洲商品货币' },
+  'KRW=X': { name: '美元/韩元', flag: '\u{1F1F0}\u{1F1F7}', desc: '东北亚避险指标' },
 }
 
 function MiniCard({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
@@ -349,7 +349,7 @@ function CrossAssetChart({ dxyHistory, goldCorr, spxCorr, goldPrice, spxPrice }:
               {spxCorr < -0.3 ? '（负相关：强美元压制美股，避险逻辑）'
                 : spxCorr > 0.3 ? '（正相关：美元与美股齐涨，美国例外论）'
                 : '（弱相关/无明确方向）'}</>
-            : <>S&P 500 历史日线数据尚未同步（数据库 asset_prices 表中无 ^GSPC 数据）。请在服务器端运行相应数据同步脚本后查看。</>}
+            : <>S&P 500 历史日线数据尚未同步。</>}
         </div>
         <div style={{ display: 'flex', gap: '20px', marginTop: '4px' }}>
           <div>
@@ -512,6 +512,15 @@ export function ForexDashboard() {
   @media (max-width: 520px) {
     .forex-grid-4-hero { grid-template-columns: 1fr; }
     .forex-grid-4-pairs { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 767px) {
+    .forex-grid-4-hero {
+      /* 小屏内字号缩小 */
+      font-size: 12px;
+    }
+    .forex-grid-2 {
+      gap: 10px;
+    }
   }
 `}
       </style>

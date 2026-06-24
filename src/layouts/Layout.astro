@@ -59,9 +59,13 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     </div>
     <Sidebar />
     <header class="header">
-      <div class="header-left">
-        {/* 面包屑由各页面自行控制，不在 header 全局显示 */}
-      </div>
+      <button class="hamburger" data-sidebar-toggle aria-label="打开导航" aria-pressed="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
       <div class="header-right">
         <div class="status-badge">
           <span class="status-dot"></span>
@@ -168,6 +172,21 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     justify-content: space-between;
     padding: 0 32px;
     z-index: 50;
+    gap: 12px;
+  }
+
+  .hamburger {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
   .header-left {
@@ -242,6 +261,56 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     margin-top: var(--header-height);
     min-height: calc(100vh - var(--header-height));
     padding: 28px 32px;
+    max-width: 1400px;
+    margin-left: calc(var(--sidebar-width) + max(0px, (100vw - var(--sidebar-width) - 1400px) / 2));
+  }
+
+  /* 移动端响应式 */
+  @media (max-width: 1100px) {
+    .main {
+      padding: 20px 18px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .header {
+      left: 0;
+      padding: 0 16px;
+    }
+
+    .hamburger {
+      display: flex;
+    }
+
+    .main {
+      margin-left: 0;
+      padding: 16px 14px;
+      max-width: none;
+      margin-left: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .header {
+      padding: 0 12px;
+    }
+
+    .header-right {
+      gap: 8px;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      font-size: 9px;
+    }
+
+    .header-time {
+      font-size: 11px;
+    }
+
+    .main {
+      padding: 14px 12px;
+    }
   }
 
   .global-loader {
