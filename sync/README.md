@@ -88,9 +88,9 @@ cd /opt/macro
 
 > 时间以服务器时区为准，`1-5` = 周一到周五。
 
-### 3.1 GitHub Actions（可选）
+### 3.1 GitHub Actions（补充，非主用）
 
-项目已内置 `.github/workflows/sync.yml`，用 GitHub 托管 runner 定时同步：
+项目内置 `.github/workflows/sync.yml`，可用 GitHub 托管 runner 定时同步：
 
 - **定时**：每个交易日 23:30（北京时间）执行 `run_sync.py --group daily`（GitHub cron 用 UTC，即 `30 15 * * 1-5`）
 - **手动触发**：Actions 页面 → run workflow → 可随时补跑
@@ -101,24 +101,11 @@ cd /opt/macro
 | --- | --- |
 | `DATABASE_URL` | Supabase Session Pooler 连接串（同 `.env`） |
 | `FRED_API_KEY` | FRED API Key |
-| `CN_HTTP_PROXY` | （可选）国内数据源代理，如 `http://4fu1768rz202.vicp.fun:8888` |
 
-> 注意：GitHub runner 在海外，akshare 拉取国内数据（ETF/中国宏观）会超时。
-> 配置 `CN_HTTP_PROXY`（指向可回国的 HTTP 代理）后，这些请求会走代理；FRED/Yahoo/gold-api/Supabase 仍直连。
+> 注意：**主用同步建议放在 1Panel 服务器（境内）跑**，国内数据源（akshare/东财/沪深交所）在境内直连最稳。
+> GitHub runner 在海外，akshare 拉取国内数据会超时并降级为空——FRED/Yahoo/gold-api 等国际数据不受影响。
+> 数据库连接已强制走 IPv4，GitHub runner 无需 IPv6。
 > 金价历史来自 Yahoo Finance（GC=F），无需本地文件。失败时可在 Actions 页面查看 `sync-logs` 产物日志。
-
-#### 在 1Panel 服务器搭 tinyproxy（供国内数据源回源）
-
-在服务器上执行 `sync/setup_tinyproxy.sh`（需 root/sudo，默认监听 0.0.0.0:8888），并放行 TCP 8888。
-
-```bash
-# 可选：带 BasicAuth（更安全，防止被滥用）
-PROXY_USER=invest PROXY_PASSWORD='<strong-password>' bash sync/setup_tinyproxy.sh
-```
-
-- 代理地址：`http://4fu1768rz202.vicp.fun:8888`（改脚本里的域名即可）
-- 验证：`curl -x http://4fu1768rz202.vicp.fun:8888 https://api.stlouisfed.org -I`
-- 域名是动态公网 IP 的 DDNS，GitHub runner 需能正常解析；若解析失败，请改用固定 IP
 
 ---
 
