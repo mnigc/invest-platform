@@ -35,5 +35,9 @@ test_db2.py
 run_schema.py
 
 .doc/
-sync/
+
+# sync 脚本：仅忽略产物与缓存，脚本本身要入库
+sync/__pycache__/
+sync/logs/
+
 .opencode/
