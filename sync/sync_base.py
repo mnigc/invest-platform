@@ -11,8 +11,10 @@ import os
 import sys
 import re
 import time
+import socket
 import logging
 import threading
+from urllib.parse import urlparse
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -195,21 +197,55 @@ class _PgConn:
 
 
 # ============== 数据库连接 ==============
+def _resolve_ipv4(host, port=5432):
+    """把主机名解析为 IPv4 地址（跳过 IPv6），返回 IP 字符串。
+    GitHub Actions 等无 IPv6 路由的环境，直接连 Supabase 的 db.*.supabase.co（仅 AAAA）
+    会 "Network is unreachable"，因此强制走 IPv4。
+    """
+    try:
+        infos = socket.getaddrinfo(host, port, family=socket.AF_INET, type=socket.SOCK_STREAM)
+        if infos:
+            return infos[0][4][0]
+    except OSError as e:
+        log = _setup_logger("sync_base")
+        log.warning("解析 IPv4 失败 %s:%s - %s", host, port, e)
+    return None
+
+
 def get_conn():
     if not DATABASE_URL:
         raise RuntimeError("未设置 DATABASE_URL（Supabase 连接串），无法连接数据库")
     last_err = None
+
+    # 解析连接串，给 PostgreSQL 直接提供 IPv4 hostaddr（libpq 优先用 hostaddr）
+    conn_kwargs = dict(
+        sslmode="require",
+        connect_timeout=20,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+        options="-c statement_timeout=180000 -c idle_in_transaction_session_timeout=180000",
+    )
+    try:
+        u = urlparse(DATABASE_URL)
+        host = u.hostname
+        port = u.port or 5432
+        ip = _resolve_ipv4(host, port)
+        if ip:
+            # 用 hostaddr 连接，保留原始 host 做 SNI/主机名校验
+            conn_kwargs["hostaddr"] = ip
+            conn_kwargs["host"] = host
+        else:
+            # 解析不出 IPv4：直接尝试原连接串
+            log = _setup_logger("sync_base")
+            log.warning("未解析到 IPv4 地址，直接使用原始连接串连接")
+    except Exception as e:
+        log = _setup_logger("sync_base")
+        log.warning("解析 DATABASE_URL 失败: %s，直接使用原始连接串", e)
+
     for attempt in range(3):
         try:
-            raw = psycopg2.connect(
-                DATABASE_URL,
-                sslmode="require",
-                connect_timeout=20,
-                keepalives_idle=30,
-                keepalives_interval=10,
-                keepalives_count=3,
-                options="-c statement_timeout=180000 -c idle_in_transaction_session_timeout=180000",
-            )
+            raw = psycopg2.connect(DATABASE_URL, **conn_kwargs)
             return _PgConn(raw)
         except Exception as e:
             last_err = e
