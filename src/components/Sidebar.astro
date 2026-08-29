@@ -1,37 +1,12 @@
 ---
-const usIndicators = [
-  { label: 'GDP', href: '/indicators/US/GDP' },
-  { label: 'CPI', href: '/indicators/US/CPI' },
-  { label: 'PPI', href: '/indicators/US/PPI' },
-  { label: '个人消费支出', href: '/indicators/US/PCE' },
-  { label: '消费者信心指数', href: '/indicators/US/UMCSENT' },
-  { label: '零售销售', href: '/indicators/US/RSXFS' },
-  { label: 'PMI', href: '/indicators/US/pmi' },
-  { label: '国债收益率', href: '/indicators/US/bonds' },
-];
-
-const cnIndicators = [
-  { label: 'GDP', href: '/indicators/CN/GDP' },
-  { label: 'CPI', href: '/indicators/CN/CPI' },
-  { label: 'PPI', href: '/indicators/CN/PPI' },
-  { label: '制造业PMI', href: '/indicators/CN/PMI' },
-  { label: '社会消费品零售总额', href: '/indicators/CN/RETAIL' },
-  { label: '国债收益率', href: '/indicators/CN/bonds' },
-];
-
 const navSections = [
   {
+    title: '投资决策',
     items: [
-      { label: '市场总览', href: '/' },
+      { label: '组合信号板', href: '/signal-board' },
+      { label: '黄金决策', href: '/signals/gold' },
+      { label: '国家队资金', href: '/tracking/etf-flow' },
     ],
-  },
-  {
-    title: '美国经济指标',
-    items: usIndicators,
-  },
-  {
-    title: '中国经济指标',
-    items: cnIndicators,
   },
   {
     title: '跨市场分析',
@@ -39,21 +14,14 @@ const navSections = [
       { label: '中美 10Y 利差', href: '/indicators/cn-us-spread' },
       { label: '全球流动性', href: '/indicators/global-liquidity' },
       { label: '经济冷暖指标', href: '/indicators/heatmap' },
-      { label: 'Z-Score 矩阵', href: '/indicators/zscore-matrix' },
-      { label: '汇率总览', href: '/indicators/forex' },
     ],
   },
   {
     title: '大宗商品',
     items: [
-      { label: '黄金', href: '/gold' },
+      { label: '黄金储备', href: '/gold' },
       { label: '商品期限结构', href: '/indicators/commodity-curve' },
       { label: 'VIX 波动率', href: '/indicators/vix' },
-    ],
-  },
-  {
-    items: [
-      { label: '研究库', href: '/library' },
     ],
   },
 ];
@@ -386,6 +354,22 @@ function isActive(href: string) {
   .label {
     position: relative;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    min-width: 48px;
+  }
+
+  .nav-name {
+    font-size: 12px;
+    font-weight: 500;
   }
 
   .category-label {

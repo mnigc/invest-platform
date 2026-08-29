@@ -301,3 +301,22 @@ export interface GlobalLiquidityResponse {
   series: LiquiditySeries[]
   updatedAt: string
 }
+
+// ── 信贷脉冲 ──
+export interface CreditPulsePoint {
+  reportDate: string
+  tsfStock: number | null
+  tsfIncrement: number | null
+  nominalGdp: number | null
+  creditPulse: number | null
+  mediumLongLoanEnt: number | null
+  mediumLongLoanHh: number | null
+  shadowBanking: number | null
+}
+
+export interface CreditPulseResponse {
+  points: CreditPulsePoint[]
+  csi300History: { date: string; value: number | null }[]
+  usCreditPulse: { date: string; value: number | null }[]
+  updatedAt: string
+}

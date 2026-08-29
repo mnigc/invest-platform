@@ -84,7 +84,7 @@ async function fetchRegion(
      FROM indicators i
      JOIN indicator_data d ON d.indicator_id = i.id
      WHERE i.region = ? AND i.code IN (${placeholders})
-       AND i.is_active = TRUE
+       AND i.is_active = 1
        AND d.value IS NOT NULL
        AND d.period_date >= DATE_SUB(CURDATE(), INTERVAL 1825 DAY)
      ORDER BY i.code, d.period_date DESC`,

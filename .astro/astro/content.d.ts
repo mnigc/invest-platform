@@ -1,15 +1,4 @@
 declare module 'astro:content' {
-	interface Render {
-		'.mdx': Promise<{
-			Content: import('astro').MarkdownInstance<{}>['Content'];
-			headings: import('astro').MarkdownHeading[];
-			remarkPluginFrontmatter: Record<string, any>;
-			components: import('astro').MDXInstance<{}>['components'];
-		}>;
-	}
-}
-
-declare module 'astro:content' {
 	interface RenderResult {
 		Content: import('astro/runtime/server/index.js').AstroComponentFactory;
 		headings: import('astro').MarkdownHeading[];
@@ -151,37 +140,7 @@ declare module 'astro:content' {
 	>;
 
 	type ContentEntryMap = {
-		"library": {
-"cpi.mdx": {
-	id: "cpi.mdx";
-  slug: "cpi";
-  body: string;
-  collection: "library";
-  data: InferEntrySchema<"library">
-} & { render(): Render[".mdx"] };
-"dcf-valuation.mdx": {
-	id: "dcf-valuation.mdx";
-  slug: "dcf-valuation";
-  body: string;
-  collection: "library";
-  data: InferEntrySchema<"library">
-} & { render(): Render[".mdx"] };
-"gdp.mdx": {
-	id: "gdp.mdx";
-  slug: "gdp";
-  body: string;
-  collection: "library";
-  data: InferEntrySchema<"library">
-} & { render(): Render[".mdx"] };
-"usd.mdx": {
-	id: "usd.mdx";
-  slug: "usd";
-  body: string;
-  collection: "library";
-  data: InferEntrySchema<"library">
-} & { render(): Render[".mdx"] };
-};
-
+		
 	};
 
 	type DataEntryMap = {
@@ -190,5 +149,5 @@ declare module 'astro:content' {
 
 	type AnyEntryMap = ContentEntryMap & DataEntryMap;
 
-	export type ContentConfig = typeof import("./../../src/content/config.js");
+	export type ContentConfig = never;
 }

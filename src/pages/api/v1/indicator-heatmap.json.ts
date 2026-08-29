@@ -80,10 +80,10 @@ async function loadMonthly(def: IndicatorDef): Promise<IndicatorSeries> {
 
   const fn = def.aggregate === 'sum' ? 'SUM' : 'AVG'
   const rows = await query<any>(
-    `SELECT DATE_FORMAT(period_date, '%Y-%m') as ym, ${fn}(value) as val
+    `SELECT to_char(period_date, 'YYYY-MM') as ym, ${fn}(value) as val
      FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id
      WHERE i.code = ? AND i.region = ? AND d.value IS NOT NULL
-     GROUP BY ym ORDER BY ym`,
+     GROUP BY 1 ORDER BY ym`,
     [def.code, def.region]
   )
   return { label: def.label, monthly: rows.map((r: any) => ({ ym: r.ym, value: Number(r.val) })) }

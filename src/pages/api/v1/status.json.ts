@@ -10,7 +10,7 @@ export const GET = withCache(async () => {
       query(
         `SELECT i.code, i.name_zh, MAX(d.period_date) AS latest
          FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id
-         WHERE i.is_active = TRUE GROUP BY i.code, i.name_zh ORDER BY latest DESC LIMIT 10`
+         WHERE i.is_active = 1 GROUP BY i.code, i.name_zh ORDER BY latest DESC LIMIT 10`
       ),
       query(
         `SELECT a.symbol, a.name_zh, s.updated_at AS latest
