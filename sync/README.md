@@ -25,7 +25,7 @@ sync/
 | `etf_flow` | 国家队资金 | ETF 日线行情 + 交易所份额（净申赎/申赎成交比）+ 沪深300 日线 | akshare + Yahoo |
 | `cn_us_spread` | 中美 10Y 利差 | DGS10、中国 10Y 国债、北向/南向资金、USDCNY | akshare + FRED |
 | `global_liquidity` | 全球流动性 | 美联储/欧央行/日央行总资产、RRP、TGA、SOFR | FRED |
-| `gold_decision` | 黄金决策 | 金价历史 + 今日金价、央行购金月度变动、美元指数 DXY、DFII10、T10YIE | 本地 xlsx + gold-api + Yahoo + FRED |
+| `gold_decision` | 黄金决策 | 金价历史（GC=F）+ 今日金价、美元指数 DXY、DFII10、T10YIE | gold-api + Yahoo + FRED |
 | `regime` | 宏观体制 / 风险异常 | CPI、DGS10、DGS2、CFNAI、FEDFUNDS、DFII10、T10YIE、BBB 信用利差、VIXCLS | FRED |
 
 > 组合信号板 `/signal-board` 不单独同步数据，它直接聚合上面各模块的 API。
@@ -102,8 +102,8 @@ cd /opt/macro
 | `DATABASE_URL` | Supabase Session Pooler 连接串（同 `.env`） |
 | `FRED_API_KEY` | FRED API Key |
 
-> 注意：GitHub runner 在海外，akshare 拉取国内数据（ETF/中国宏观）可能超时；**黄金 xlsx 不在仓库**，
-> 相关步骤会自动跳过并告警。失败时可在 Actions 页面查看 `sync-logs` 产物日志。
+> 注意：GitHub runner 在海外，akshare 拉取国内数据（ETF/中国宏观）可能超时。
+> 金价历史来自 Yahoo Finance（GC=F），无需本地文件。失败时可在 Actions 页面查看 `sync-logs` 产物日志。
 
 ---
 
@@ -169,11 +169,5 @@ python3 verify_db.py
 
 ## 7. 本地文件依赖
 
-`sync_gold_decision.py` 依赖两个本地 Excel（不在仓库中，放在 `sync/` 目录下）：
-
-| 文件 | 内容 | 用途 |
-| --- | --- | --- |
-| `gold_price.xlsx` | 日期 / 金价（USD/oz） | 金价历史序列 |
-| `gold_changes.xlsx` | 国家 + 各月央行购金变动列 | 央行购金（净增持/减持） |
-
-文件缺失时脚本会跳过对应步骤并在日志中告警，不影响其余数据同步。
+`sync_gold_decision.py` 已移除本地 Excel 依赖，金价历史改为从 Yahoo Finance 拉取（GC=F），
+不再需要 `gold_price.xlsx` / `gold_changes.xlsx`，也不依赖本地文件。

@@ -23,7 +23,7 @@ type CorrBand = 'inverse' | 'weakening' | 'broken' | 'positive'
 const BAND_LABEL: Record<CorrBand, { label: string; desc: string }> = {
   inverse: { label: '正常负相关', desc: '美元走弱利好黄金，经典范式生效' },
   weakening: { label: '相关性弱化', desc: '负相关减弱，范式开始松动' },
-  broken: { label: '相关性失效', desc: '负相关消失，黄金可能由其他因素定价（央行购金/地缘）' },
+  broken: { label: '相关性失效', desc: '负相关消失，黄金可能由其他因素定价（地缘/避险）' },
   positive: { label: '正相关区间', desc: '黄金与美元同涨同跌，极端联动范式' },
 }
 
@@ -132,7 +132,7 @@ function buildResidualZ(goldPointZ: SeriesPoint[], dxyZ: SeriesPoint[], dfiiZ: S
 export const GET = withCache(async () => {
   const horizon = 5 * 260
 
-  const [goldRows, dxyRows, dfiiRows, t10yieRows, cbRows] = await Promise.all([
+  const [goldRows, dxyRows, dfiiRows, t10yieRows] = await Promise.all([
     safeQuery(`
       SELECT price_date, close_price FROM gold_price_history
       WHERE source IN ('yfinance', 'gold-api', 'LOCAL-XLSX', 'FRED')
@@ -154,11 +154,6 @@ export const GET = withCache(async () => {
       WHERE i.code = 'T10YIE' AND i.region = 'US' AND d.value IS NOT NULL
         AND d.period_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR)
       ORDER BY d.period_date ASC`),
-    safeQuery(`
-      SELECT period_date, country_name, change_tonnes FROM gold_reserve_changes
-      WHERE change_tonnes IS NOT NULL
-        AND period_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-      ORDER BY period_date ASC`),
   ])
 
   const goldZ: SeriesPoint[] = goldRows.map((r: any) => ({ date: String(r.price_date).slice(0, 10), value: Number(r.close_price) }))
@@ -216,25 +211,7 @@ export const GET = withCache(async () => {
   const overStudy = eventStudy(goldZ, extremeOver, [20, 60, 120])
   const underStudy = eventStudy(goldZ, extremeUnder, [20, 60, 120])
 
-  // —— 8. 央行购金 ——
-  const cbByPeriod = new Map<string, number>()
-  const cbTop = new Map<string, number>()
-  for (const r of cbRows) {
-    const name = String(r.country_name)
-    if (/World|Euro Area/i.test(name)) continue
-    const period = String(r.period_date).slice(0, 7)
-    cbByPeriod.set(period, (cbByPeriod.get(period) || 0) + Number(r.change_tonnes))
-    cbTop.set(name, (cbTop.get(name) || 0) + Number(r.change_tonnes))
-  }
-  const cbPeriods = [...cbByPeriod.keys()].sort()
-  const cbSeries = cbPeriods.map(p => ({ period: p, netTonnes: +(cbByPeriod.get(p) || 0).toFixed(1) }))
-  const cbTotal12m = +cbSeries.reduce((s, v) => s + v.netTonnes, 0).toFixed(1)
-  const cbTop10 = [...cbTop.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name, tonnes]) => ({ country: name, tonnes: +tonnes.toFixed(1) }))
-
-  // —— 9. 信号卡 ——
+  // —— 8. 信号卡 ——
   let direction: 'bullish' | 'bearish' | 'neutral' = 'neutral'
   let strength: SignalStrength = 'weak'
   let confidence = 0
@@ -253,17 +230,15 @@ export const GET = withCache(async () => {
   if (latestResidZ >= 2) {
     direction = 'bearish'
     evidence.push('残差严重为正：金价高于实际利率+美元模型定价，存高估风险')
-    if (cbTotal12m > 0) counterEvidence.push(`近 12M 央行净购金 ${(cbTotal12m / 1000).toFixed(1)} 吨，央行买盘构成硬支撑`)
   } else if (latestResidZ <= -2) {
     direction = 'bullish'
     evidence.push('残差严重为负：金价低于实际利率+美元模型定价，存在低估机会')
-    if (cbTotal12m < 0) counterEvidence.push('近 12M 央行净减持，缺乏央行买盘支撑')
   } else {
     evidence.push('残差处于 ±2σ 内，金价与双因子定价模型基本一致')
   }
 
   if (band === 'broken' || band === 'positive') {
-    evidence.push(`关注相关性「${bandInfo.label}」：传统美元定价逻辑失效，金价可能由央行购金/地缘独立定价`)
+    evidence.push(`关注相关性「${bandInfo.label}」：传统美元定价逻辑失效，金价可能由地缘/其他因素独立定价`)
   }
 
   const hs = brokenStudy.horizons['60']
@@ -342,11 +317,6 @@ export const GET = withCache(async () => {
       broken: brokenStudy,
       overvalued: overStudy,
       undervalued: underStudy,
-    },
-    centralBank: {
-      totalNet12m: cbTotal12m,
-      series: cbSeries,
-      top10: cbTop10,
     },
     signal,
   }

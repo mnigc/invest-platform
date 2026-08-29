@@ -48,11 +48,6 @@ interface Data {
     overvalued: Study
     undervalued: Study
   }
-  centralBank: {
-    totalNet12m: number
-    series: { period: string; netTonnes: number }[]
-    top10: { country: string; tonnes: number }[]
-  }
   signal: {
     title: string
     direction: Direction
@@ -254,20 +249,6 @@ export function GoldDecisionDashboard() {
     ],
   }
 
-  const cbOption = {
-    tooltip: { trigger: 'axis', backgroundColor: t.bgCard, borderColor: t.borderLight, textStyle: { color: t.textPrimary }, valueFormatter: (v: any) => `${Number(v).toFixed(0)} 吨` },
-    grid: { left: 56, right: 20, top: 16, bottom: 26 },
-    xAxis: { type: 'category', data: data.centralBank.series.map(s => s.period), axisLabel: { color: t.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: t.borderColor } } },
-    yAxis: { type: 'value', axisLabel: { color: t.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: t.borderColor, type: 'dashed' } } },
-    series: [{
-      name: '全球央行净购金(吨/月)', type: 'bar',
-      data: data.centralBank.series.map(s => ({
-        value: s.netTonnes,
-        itemStyle: { color: s.netTonnes >= 0 ? t.gold : 'rgba(123,196,127,0.6)' },
-      })),
-    }],
-  }
-
   const latest = data.latest
 
   return (
@@ -284,7 +265,6 @@ export function GoldDecisionDashboard() {
             { label: '实际利率 DFII10', value: latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--', sub: '10Y TIPS' },
             { label: '盈亏平衡 T10YIE', value: latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--', sub: '' },
             { label: '定价残差 z', value: latest.residZ != null ? (latest.residZ >= 0 ? '+' : '') + latest.residZ.toFixed(2) : '--', sub: `5Y 分位 ${latest.residPercentile.toFixed(0)}` },
-            { label: '近 12M 央行净购金', value: `${(data.centralBank.totalNet12m / 1000).toFixed(1)} t`, sub: '全球合计' },
           ].map(k => (
             <div key={k.label} style={{ background: k.accent ? 'var(--accent-blue-dim, rgba(59,130,246,0.1))' : 'var(--bg-card-hover, rgba(255,255,255,0.04))', borderRadius: 8, padding: '10px 12px' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{k.label}</div>
@@ -315,17 +295,6 @@ export function GoldDecisionDashboard() {
         )}
       </Card>
 
-      <Card title="全球央行月度净购金（近 12 月）">
-        <Chart option={cbOption} height={240} />
-        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {data.centralBank.top10.slice(0, 6).map(c => (
-            <span key={c.country} style={{ fontSize: 11, background: 'var(--bg-card-hover, rgba(255,255,255,0.04))', borderRadius: 6, padding: '4px 8px', color: 'var(--text-secondary)' }}>
-              {c.country}: <strong>{c.tonnes > 0 ? '+' : ''}{c.tonnes}</strong> t
-            </span>
-          ))}
-        </div>
-      </Card>
-
       <Card title="事件研究：信号出现后的黄金后市收益">
         <StudyTable title="① 相关性失效/正相关切换后" study={data.eventStudies.broken} />
         <StudyTable title="② 残差高估（z ≥ 2）后" study={data.eventStudies.overvalued} />
@@ -336,7 +305,7 @@ export function GoldDecisionDashboard() {
       </Card>
 
       <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.8 }}>
-        数据来源：LBMA/金价历史、FRED（DXY、DFII10、T10YIE）、IMF/官方黄金储备（央行购金）。所有信号为统计研究结果，不构成投资建议。
+        数据来源：Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）。所有信号为统计研究结果，不构成投资建议。
       </div>
     </div>
   )
