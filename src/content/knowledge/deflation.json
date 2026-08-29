@@ -1,0 +1,34 @@
+{
+  "title": "通货紧缩机制",
+  "subtitle": "债务螺旋、日本化与央行名义锚",
+  "intro": "通缩比通胀更危险：物价持续下跌将推迟消费与投资，抬高实际债务负担，形成自我强化的收缩螺旋。日本通缩三十年是全球宏观的经典教材。",
+  "nodes": [
+    { "id": "debt", "label": "债务-通缩螺旋", "type": "driver", "desc": "资产价格下跌 → 抵押品贬值 → 银行收缩信贷 → 资产进一步下跌（费雪 1933 年经典框架）" },
+    { "id": "delay", "label": "消费与投资推迟", "type": "driver", "desc": "预期价格更低 → 推迟购买 → 需求萎缩 → 价格继续下跌：通缩的自我实现" },
+    { "id": "realdebt", "label": "实际债务上升", "type": "driver", "desc": "名义债务不变而物价收入下降 → 实际偿债负担加重 → 违约与去杠杆" },
+    { "id": "trap", "label": "流动性陷阱", "type": "response", "desc": "政策利率到零附近，传统宽松失效；货币乘数失灵（日本/欧美 2008 后）" },
+    { "id": "japan", "label": "日本化", "type": "regime", "desc": "人口老龄化 + 资产负债表衰退 + 央行大扩表但信用不扩张 = 低增长低通胀长期化" },
+    { "id": "qe", "label": "QE / 央行扩表", "type": "response", "desc": "量化宽松购买资产替代降息空间，推高资产价格而非物价" },
+    { "id": "bond", "label": "债券", "type": "asset", "desc": "通缩期最好资产：价格持续正收益（名义 GDP 与利率下行）" },
+    { "id": "stock", "label": "股票", "type": "asset", "desc": "通缩初期杀盈利，深度通缩后长债拉动估值修复（股利贴现率低）" },
+    { "id": "golddef", "label": "黄金", "type": "asset", "desc": "通缩初期黄金走弱（实际利率上行），极端危机期避险再走强" },
+    { "id": "fiscal", "label": "财政赤字货币化", "type": "response", "desc": "央行印钞承接财政举债（MMT）—— 现代避免通缩陷阱的最后手段" }
+  ],
+  "edges": [
+    { "source": "debt", "target": "delay", "label": "资产贬值→需求萎缩" },
+    { "source": "delay", "target": "realdebt", "label": "价格收入下行" },
+    { "source": "realdebt", "target": "debt", "label": "违约去杠杆→价格再跌" },
+    { "source": "trap", "target": "qe", "label": "利率失效" },
+    { "source": "qe", "target": "bond", "label": "利率下行" },
+    { "source": "jeaan", "target": "japan", "label": "人口与信用推手" },
+    { "source": "japan", "target": "trap", "label": "长期化风险" },
+    { "source": "qe", "target": "stock", "label": "估值支撑" },
+    { "source": "debt", "target": "golddef", "label": "危机避险" }
+  ],
+  "conclusion": "通缩预警信号链：M2 增速坍塌 → 通胀预期跌破 1% → 10Y 名义利率持续走低 → 日本化（政策利率归零）。对资产而言长债为王、黄金次之、股票需盈利验证。",
+  "strategy": [
+    "通缩情景下久期（长债）是核心仓位",
+    "名义利率见底 + 财政接力（赤字货币化）往往是权益市场转折点",
+    "追踪 M1-M2 剪刀差与居民信贷：贷款没人要才是真通缩"
+  ]
+}

@@ -1,0 +1,33 @@
+---
+export const prerender = true;
+
+import Layout from '../../layouts/Layout.astro';
+import { KnowledgeTopicPage } from '../../components/knowledge/KnowledgeTopicPage';
+import raw from '../../content/knowledge/interest-rate.json';
+
+const topic = raw as any;
+---
+
+<Layout title="利率机制 - 知识图谱 - CN-US MACRO">
+  <div class="page-animate">
+    <div class="page-header">
+      <div class="breadcrumb">
+        <a href="/">首页</a>
+        <span class="sep">/</span>
+        <a href="/knowledge">知识图谱</a>
+        <span class="sep">/</span>
+        <span>{topic.title}</span>
+      </div>
+    </div>
+    <KnowledgeTopicPage client:load topic={topic} />
+  </div>
+</Layout>
+
+<style>
+  .page-animate { animation: fadeIn 0.3s ease; }
+  .page-header { margin-bottom: 12px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+  .breadcrumb a { color: var(--text-muted); transition: color var(--transition-fast); }
+  .breadcrumb a:hover { color: var(--accent-cyan); }
+  .sep { color: var(--border-color); font-size: 10px; }
+</style>

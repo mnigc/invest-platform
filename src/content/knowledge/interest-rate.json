@@ -1,0 +1,35 @@
+{
+  "title": "利率机制",
+  "subtitle": "名义利率 = 实际利率 + 通胀预期 · 曲线与传导",
+  "intro": "利率是金融资产的影子价格：名义利率 = 实际利率 + 通胀预期，期限溢价与供需共同决定收益率曲线形态。理解曲线的水平、斜率和曲率，是跨资产定价（股债金）的根。",
+  "nodes": [
+    { "id": "real", "label": "实际利率", "type": "signal", "desc": "TIPS（DFII10）是真实的资金成本：实际利率上行=估值收紧，也是黄金的核心定价锚" },
+    { "id": "breakeven", "label": "盈亏平衡通胀", "type": "signal", "desc": "名义 - 实际（T10YIE）：市场对未来通胀的报价；>2.5% 即暗示预期松弛" },
+    { "id": "termprem", "label": "期限溢价", "type": "structural", "desc": "远期利率超出市场短期利率期望的部分：国债供给、久期风险、经济不确定性" },
+    { "id": "curve", "label": "收益率曲线", "type": "signal", "desc": "1M~30Y 各期限水平：陡峭化=宽松/复苏；平坦=紧缩后段" },
+    { "id": "invert", "label": "曲线倒挂", "type": "signal", "desc": "10Y-2Y < 0：历史上几乎 100% 领先衰退 12-18 个月（但老信号有钝化）" },
+    { "id": "transmit", "label": "利率传导链", "type": "structural", "desc": "政策利率 → 短端货币市场 → 长端供需 → 企业与居民融资成本 → 总需求" },
+    { "id": "equityR", "label": "股票估值", "type": "market", "desc": "折现率分母：实际利率每上行 100bp，成长股估值大约折损 10-20%" },
+    { "id": "bondr", "label": "债券价格", "type": "market", "desc": "利率下行=债价上行；久期越长弹性越大" },
+    { "id": "goldr", "label": "黄金", "type": "market", "desc": "零息资产：实际利率下行时持有现金机会成本降低 → 金价上行" },
+    { "id": "fx", "label": "汇率与利差", "type": "cross", "desc": "美中利差驱动人民币：美国利率相对走高 → 资本外流压力 → 人民币承压" },
+    { "id": "fedr", "label": "政策路径", "type": "response", "desc": "市场定价 FOMC 未来路径（点阵图 + FedWatch 隐含概率），宏观最硬的货币政策锚" }
+  ],
+  "edges": [
+    { "source": "real", "target": "breakeven", "label": "加总为名义" },
+    { "source": "real", "target": "termprem", "label": "共同定价长端" },
+    { "source": "termprem", "target": "curve", "label": "远端斜率" },
+    { "source": "curve", "target": "invert", "label": "倒挂检测" },
+    { "source": "fedr", "target": "transmit", "label": "政策传导" },
+    { "source": "transmit", "target": "equityR", "label": "折现率变" },
+    { "source": "transmit", "target": "bondr", "label": "价格变" },
+    { "source": "real", "target": "goldr", "label": "机会成本" },
+    { "source": "fedr", "target": "fx", "label": "利差变动" }
+  ],
+  "conclusion": "利率三件套（实际利率、盈亏平衡通胀、曲线形态）是宏观定价「总开关」：实际利率定黄金与成长股，盈亏平衡定商品与周期，曲线形态定衰退时间窗。",
+  "strategy": [
+    "判断黄金：实际利率（DFII10）当前值与趋势是第一解释变量（平台已实现双因子定价残差模型）",
+    "判断股票估值：利率突变期（10Y 单季 ±100bp）盯紧估值与盈利的赛跑",
+    "曲线倒挂后 12-18 个月窗口：提高短债/现金比例是历史有效做法"
+  ]
+}

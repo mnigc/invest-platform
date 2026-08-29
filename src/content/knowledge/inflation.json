@@ -1,0 +1,36 @@
+{
+  "title": "通胀机制",
+  "subtitle": "物价上涨的成因、传导与资产影响",
+  "intro": "通胀不是单一因素驱动的静态现象，而是货币、供需、预期与成本四条传导路径交织的结果。理解通胀链条，是判断央行政策与资产定价的核心前提。",
+  "nodes": [
+    { "id": "money", "label": "货币供给", "type": "driver", "desc": "M2 增速长期高于实际产出增速，广义货币超发是通胀的温床（弗里德曼：通胀永远是货币现象）" },
+    { "id": "demand", "label": "需求拉动", "type": "driver", "desc": "财政刺激 / 低利率 → 总需求超过总供给 → 商品与服务价格上行" },
+    { "id": "cost", "label": "成本推动", "type": "driver", "desc": "能源（油价）、工资、原材料价格上涨推升生产成本，企业转嫁至终端价格" },
+    { "id": "expectation", "label": "通胀预期", "type": "driver", "desc": "预期自我实现：市场预期高通胀 → 提前消费/要求加薪 → 实际通胀上行（锚定 vs 脱锚）" },
+    { "id": "cpi", "label": "CPI 同比", "type": "signal", "desc": "居民消费价格指数：市场最关注的名义通胀指标，美联储 2% 目标锚" },
+    { "id": "ppicore", "label": "PPI / 核心CPI", "type": "signal", "desc": "PPI 领先 CPI 约 1-2 个季度；核心 CPI 剔除食品能源，反映内生通胀" },
+    { "id": "fed", "label": "央行反应函数", "type": "response", "desc": "通胀超 2% → 加息缩表：实际利率上行 → 抑制需求与资产估值" },
+    { "id": "gold", "label": "黄金", "type": "asset", "desc": "抗通胀资产：实际利率（名义-通胀预期）下行或通胀失控时上涨" },
+    { "id": "realrate", "label": "实际利率", "type": "market", "desc": "TIPS 收益率 ≈ 名义利率 - 盈亏平衡通胀，是黄金估值的地心引力" },
+    { "id": "equity", "label": "股票", "type": "asset", "desc": "温和通胀友好（盈利上行），高通胀压缩估值（贴现率上行）" },
+    { "id": "wage", "label": "工资-物价螺旋", "type": "driver", "desc": "劳动力短缺 → 工资涨 → 物价涨 → 员工要求更高工资：1970s 滞胀重演的关键路径" }
+  ],
+  "edges": [
+    { "source": "money", "target": "cpi", "label": "过量货币" },
+    { "source": "demand", "target": "cpi", "label": "超额需求" },
+    { "source": "cost", "target": "cpi", "label": "成本转嫁" },
+    { "source": "expectation", "target": "cpi", "label": "自我实现" },
+    { "source": "wage", "target": "cost", "label": "劳动力成本" },
+    { "source": "cpi", "target": "fed", "label": "超目标" },
+    { "source": "fed", "target": "realrate", "label": "紧缩" },
+    { "source": "realrate", "target": "gold", "label": "负相关" },
+    { "source": "fed", "target": "equity", "label": "估值收缩" },
+    { "source": "expectation", "target": "wage", "label": "通胀预期升温" }
+  ],
+  "conclusion": "观察通胀的核心顺序：货币与财政脉冲（领先）→ 薪资与供给冲击（同步）→ 通胀预期（检验）；央行紧缩最快的确定信号是实际利率转正（TIPS 收益率上行）。",
+  "strategy": [
+    "黄金与实际利率负相关：实际利率快速走低时金价有上行驱动",
+    "通胀预期脱锚（盈亏平衡通胀持续 > 3%）是央行最忌惮的剧本",
+    "高通胀环境下股价估值中枢下移，盈利质量与定价权（成本转嫁能力）是关键"
+  ]
+}

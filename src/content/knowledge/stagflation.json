@@ -1,0 +1,32 @@
+{
+  "title": "滞胀机制",
+  "subtitle": "供给冲击、菲利普斯曲线失效与央行两难",
+  "intro": "滞胀（Stagflation）：经济增长停滞 + 通胀高企并存。它打破传统宏观中「通胀-失业」互换关系（菲利普斯曲线失效），让央行陷入「加息抗通胀→经济更糟」的两难。1970s 石油危机是最经典样本。",
+  "nodes": [
+    { "id": "supply", "label": "供给冲击", "type": "driver", "desc": "能源/粮食/供应链危机 → 成本暴涨但产量萎缩：价格涨、经济停" },
+    { "id": "phil", "label": "菲利普斯曲线失效", "type": "driver", "desc": "滞胀下通胀与失业同升，凯恩斯需求管理不再适用（需求侧工具推不动供给侧问题）" },
+    { "id": "dilemma", "label": "央行两难", "type": "response", "desc": "加息抗通胀会加剧衰退；不加息通胀预期失控 → 央行只能权衡，行动滞后于曲线" },
+    { "id": "oil", "label": "石油危机范式", "type": "case", "desc": "1973/1979 两次油价冲击：美国 CPI 破 10%、失业率两位数、股债双杀" },
+    { "id": "gold70", "label": "黄金", "type": "asset", "desc": "滞胀期唯一受益类资产：1970s 金价涨 23 倍，货币信用受损叙事" },
+    { "id": "bondstag", "label": "债券", "type": "asset", "desc": "名义收益率上行 + 汇率贬值，债券与股票双杀（负实际收益）" },
+    { "id": "stockstag", "label": "股票", "type": "asset", "desc": "盈利收缩（经济停）× 估值收缩（利率升）双击；资源能源股是结构性例外" },
+    { "id": "dollar", "label": "美元", "type": "asset", "desc": "滞胀弱美元（1970s），但供给冲击+货币政策紧缩差可能阶段性强美元" },
+    { "id": "volcker", "label": "沃克尔疗法", "type": "response", "desc": "1981 年联邦基金利率升至 20% 后通胀快速回落——代价是深度衰退" }
+  ],
+  "edges": [
+    { "source": "supply", "target": "phil", "label": "结构冲击" },
+    { "source": "supply", "target": "oil", "label": "成本端" },
+    { "source": "phil", "target": "dilemma", "label": "政策无解" },
+    { "source": "dilemma", "target": "volcker", "label": "最终强紧缩" },
+    { "source": "dilemma", "target": "bondstag", "label": "利率上行" },
+    { "source": "dilemma", "target": "stockstag", "label": "估值压制" },
+    { "source": "supply", "target": "gold70", "label": "信用受损" },
+    { "source": "volcker", "target": "gold70", "label": "实际利率转正压金价" }
+  ],
+  "conclusion": "滞胀的识别组合=增长向下（IMF/CFNAI <0）+ 通胀向上（CPI 同比站上 5%）。滞胀期最优资产排序：黄金 > 现金/短债 > 能源资源股 > 长债 > 宽基股票。",
+  "strategy": [
+    "API 判定滞胀（STAGFLATION）信号时，避免持有长久期资产",
+    "滞胀对黄金的驱动：实际利率为负 + 央行购金 + 货币信用叙事",
+    "关注实际 GDP Now 与 CPI 的背离度：背离越深，滞胀置信度越高"
+  ]
+}
