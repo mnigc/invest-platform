@@ -36,8 +36,17 @@ run_schema.py
 
 .doc/
 
+# tooling / session cache
+.kilo/
+.opencode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
 # sync 脚本：仅忽略产物与缓存，脚本本身要入库
 sync/__pycache__/
 sync/logs/
-
-.opencode/

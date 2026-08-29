@@ -453,6 +453,36 @@ export default function CnUsSpreadDashboard() {
         </div>
       </MacroCard>
 
+      {/* 关键指标摘要条 — 滚动时固定 */}
+      <div className="key-metrics-bar">
+        <div className="key-metrics-bar__item">
+          <span className="key-metrics-bar__label">最新利差</span>
+          <span className={`key-metrics-bar__value ${spreadBp != null ? (spreadBp >= 0 ? 'key-metrics-bar__value--positive' : 'key-metrics-bar__value--negative') : ''}`}>
+            {spreadBp == null ? '--' : `${spreadBp > 0 ? '+' : ''}${spreadBp.toFixed(1)}bp`}
+          </span>
+        </div>
+        <div className="key-metrics-bar__item">
+          <span className="key-metrics-bar__label">中国10Y</span>
+          <span className="key-metrics-bar__value">{data.latest.cn10y?.toFixed(3) ?? '--'}%</span>
+        </div>
+        <div className="key-metrics-bar__item">
+          <span className="key-metrics-bar__label">美国10Y</span>
+          <span className="key-metrics-bar__value">{data.latest.us10y?.toFixed(3) ?? '--'}%</span>
+        </div>
+        <div className="key-metrics-bar__item">
+          <span className="key-metrics-bar__label">1年分位</span>
+          <span className="key-metrics-bar__value">{data.percentile1y?.toFixed(1) ?? '--'}%</span>
+        </div>
+        <div className="key-metrics-bar__item">
+          <span className="key-metrics-bar__label">5年分位</span>
+          <span className="key-metrics-bar__value">{data.percentile5y?.toFixed(1) ?? '--'}%</span>
+        </div>
+        <div className="key-metrics-bar__item">
+          <span className="key-metrics-bar__label">倒挂次数</span>
+          <span className="key-metrics-bar__value">{data.inversionCount}</span>
+        </div>
+      </div>
+
       {/* 利差走势图 */}
       <MacroCard title={`中美利差时间序列 (${timeRange || '近 1 年'})`} variant="elevated">
         <SpreadChart history={data.history} warningLines={data.warningLines} />

@@ -6,6 +6,7 @@ import { withCache } from '../../../lib/cache'
 
 export const GET = withCache(async () => {
   try {
+    // 数据新鲜度自检：指标 / 资产价格（美元指数）/ 各展示模块最近一次同步
     const [latestIndicator, latestAsset, lastSync] = await Promise.all([
       query(
         `SELECT i.code, i.name_zh, MAX(d.period_date) AS latest
@@ -13,9 +14,9 @@ export const GET = withCache(async () => {
          WHERE i.is_active = 1 GROUP BY i.code, i.name_zh ORDER BY latest DESC LIMIT 10`
       ),
       query(
-        `SELECT a.symbol, a.name_zh, s.updated_at AS latest
-         FROM asset_snapshots s JOIN assets a ON a.id = s.asset_id
-         ORDER BY s.updated_at DESC LIMIT 10`
+        `SELECT a.symbol, a.name_zh, MAX(p.trade_date) AS latest
+         FROM asset_prices p JOIN assets a ON a.id = p.asset_id
+         GROUP BY a.symbol, a.name_zh ORDER BY latest DESC LIMIT 10`
       ),
       query(
         `SELECT sync_type, status, records_count, finished_at

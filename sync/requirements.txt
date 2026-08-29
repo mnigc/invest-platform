@@ -7,12 +7,17 @@
 psycopg2-binary>=2.9.9
 
 # ===== 金融数据源 =====
-yfinance>=0.2.40           # 美股/ETF/A股主要指数 —— 海外直连稳定
-requests>=2.31.0           # FRED 等 REST API
-akshare>=1.18.64           # A 股指数 / 中国宏观 / 国债 / 北向资金 / PMI —— 海外环境建议配置 HTTP_PROXY 回国内
+# 按展示模块所需：
+#   yfinance -> 美元指数 DXY（黄金决策）、沪深300 日线兜底（国家队资金）
+#   akshare  -> ETF 行情/份额/拆分折算（国家队资金）、中国宏观、中债 10Y、沪深港通资金（中美利差）
+#   FRED     -> 美债/宏观/实际利率/流动性（宏观体制、全球流动性、中美利差、黄金决策）
+yfinance>=0.2.40           # 美元指数 / 指数日线兜底 —— 海外直连稳定
+requests>=2.31.0           # FRED REST API、gold-api.com
+akshare>=1.18.64           # ETF 份额与行情 / 中国宏观 / 国债 / 沪深港通资金 —— 海外环境建议配置 HTTP_PROXY 回国内
 
 # ===== 通用 =====
-pandas>=2.0.0              # 所有脚本均用 pandas 处理返回
+pandas>=2.0.0              # 处理返回数据
+openpyxl>=3.1.0            # 读取本地 xlsx（金价 / 央行购金）
 
 # ===== 可选 =====
 python-dotenv>=1.0.0       # 允许用 .env 文件加载环境变量（不装也行，直接 export）

@@ -1,13 +1,13 @@
 ---
-// 站点首页 → 跳转到组合信号板
+// 首页跳转至信号板
 export const prerender = true;
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="CN-US MACRO">
+<Layout title="MACRO EDGE">
   <meta http-equiv="refresh" content="0; url=/signal-board" />
   <link rel="canonical" href="/signal-board" />
   <div style="padding: 80px 40px; text-align: center;">
-    <p style="color: var(--text-muted); font-size: 14px;">正在跳转到 <a href="/signal-board" style="color: var(--accent-cyan);">组合信号板</a>…</p>
+    <p style="color: var(--text-muted); font-size: 14px;">正在跳转至<a href="/signal-board" style="color: var(--accent-cyan);">组合信号板</a>…</p>
   </div>
 </Layout>

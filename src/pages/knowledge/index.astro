@@ -2,6 +2,7 @@
 export const prerender = true;
 
 import Layout from '../../layouts/Layout.astro';
+import { PageHeader } from '../../components/ui/PageHeader';
 import type { KnowledgeTopic } from '../../components/knowledge/KnowledgeTopicPage';
 
 const TOPICS = await Promise.all([
@@ -23,17 +24,16 @@ const EMOJI: Record<string, string> = {
 };
 ---
 
-<Layout title="知识图谱 - CN-US MACRO">
+<Layout title="知识图谱 - MACRO EDGE">
   <div class="page-animate">
-    <div class="page-header">
-      <div class="breadcrumb">
-        <a href="/">首页</a>
-        <span class="sep">/</span>
-        <span>知识图谱</span>
-      </div>
-      <h1>知识图谱</h1>
-      <p class="subtitle">宏观机制可视化：通胀 · 通缩 · 滞胀 · 利率——节点驱动关系，点击查看详解</p>
-    </div>
+    <PageHeader
+      title="知识图谱"
+      subtitle="宏观机制可视化：通胀 · 通缩 · 滞胀 · 利率——节点驱动关系，点击查看详解"
+      breadcrumb={[
+        { label: '首页', href: '/' },
+        { label: '知识图谱' },
+      ]}
+    />
 
     <div class="topic-grid">
       {topics.map(t => (
@@ -50,22 +50,15 @@ const EMOJI: Record<string, string> = {
 
 <style>
   .page-animate { animation: fadeIn 0.3s ease; }
-  .page-header { margin-bottom: 20px; }
-  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
-  .breadcrumb a { color: var(--text-muted); transition: color var(--transition-fast); }
-  .breadcrumb a:hover { color: var(--accent-cyan); }
-  .sep { color: var(--border-color); font-size: 10px; }
-  .page-header h1 { font-size: 22px; font-weight: 700; font-family: var(--font-display); letter-spacing: 0.02em; color: var(--text-primary); margin: 0; }
-  .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
   .topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
   .topic-card {
-    display: block; padding: 18px; border-radius: 14px; text-decoration: none;
-    background: var(--bg-card); border: 1px solid var(--border-light);
+    display: block; padding: 18px; border-radius: var(--radius-lg); text-decoration: none;
+    background: var(--bg-card); border: 1px solid var(--border-subtle);
     transition: transform var(--transition-fast), border-color var(--transition-fast);
   }
   .topic-card:hover { transform: translateY(-2px); border-color: var(--accent-blue); }
   .topic-icon { font-size: 26px; margin-bottom: 8px; }
   .topic-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-  .topic-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.6; }
-  .topic-meta { font-size: 11px; color: var(--accent-cyan); margin-top: 10px; }
+  .topic-sub { font-size: var(--font-size-sm); color: var(--text-muted); margin-top: 4px; line-height: 1.6; }
+  .topic-meta { font-size: var(--font-size-sm); color: var(--accent-cyan); margin-top: 10px; }
 </style>

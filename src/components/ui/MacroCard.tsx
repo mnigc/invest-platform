@@ -1,48 +1,34 @@
+import { type ReactNode } from 'react'
+
 interface Props {
   title?: string
-  icon?: React.ReactNode
-  badge?: string | React.ReactNode
+  icon?: ReactNode
+  badge?: string | ReactNode
   variant?: 'default' | 'elevated'
-  children: React.ReactNode
+  accent?: 'blue' | 'cyan' | 'gold' | 'green' | 'red' | 'none'
+  padding?: 'sm' | 'md' | 'lg'
+  children: ReactNode
   className?: string
 }
 
-export function MacroCard({ title, icon, badge, variant = 'default', children, className }: Props) {
+export function MacroCard({ title, icon, badge, variant = 'default', accent = 'none', padding = 'md', children, className }: Props) {
+  const classes = [
+    'macro-card',
+    accent !== 'none' ? `macro-card--accent-${accent}` : '',
+    padding !== 'md' ? `macro-card--${padding}` : '',
+    className,
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className={className} style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '16px' }}>
+    <div className={classes}>
       {title && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '10px',
-          paddingBottom: '8px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="macro-card__header">
+          <div className="macro-card__title">
             {icon && <span style={{ color: 'var(--accent-blue)', display: 'flex' }}>{icon}</span>}
-            <span style={{
-              fontSize: '15px',
-              fontWeight: 600,
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '0.04em',
-              color: 'var(--text-primary)',
-            }}>
-              {title}
-            </span>
+            <span>{title}</span>
           </div>
           {badge && typeof badge === 'string' ? (
-            <span style={{
-              fontSize: '12px',
-              padding: '4px 12px',
-              borderRadius: '8px',
-              background: 'var(--accent-cyan-dim)',
-              color: 'var(--accent-cyan)',
-              fontFamily: 'var(--font-mono)',
-              letterSpacing: '0.04em',
-              fontWeight: 600,
-            }}>
-              {badge}
-            </span>
+            <span className="macro-card__badge">{badge}</span>
           ) : badge}
         </div>
       )}

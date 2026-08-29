@@ -6,9 +6,7 @@
     python run_sync.py cn_indices --daily
 
     # 运行任务组
-    python run_sync.py --group daily      # 交易日盘后任务
-    python run_sync.py --group weekly     # 每周任务
-    python run_sync.py --group monthly    # 每月任务
+    python run_sync.py --group daily      # 交易日盘后任务（全部展示模块）
 
     # 查看所有任务
     python run_sync.py --list
@@ -26,126 +24,48 @@ from sync_base import _setup_logger, write_sync_log
 
 log = _setup_logger("run_sync")
 
+# 任务分组（按展示模块的数据频率划分；目前全部展示模块都是日频数据源）
+GROUPS = ["daily"]
 
+
+# 任务按「展示模块」组织：每个任务 = 一个页面/信号卡的完整数据供给。
+# 指标定义与取数逻辑统一在 indicators.py（注册表 + 增量引擎），
+# 跨模块共用的指标（DGS10 / VIXCLS / DFII10 …）同一次运行只拉一次。
 TASKS = {
-    "us_assets": {
-        "name": "美国资产快照",
-        "script": "fetch_us_assets",
+    "etf_flow": {
+        "name": "国家队资金（ETF行情/份额 + 沪深300）",
+        "script": "sync_etf_flow",
         "group": "daily",
         "delay": 0,
-        "args": [],
+        "args": ["--daily"],
     },
-    "us_asset_prices": {
-        "name": "美股核心资产历史日线",
-        "script": "fetch_us_asset_prices",
-        "group": "weekly",
-        "delay": 0,
-        "args": [],
-    },
-    "us_macro_fred": {
-        "name": "美国宏观FRED",
-        "script": "fetch_us_macro_fred",
-        "group": "weekly",
-        "delay": 0,
-        "args": [],
-    },
-    "us_market_pe": {
-        "name": "S&P 500 PE",
-        "script": "fetch_us_market_pe",
+    "cn_us_spread": {
+        "name": "中美10Y利差（美债/中债 + 跨境资金）",
+        "script": "sync_cn_us_spread",
         "group": "daily",
-        "delay": 5,
+        "delay": 30,
         "args": [],
     },
-    "us_sectors": {
-        "name": "美股板块ETF",
-        "script": "fetch_us_sectors",
+    "global_liquidity": {
+        "name": "全球流动性（央行资产负债表/SOFR）",
+        "script": "sync_global_liquidity",
         "group": "daily",
         "delay": 10,
         "args": [],
     },
-    "cn_indices": {
-        "name": "中国指数日线",
-        "script": "fetch_cn_indices",
-        "group": "daily",
-        "delay": 0,
-        "args": ["--daily"],
-    },
-    "cn_macro": {
-        "name": "中国宏观",
-        "script": "fetch_cn_macro",
-        "group": "weekly",
-        "delay": 0,
-        "args": [],
-    },
-    "cn_valuation": {
-        "name": "A股估值",
-        "script": "fetch_cn_valuation",
-        "group": "weekly",
-        "delay": 0,
-        "args": [],
-    },
-    "cn_bonds": {
-        "name": "中国国债收益率",
-        "script": "fetch_cn_bonds",
-        "group": "daily",
-        "delay": 30,
-        "args": ["--daily"],
-    },
-    "ism_pmi": {
-        "name": "PMI数据",
-        "script": "fetch_ism_pmi",
-        "group": "monthly",
-        "delay": 0,
-        "args": [],
-    },
-    "northbound_flow": {
-        "name": "北向南向资金",
-        "script": "fetch_northbound_flow",
-        "group": "daily",
-        "delay": 60,
-        "args": [],
-    },
-    "forex": {
-        "name": "外汇数据",
-        "script": "fetch_forex",
-        "group": "daily",
-        "delay": 5,
-        "args": [],
-    },
-    "global_liquidity": {
-        "name": "全球流动性",
-        "script": "fetch_global_liquidity",
-        "group": "daily",
-        "delay": 0,
-        "args": [],
-    },
-    "commodity_curves": {
-        "name": "商品期货曲线",
-        "script": "fetch_commodity_curves",
+    "gold_decision": {
+        "name": "黄金决策（金价/央行购金/DXY/实际利率）",
+        "script": "sync_gold_decision",
         "group": "daily",
         "delay": 20,
         "args": [],
     },
-    "gold_reserves": {
-        "name": "黄金储备与金价",
-        "script": "fetch_gold_reserves",
-        "group": "weekly",
-        "delay": 0,
-        "args": [],
-    },
-    "china_credit_pulse": {
-        "name": "中国信贷脉冲",
-        "script": "fetch_china_credit_pulse",
-        "group": "monthly",
-        "delay": 0,
-        "args": [],
-    },
-    "etf_flow": {
-        "name": "ETF资金流(份额/申赎)",
-        "script": "fetch_etf_flow",
+    "regime": {
+        "name": "宏观体制与风险异常",
+        "script": "sync_regime",
         "group": "daily",
-        "delay": 120,
-        "args": ["--daily"],
+        "delay": 5,
+        "args": [],
     },
 }
 
@@ -221,8 +141,6 @@ def print_usage():
 用法:
     python run_sync.py <task_key>           # 运行单个任务
     python run_sync.py --group daily        # 运行交易日任务组
-    python run_sync.py --group weekly       # 运行每周任务组
-    python run_sync.py --group monthly      # 运行每月任务组
     python run_sync.py --all                # 运行所有任务
     python run_sync.py --list               # 列出所有任务
 
@@ -244,7 +162,7 @@ def main():
 
     if arg == "--all":
         log.info("开始执行所有任务")
-        for group in ["daily", "weekly", "monthly"]:
+        for group in GROUPS:
             run_group(group)
         return
 

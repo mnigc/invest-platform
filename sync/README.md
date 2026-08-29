@@ -1,30 +1,47 @@
 # 数据同步脚本
 
-将资产/指数/宏观数据写入 `invest_platform` 生产库。
+按**展示模块**组织：一个脚本对应一个页面（或一组同源信号）的完整数据供给。
+指标定义与取数逻辑集中在 `indicators.py`（注册表 + 增量引擎），脚本只声明「我要哪些指标」。
+
+```
+sync/
+├── indicators.py           # 指标注册表 + 同步引擎（FRED / akshare）
+├── sync_base.py            # 连接、日志、重试、MySQL→PostgreSQL SQL 适配、批量 UPSERT
+├── run_sync.py             # 统一调度入口
+├── sync_regime.py          # 宏观体制与风险异常 /signal-board
+├── sync_cn_us_spread.py    # 中美 10Y 利差 + 跨境资金 /indicators/cn-us-spread
+├── sync_global_liquidity.py# 全球流动性 /indicators/global-liquidity
+├── sync_gold_decision.py   # 黄金决策 /signals/gold
+├── sync_etf_flow.py        # 国家队资金 /tracking/etf-flow
+└── verify_db.py            # 连接与表清单自检
+```
 
 ---
 
-## 1. 快速开始
+## 1. 任务与展示模块对应
 
-### 安装依赖
+| 任务 key | 展示模块（页面） | 同步内容 | 数据源 |
+|---|---|---|---|
+| `etf_flow` | 国家队资金 | ETF 日线行情 + 交易所份额（净申赎/申赎成交比）+ 沪深300 日线 | akshare + Yahoo |
+| `cn_us_spread` | 中美 10Y 利差 | DGS10、中国 10Y 国债、北向/南向资金、USDCNY | akshare + FRED |
+| `global_liquidity` | 全球流动性 | 美联储/欧央行/日央行总资产、RRP、TGA、SOFR | FRED |
+| `gold_decision` | 黄金决策 | 金价历史 + 今日金价、央行购金月度变动、美元指数 DXY、DFII10、T10YIE | 本地 xlsx + gold-api + Yahoo + FRED |
+| `regime` | 宏观体制 / 风险异常 | CPI、DGS10、DGS2、CFNAI、FEDFUNDS、DFII10、T10YIE、BBB 信用利差、VIXCLS | FRED |
+
+> 组合信号板 `/signal-board` 不单独同步数据，它直接聚合上面各模块的 API。
+> 知识图谱 `/knowledge` 使用仓库内的静态 JSON，无需同步。
+
+---
+
+## 2. 快速开始
 
 ```bash
 cd /opt/macro
 python3 -m venv .venv
-/opt/macro/.venv/bin/python3 -m pip install pymysql requests pandas yfinance akshare
+/opt/macro/.venv/bin/python3 -m pip install -r requirements.txt
 ```
 
-### 验证安装
-
-```bash
-/opt/macro/.venv/bin/python3 -c "import pymysql, requests, pandas, yfinance, akshare; print('ok')"
-```
-
----
-
-## 2. 运行任务
-
-### 统一调度入口
+### 运行
 
 ```bash
 cd /opt/macro
@@ -32,142 +49,131 @@ cd /opt/macro
 # 查看所有任务
 /opt/macro/.venv/bin/python3 run_sync.py --list
 
-# 运行单个任务
-/opt/macro/.venv/bin/python3 run_sync.py us_assets
+# 单个任务
+/opt/macro/.venv/bin/python3 run_sync.py gold_decision
 
-# 运行任务组
+# 任务组
 /opt/macro/.venv/bin/python3 run_sync.py --group daily    # 每交易日盘后
-/opt/macro/.venv/bin/python3 run_sync.py --group weekly   # 每周一次
-/opt/macro/.venv/bin/python3 run_sync.py --group monthly  # 每月一次
 
-# 运行全部任务
+# 全部
 /opt/macro/.venv/bin/python3 run_sync.py --all
 ```
 
 ### 任务分组
 
-| 组 | 任务数 | 包含内容 |
+| 组 | 任务数 | 包含 |
 | --- | --- | --- |
-| **daily** | 10 | 美国资产快照、板块ETF、PE、中国指数、国债、北向资金、外汇、全球流动性、商品期货、ETF资金流 |
-| **weekly** | 5 | 美股历史日线、美国宏观FRED、中国宏观、A股估值、黄金储备 |
-| **monthly** | 2 | PMI数据、中国信贷脉冲 |
+| **daily** | 5 | 国家队资金、宏观体制、黄金决策、全球流动性、中美利差 |
+
+### 全量回补
+
+指标类脚本支持 `--full`（忽略已有最新日期，从 2000 年起全量拉取）：
+
+```bash
+/opt/macro/.venv/bin/python3 sync_regime.py --full
+/opt/macro/.venv/bin/python3 sync_etf_flow.py --full --since 20230101
+```
 
 ---
 
 ## 3. 1Panel 定时任务
 
-只需配置 **3 个任务**：
-
-### 交易日盘后（daily 组）
+只需配置 **1 个任务**：
 
 ```
 任务名称: 数据同步-每日
 执行周期: 自定义 cron  30 23 * * 1-5
-命令:
-  cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py --group daily
+命令: cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py --group daily
 ```
 
-### 每周任务（weekly 组）
+> 时间以服务器时区为准，`1-5` = 周一到周五。
 
-```
-任务名称: 数据同步-每周
-执行周期: 自定义 cron  0 2 * * 1
-命令:
-  cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py --group weekly
-```
+### 3.1 GitHub Actions（可选）
 
-### 每月任务（monthly 组）
+项目已内置 `.github/workflows/sync.yml`，用 GitHub 托管 runner 定时同步：
 
-```
-任务名称: 数据同步-每月
-执行周期: 自定义 cron  0 3 3 * *
-命令:
-  cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py --group monthly
-```
+- **定时**：每个交易日 23:30（北京时间）执行 `run_sync.py --group daily`（GitHub cron 用 UTC，即 `30 15 * * 1-5`）
+- **手动触发**：Actions 页面 → run workflow → 可随时补跑
 
-> **注意**：时间以服务器时区为准，建议先 `date` 确认。
-> `1-5` = 周一到周五（交易日），`1` = 周一，`3` = 每月3号。
+需要在仓库 **Settings → Secrets and variables → Actions** 配置两个 secret：
+
+| Secret 名称 | 值 |
+| --- | --- |
+| `DATABASE_URL` | Supabase Session Pooler 连接串（同 `.env`） |
+| `FRED_API_KEY` | FRED API Key |
+
+> 注意：GitHub runner 在海外，akshare 拉取国内数据（ETF/中国宏观）可能超时；**黄金 xlsx 不在仓库**，
+> 相关步骤会自动跳过并告警。失败时可在 Actions 页面查看 `sync-logs` 产物日志。
 
 ---
 
-## 4. 故障排查
+## 4. 指标注册表（indicators.py）
 
-### 查看同步日志
+新增一个展示指标只需在 `INDICATORS` 里加一行，`ensure_defs()` 会自动把
+中文名/单位/频率/数据源 UPSERT 进 `indicators` 表：
+
+```python
+("DGS10", "US"): dict(zh="美债收益率 10Y", en="US Treasury 10Y", cat="利率",
+                      sub="美债收益率", unit="%", freq="daily",
+                      source="fred", series="DGS10"),
+```
+
+- `source="fred"` → `series` 为 FRED series id
+- `source="akshare"` → `fn` 为 akshare 函数名；宽表用 `date_col` / `value_col` 指定列，
+  省略则按「首个日期单元 + 首个正数数值单元」自动推断
+- 跨模块共用的指标（如 DGS10 同时被 regime / cn_us_spread 使用）在同一次 `run_sync`
+  进程内只会真正拉取一次，日志里显示「本轮已同步过，跳过」
+
+```bash
+/opt/macro/.venv/bin/python3 indicators.py   # 打印注册表清单
+```
+
+---
+
+## 5. 故障排查
 
 ```sql
-SELECT sync_type, status, records_count, error_message, started_at
-FROM data_sync_logs ORDER BY started_at DESC LIMIT 20;
+-- 查看同步日志
+SELECT sync_type, status, records_count, error_message, finished_at
+FROM data_sync_logs ORDER BY finished_at DESC LIMIT 20;
 ```
 
-### 查看脚本日志
-
 ```bash
-tail -100 /opt/macro/logs/run_sync_*.log
-```
+# 脚本日志
+tail -100 /opt/macro/sync/logs/run_sync_*.log
+tail -100 /opt/macro/sync/logs/sync_gold_decision_*.log
 
-### 手动重跑
-
-```bash
-cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py us_assets
+# 数据库自检（连接 + 表清单 + 每表记录数/最新日期）
+export DATABASE_URL='postgresql://postgres.xxxx:******@aws-0-*.pooler.supabase.com:5432/postgres'
+python3 verify_db.py
 ```
 
 ---
 
-## 5. 数据库配置（Supabase / PostgreSQL）
+## 6. 数据库配置（Supabase / PostgreSQL）
 
 1. 在 [supabase_schema.sql](supabase_schema.sql) 全量建表（Supabase Dashboard → SQL Editor 执行一次）。
-2. 复制 Supabase 连接串（Project Settings → Database → Session Pooler）：
+2. 复制连接串（Project Settings → Database → Session Pooler）：
    ```
    postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
    ```
 3. 配置环境变量（每个运行终端 export，或写入服务器的 ~/.bashrc / 1Panel 任务环境）：
    ```bash
    export DATABASE_URL='postgresql://postgres.xxxx:******@aws-0-*.pooler.supabase.com:5432/postgres'
+   export FRED_API_KEY='<your fred api key>'
    ```
 
 > `sync_base.py` 内含 MySQL→PostgreSQL SQL 适配层（ON DUPLICATE KEY UPDATE → ON CONFLICT 等），脚本无需改动即可运行。
 
-### 验证数据库就绪
-
-```bash
-export DATABASE_URL='postgresql://postgres.xxxx:******@aws-0-*.pooler.supabase.com:5432/postgres'
-python3 verify_db.py        # 检查连接 + 表清单 + 每表记录数/最新日期
-```
-
 ---
 
-## 6. 脚本清单
+## 7. 本地文件依赖
 
-### 美国市场
+`sync_gold_decision.py` 依赖两个本地 Excel（不在仓库中，放在 `sync/` 目录下）：
 
-| 脚本 | 同步内容 | 数据源 | 写入表 |
-| --- | --- | --- | --- |
-| `fetch_us_assets.py` | 美股指数 / ETF / 商品 / 外汇 最新价、涨跌幅、成交量 | Yahoo Finance | `asset_snapshots` |
-| `fetch_us_asset_prices.py` | S&P 500 历史日线价格 | Yahoo Finance | `asset_prices` |
-| `fetch_us_macro_fred.py` | GDP / CPI / PPI / 失业率 / 联邦基金利率 / 美债收益率（1M~30Y）/ VIX / PCE / 消费者信心 / 零售销售 / 欧元汇率 | FRED | `indicator_data` |
-| `fetch_us_market_pe.py` | S&P 500 市盈率 (Trailing PE) | Yahoo Finance | `indicator_data` |
-| `fetch_us_sectors.py` | 美股 11 个板块 ETF 日线（XLF/XLK/XLV/XLI/XLP/XLE/XLU/XLB/XLY/XLC/XLRE） | Yahoo Finance | `indicator_data` |
+| 文件 | 内容 | 用途 |
+| --- | --- | --- |
+| `gold_price.xlsx` | 日期 / 金价（USD/oz） | 金价历史序列 |
+| `gold_changes.xlsx` | 国家 + 各月央行购金变动列 | 央行购金（净增持/减持） |
 
-### 中国市场
-
-| 脚本 | 同步内容 | 数据源 | 写入表 |
-| --- | --- | --- | --- |
-| `fetch_cn_indices.py` | 上证指数 / 上证50 / 沪深300 / 中证1000 / 科创50 / 深证成指 / 创业板指 日线（Yahoo 优先，akshare 兜底） | Yahoo Finance / akshare | `index_daily` |
-| `fetch_cn_macro.py` | GDP / CPI / PPI / PMI / 社会消费品零售总额 | akshare（国统局/中采） | `indicator_data` |
-| `fetch_cn_valuation.py` | A 股全市场 PE / PB、各行业 PE / PB | akshare | `cn_valuation` |
-| `fetch_cn_bonds.py` | 中国 2Y / 5Y / 10Y / 30Y 国债收益率 | akshare | `indicator_data` |
-| `fetch_northbound_flow.py` | 北向资金净流入 / 南向资金净流入 / USDCNY 汇率 | akshare / FRED | `indicator_data` |
-
-### 全球 / 其他
-
-| 脚本 | 同步内容 | 数据源 | 写入表 |
-| --- | --- | --- | --- |
-| `fetch_forex.py` | 美元指数 / 欧元 / 日元 / 英镑 / 离岸人民币 / 瑞郎 / 澳元 / 加元 / 韩元 | Yahoo Finance | `asset_prices` / `asset_snapshots` |
-| `fetch_global_liquidity.py` | 美联储总资产 / 逆回购 RRP / TGA 账户 / SOFR 利率 / 欧央行总资产 / 日央行总资产 | FRED | `indicator_data` |
-| `fetch_commodity_curves.py` | 原油 / 天然气 / 铜 / 黄金 / 玉米 / 小麦 / 大豆 期货期限结构 | Yahoo Finance | `commodity_curves` |
-| `fetch_gold_reserves.py` | 全球各国黄金持有量 / 月度变动 / 金价历史 / 今日金价 / 美联储金库 / 中国央行储备 | 本地 Excel / FRED / akshare / gold-api | `gold_reserves` / `gold_reserve_changes` / `gold_price_history` / `indicator_data` |
-| `fetch_ism_pmi.py` | 美国 ISM PMI / 中国财新 PMI / 中国非制造业 PMI | akshare | `indicator_data` |
-| `fetch_china_credit_pulse.py` | 社会融资规模 / 新增信贷 / 中长期贷款 / 名义 GDP（计算信贷脉冲） | akshare | `china_credit_pulse` |
-| `fetch_etf_flow.py` | 重点 ETF 日线行情 + 上交所/深交所基金份额（净申赎、申赎/成交额比率） | akshare（东财/交易所） | `etf_master` / `etf_daily` / `etf_shares` |
-
-日志自动写入 `./logs/<脚本名>_YYYYMMDD.log`。
+文件缺失时脚本会跳过对应步骤并在日志中告警，不影响其余数据同步。

@@ -11,9 +11,8 @@ import sys
 from sync_base import get_conn
 
 EXPECTED_TABLES = [
-    "indicators", "indicator_data", "assets", "asset_prices", "asset_snapshots",
-    "index_daily", "cn_valuation", "commodity_curves", "china_credit_pulse",
-    "gold_reserves", "gold_reserve_changes", "gold_price_history",
+    "indicators", "indicator_data", "assets", "asset_prices",
+    "index_daily", "gold_reserve_changes", "gold_price_history",
     "etf_master", "etf_daily", "etf_shares", "data_sync_logs",
 ]
 

@@ -233,6 +233,36 @@ export function EtfFlowDashboard() {
         </div>
       </div>
 
+      {/* 关键指标摘要条 — 滚动时固定 */}
+      {lastAgg && (
+        <div className="key-metrics-bar">
+          <div className="key-metrics-bar__item">
+            <span className="key-metrics-bar__label">最新交易日</span>
+            <span className="key-metrics-bar__value" style={{ fontSize: 'var(--font-size-base)' }}>{lastAgg.date}</span>
+          </div>
+          <div className="key-metrics-bar__item">
+            <span className="key-metrics-bar__label">当日成交额</span>
+            <span className="key-metrics-bar__value">{fmtNum(lastAgg.amount)}亿</span>
+          </div>
+          <div className="key-metrics-bar__item">
+            <span className="key-metrics-bar__label">当日净申赎</span>
+            <span className={`key-metrics-bar__value ${lastAgg.net != null ? (lastAgg.net >= 0 ? 'key-metrics-bar__value--positive' : 'key-metrics-bar__value--negative') : ''}`}>
+              {fmtNum(lastAgg.net)}亿
+            </span>
+          </div>
+          <div className="key-metrics-bar__item">
+            <span className="key-metrics-bar__label">净申赎/成交额</span>
+            <span className="key-metrics-bar__value">{fmtPct(lastAgg.ratio, 2)}</span>
+          </div>
+          <div className="key-metrics-bar__item">
+            <span className="key-metrics-bar__label">近4周合计</span>
+            <span className={`key-metrics-bar__value ${board.weeks?.[0]?.totalNet != null ? (board.weeks[0].totalNet >= 0 ? 'key-metrics-bar__value--positive' : 'key-metrics-bar__value--negative') : ''}`}>
+              {board.weeks?.[0] ? fmtNum(board.weeks[0].totalNet) + '亿' : '--'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {tab === 'flow' && (
         <>
           {/* 汇总卡：最近 4 周 */}

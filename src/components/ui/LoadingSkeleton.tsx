@@ -1,38 +1,40 @@
 interface Props {
   rows?: number
-  type?: 'card' | 'table' | 'chart'
+  type?: 'card' | 'table' | 'chart' | 'number'
   height?: number
+  pulse?: boolean
 }
 
-export function LoadingSkeleton({ rows = 3, type = 'card', height }: Props) {
-  const shimmerBase: React.CSSProperties = {
-    background: `linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%)`,
-    backgroundSize: '200% 100%',
-    animation: 'shimmer 1.5s ease-in-out infinite',
-    borderRadius: '8px',
-  }
+export function LoadingSkeleton({ rows = 3, type = 'card', height, pulse = false }: Props) {
+  const pulseClass = pulse ? 'loading-skeleton--pulse' : 'loading-skeleton--shimmer'
 
   if (type === 'chart') {
     return (
-      <div style={{
-        ...shimmerBase,
-        width: '100%',
-        height: height || '360px',
-        borderRadius: '12px',
-      }} />
+      <div className={`loading-skeleton loading-skeleton--chart ${pulseClass}`} style={{ height: height || 360 }} />
+    )
+  }
+
+  if (type === 'number') {
+    return (
+      <div className={`loading-skeleton loading-skeleton--number ${pulseClass}`} />
     )
   }
 
   const rowHeight = type === 'table' ? 28 : 16
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+    <div className="loading-skeleton--rows">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} style={{
-          ...shimmerBase,
-          width: `${70 + Math.random() * 30}%`,
-          height: `${rowHeight}px`,
-        }} />
+        <div
+          key={i}
+          className={`loading-skeleton ${pulseClass}`}
+          style={{
+            width: `${70 + Math.random() * 30}%`,
+            height: `${rowHeight}px`,
+            marginBottom: type === 'table' ? 0 : undefined,
+            borderBottom: type === 'table' ? '1px solid var(--border-subtle)' : undefined,
+          }}
+        />
       ))}
     </div>
   )

@@ -1,29 +1,43 @@
 #!/usr/bin/env python3
-"""同步重点 ETF 日线行情 + 交易所份额（向上/向下申赎），生成资金流数据。
+"""展示模块：国家队资金（/tracking/etf-flow，同时供组合信号板资金流信号卡）
+
+页面需要两块数据：
+  1. ETF 日线行情 + 交易所份额 -> 净申赎、申赎/成交额比率（宽基资金流）
+  2. 沪深300 日线（index_daily）-> 大额申赎后的事件研究基准
+     （/api/v1/etf-flow/event-study.json 要求至少 40 个交易日的配对数据）
+
 数据源:
-    - 行情: akshare fund_etf_hist_em (东财)
+    - ETF 行情: akshare fund_etf_hist_em (东财)
     - 上交所份额: akshare fund_etf_scale_sse(单日)
     - 深交所份额: akshare fund_scale_daily_szse(区间,<=6个月)
     - 拆分折算: akshare fund_cf_em(用于剔除假申赎)
-写入表: etf_master, etf_daily, etf_shares, data_sync_logs
+    - 沪深300: Yahoo Finance 优先，akshare 兜底
+写入表: etf_master, etf_daily, etf_shares, index_daily, data_sync_logs
 用法:
-    python3 fetch_etf_flow.py --daily            # 只补最近几天(日常任务)
-    python3 fetch_etf_flow.py --full [--since 20230101]  # 回补历史
-    python3 fetch_etf_flow.py --init             # 建表
+    python3 sync_etf_flow.py --daily            # 只补最近几天(日常任务)
+    python3 sync_etf_flow.py --full [--since 20230101]  # 回补历史
+    python3 sync_etf_flow.py --init             # 建表
 """
 import sys
 import time
 import argparse
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
-from sync_base import _setup_logger, get_conn, write_sync_log, with_retry, patch_cn_proxy, safe_dec
+import yfinance as yf
+
+from sync_base import (_setup_logger, get_conn, write_sync_log, with_retry,
+                       patch_cn_proxy, safe_dec, safe_int, bulk_upsert)
 
 patch_cn_proxy()
 
-log = _setup_logger("fetch_etf_flow")
+log = _setup_logger("sync_etf_flow")
 
 SLEEP = 0.6
 SHARE_BACKFILL_LIMIT_DAYS = 720  # 上交所份额逐日回补上限(交易日)
+
+# 事件研究基准指数（/api/v1/etf-flow/event-study.json 读取 index_daily 的 000300）
+BENCHMARK_INDEX = ("000300", "沪深300", "main", "000300.SS")
+INDEX_START = "2019-01-01"
 
 # code, name, exchange, track_index, category
 ETF_LIST = [
@@ -86,6 +100,23 @@ DDL = [
         shares_10k NUMERIC(20,4) NOT NULL,
         is_converted SMALLINT DEFAULT 0,
         CONSTRAINT uk_etf_shares UNIQUE (code, trade_date)
+    )""",
+    """CREATE TABLE IF NOT EXISTS index_daily (
+        id BIGSERIAL PRIMARY KEY,
+        index_code VARCHAR(20) NOT NULL,
+        index_name VARCHAR(60),
+        category VARCHAR(20),
+        trade_date DATE NOT NULL,
+        open_price NUMERIC(12,4),
+        high_price NUMERIC(12,4),
+        low_price NUMERIC(12,4),
+        close_price NUMERIC(12,4),
+        volume NUMERIC(20,2),
+        amount NUMERIC(20,2),
+        change_pct NUMERIC(10,6),
+        turnover_rate NUMERIC(10,4),
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        CONSTRAINT uk_index_daily UNIQUE (index_code, trade_date)
     )""",
 ]
 
@@ -313,6 +344,75 @@ def sync_full(since_str):
     return total_quotes + total_shares
 
 
+def sync_benchmark_index(daily=True):
+    """同步沪深300 日线 -> index_daily（大额申赎事件研究的收益基准）。
+
+    akshare 优先（与本模块 ETF 数据同源），失败再用 Yahoo 兜底。
+    """
+    code, name, cat, yf_sym = BENCHMARK_INDEX
+    today = date.today()
+    start = (today - timedelta(days=30)) if daily else datetime.strptime(INDEX_START, "%Y-%m-%d").date()
+    rows = []
+
+    try:
+        import akshare as ak
+        df = with_retry(ak.index_zh_a_hist, symbol=code, period="daily",
+                        start_date=start.strftime("%Y%m%d"), end_date=today.strftime("%Y%m%d"),
+                        timeout=45, max_retry=3)
+        if df is not None and not df.empty:
+            for _, r in df.iterrows():
+                d = str(r.get("日期"))[:10]
+                close = safe_dec(r.get("收盘"), 4)
+                if not d or close is None:
+                    continue
+                rows.append((code, name, cat, d,
+                             safe_dec(r.get("开盘"), 4), safe_dec(r.get("最高"), 4),
+                             safe_dec(r.get("最低"), 4), close,
+                             safe_int(r.get("成交量")), safe_dec(r.get("成交额"), 2),
+                             safe_dec(r.get("涨跌幅"), 4), safe_dec(r.get("换手率"), 4)))
+            log.info("[%s %s] akshare 指数日线 %d 行", code, name, len(rows))
+    except Exception as e:
+        log.warning("[%s] akshare 指数日线失败: %s", code, e)
+
+    if not rows:
+        try:
+            hist = with_retry(
+                lambda: yf.Ticker(yf_sym).history(start=start.strftime("%Y-%m-%d"),
+                                                  end=today.strftime("%Y-%m-%d"),
+                                                  auto_adjust=False),
+                timeout=45, max_retry=3)
+            if hist is not None and not hist.empty:
+                closes = hist["Close"].astype(float)
+                pct = closes.pct_change(fill_method=None) * 100.0
+                for i, (ts, r) in enumerate(hist.iterrows()):
+                    close = safe_dec(r.get("Close"), 4)
+                    if close is None:
+                        continue
+                    d = ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts)[:10]
+                    rows.append((code, name, cat, d,
+                                 safe_dec(r.get("Open"), 4), safe_dec(r.get("High"), 4),
+                                 safe_dec(r.get("Low"), 4), close,
+                                 safe_int(r.get("Volume")), None,
+                                 safe_dec(pct.iloc[i], 4) if i else safe_dec(0.0, 4), None))
+                log.info("[%s %s] Yahoo 指数日线 %d 行", code, name, len(rows))
+        except Exception as e:
+            log.warning("[%s] Yahoo 指数日线失败: %s", code, e)
+
+    if not rows:
+        log.warning("%s 指数日线无数据", code)
+        return 0
+
+    cols = ["index_code", "index_name", "category", "trade_date", "open_price", "high_price",
+            "low_price", "close_price", "volume", "amount", "change_pct", "turnover_rate"]
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            n = bulk_upsert(conn, cur, "index_daily", cols, rows,
+                            ["index_code", "trade_date"],
+                            [c for c in cols if c not in ("index_code", "trade_date")])
+    log.info("[%s %s] 指数日线写入 %d 条", code, name, n)
+    return n
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--daily", action="store_true", help="增量同步(最近若干天)")
@@ -329,9 +429,11 @@ def main():
     done = False
     if args.full:
         total = sync_full(args.since)
+        total += sync_benchmark_index(daily=False)
         done = True
     if args.daily:
         total = sync_daily()
+        total += sync_benchmark_index(daily=True)
         done = True
     if not done:
         parser.print_help()

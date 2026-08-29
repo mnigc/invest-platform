@@ -7,7 +7,7 @@ interface Props {
   title?: string;
 }
 
-const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
+const { title = 'MACRO EDGE - 宏观投资研究终端' } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -35,7 +35,7 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
         doc.dataset.themePref = pref; // 供按钮读取用户偏好
         // CSS 加载前就直接设置 html 背景色和文字色，消除任何闪烁
         var isLight = theme === 'light';
-        var bg = isLight ? '#f5f7fa' : '#000000';
+        var bg = isLight ? '#f5f7fa' : '#0A0E14';
         var text = isLight ? '#1a1a2e' : '#FFFFFF';
         doc.style.backgroundColor = bg;
         doc.style.color = text;
@@ -50,7 +50,7 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="description" content="投资数据与内容平台 - 宏观经济数据、投资大师文献、A股数据" />
+    <meta name="description" content="MACRO EDGE — 宏观投资研究终端 | 资金流 · 宏观体制 · 中美利差 · 全球流动性" />
     <meta name="theme-color" content="#f5f7fa" />
   </head>
   <body>
@@ -59,19 +59,27 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     </div>
     <Sidebar />
     <header class="header">
-      <button class="hamburger" data-sidebar-toggle aria-label="打开导航" aria-pressed="false">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
+      <div class="header-left">
+        <button class="hamburger" data-sidebar-toggle aria-label="打开导航" aria-pressed="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <span class="header-page-title" id="pageTitle"></span>
+      </div>
       <div class="header-right">
+        <div class="market-status" id="marketStatus">
+          <span class="market-status-dot"></span>
+          <span class="market-status-text">--</span>
+        </div>
         <div class="status-badge">
           <span class="status-dot"></span>
           <span>LIVE</span>
         </div>
         <span class="header-time" id="headerTime">--:--:--</span>
+        <span class="freshness-dot freshness-dot--online" id="dataFreshness" data-tooltip="数据已同步"></span>
       </div>
     </header>
     <main class="main">
@@ -87,12 +95,46 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     const el = document.getElementById('headerTime');
     if (el) {
       const now = new Date();
-      const s = now.toLocaleString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      el.textContent = s;
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      el.innerHTML = `${h}:${m}:<span class="second">${s}</span>`;
     }
   }
   updateTime();
   setInterval(updateTime, 1000);
+
+  // 市场状态判断
+  function updateMarketStatus() {
+    const el = document.getElementById('marketStatus');
+    if (!el) return;
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const time = hour + minute / 60;
+
+    let status, isOpen;
+    if (day === 0 || day === 6) {
+      status = '休市';
+      isOpen = false;
+    } else if ((time >= 9.5 && time < 11.5) || (time >= 13 && time < 15)) {
+      status = 'A股开盘';
+      isOpen = true;
+    } else if (time >= 21.5 || time < 2.5) {
+      status = '美股开盘';
+      isOpen = true;
+    } else {
+      status = '已收盘';
+      isOpen = false;
+    }
+
+    el.classList.toggle('market-status--open', isOpen);
+    el.classList.toggle('market-status--close', !isOpen);
+    el.querySelector('.market-status-text').textContent = status;
+  }
+  updateMarketStatus();
+  setInterval(updateMarketStatus, 60000);
 
   // 全局页面导航 loading 进度条
   const loader = document.getElementById('globalLoader');
@@ -169,17 +211,35 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     -webkit-backdrop-filter: blur(12px) saturate(180%);
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    padding: 0 32px;
+    justify-content: space-between;
+    padding: 0 24px;
     z-index: 50;
     gap: 12px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .header-page-title {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-medium);
+    font-family: var(--font-display);
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .hamburger {
     display: none;
     background: transparent;
     border: 1px solid var(--border-light);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     width: 36px;
     height: 36px;
     align-items: center;
@@ -189,50 +249,49 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     flex-shrink: 0;
   }
 
-  .header-left {
-    display: flex;
-    align-items: center;
-  }
-
-  .breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-  }
-
-  .breadcrumb a {
-    color: var(--text-muted);
-    transition: color var(--transition-fast);
-  }
-
-  .breadcrumb a:hover {
-    color: var(--accent-cyan);
-  }
-
-  .breadcrumb a:last-of-type {
-    color: var(--text-secondary);
-    pointer-events: none;
-  }
-
-  .sep {
-    color: var(--border-color);
-    font-size: 10px;
-  }
-
   .header-right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .market-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .market-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .market-status--open .market-status-dot {
+    background: var(--green);
+    box-shadow: 0 0 4px var(--green);
+  }
+
+  .market-status--close .market-status-dot {
+    background: var(--text-muted);
   }
 
   .status-badge {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 10px;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: var(--font-size-xs);
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -251,18 +310,23 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
 
   .header-time {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-muted);
     letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .header-time .second {
+    animation: secondPulse 2s ease-in-out infinite;
   }
 
   .main {
     margin-left: var(--sidebar-width);
     margin-top: var(--header-height);
     min-height: calc(100vh - var(--header-height));
-    padding: 28px 32px;
-    max-width: 1400px;
-    margin-left: calc(var(--sidebar-width) + max(0px, (100vw - var(--sidebar-width) - 1400px) / 2));
+    padding: 24px 28px;
+    max-width: var(--content-max-width);
+    margin-left: calc(var(--sidebar-width) + max(0px, (100vw - var(--sidebar-width) - var(--content-max-width)) / 2));
   }
 
   /* 移动端响应式 */
@@ -286,7 +350,10 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
       margin-left: 0;
       padding: 16px 14px;
       max-width: none;
-      margin-left: 0;
+    }
+
+    .market-status {
+      display: none;
     }
   }
 
@@ -300,12 +367,12 @@ const { title = 'CN-US MACRO - 中美宏观数据研究平台' } = Astro.props;
     }
 
     .status-badge {
-      padding: 4px 8px;
+      padding: 3px 6px;
       font-size: 9px;
     }
 
     .header-time {
-      font-size: 11px;
+      font-size: var(--font-size-xs);
     }
 
     .main {

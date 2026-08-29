@@ -17,11 +17,38 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
+
+
+# ============== 读取 .env（项目根目录，不覆盖已有环境变量）==============
+def _load_dotenv():
+    here = os.path.dirname(os.path.abspath(__file__))
+    for path in (
+        os.path.join(here, ".env"),
+        os.path.join(os.path.dirname(here), ".env"),
+    ):
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+        break
+
+
+_load_dotenv()
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 if not DATABASE_URL:
-    print("[sync_base] 警告: 未设置环境变量 DATABASE_URL（Supabase Session Pooler 连接串）", file=sys.stderr)
+    print("[sync_base] 警告: 未设置 DATABASE_URL（Supabase 连接串），请在项目 .env 中配置", file=sys.stderr)
 
 
 # 各表冲突列映射（对应 .doc/supabase_schema.sql 中的 UNIQUE 约束）
@@ -34,9 +61,7 @@ CONFLICT_COLS = {
     "asset_snapshots": ["asset_id"],
     "index_daily": ["index_code", "trade_date"],
     "cn_valuation": ["date"],
-    "commodity_curves": ["commodity", "contract", "snapshot_date"],
     "china_credit_pulse": ["report_date"],
-    "gold_reserves": ["country_name", "period_date"],
     "gold_reserve_changes": ["country_name", "period_date"],
     "gold_price_history": ["source", "price_date"],
     "etf_master": ["code"],
@@ -109,8 +134,7 @@ def _split_assignments(assignments_raw):
 
 
 def _values_to_excluded(sql):
-    with re.S:
-        return re.sub(r"VALUES\(\s*(\w+)\s*\)", lambda m: f"EXCLUDED.{m.group(1)}", sql)
+    return re.sub(r"VALUES\(\s*(\w+)\s*\)", lambda m: f"EXCLUDED.{m.group(1)}", sql, flags=re.I | re.M)
 
 
 class _PgCursor:
@@ -119,15 +143,29 @@ class _PgCursor:
     def __init__(self, cur):
         self._cur = cur
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        try:
+            self._cur.close()
+        except Exception:
+            pass
+
     def __getattr__(self, name):
         return getattr(self._cur, name)
 
     def execute(self, sql, args=None):
+        # psycopg2 execute_values 内部会传已拼接好的 bytes，直接透传
+        if isinstance(sql, (bytes, bytearray)):
+            return self._cur.execute(sql, args)
         return self._cur.execute(rewrite_sql(sql), args)
 
     def executemany(self, sql, args):
         if not args:
             return None
+        if isinstance(sql, (bytes, bytearray)):
+            return self._cur.executemany(sql, args)
         return self._cur.executemany(rewrite_sql(sql), args)
 
 
@@ -160,15 +198,25 @@ class _PgConn:
 def get_conn():
     if not DATABASE_URL:
         raise RuntimeError("未设置 DATABASE_URL（Supabase 连接串），无法连接数据库")
-    raw = psycopg2.connect(
-        DATABASE_URL,
-        sslmode="require",
-        connect_timeout=20,
-        keepalives_idle=30,
-        keepalives_interval=10,
-        keepalives_count=3,
-    )
-    return _PgConn(raw)
+    last_err = None
+    for attempt in range(3):
+        try:
+            raw = psycopg2.connect(
+                DATABASE_URL,
+                sslmode="require",
+                connect_timeout=20,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=3,
+                options="-c statement_timeout=180000 -c idle_in_transaction_session_timeout=180000",
+            )
+            return _PgConn(raw)
+        except Exception as e:
+            last_err = e
+            log = _setup_logger("sync_base")
+            log.warning("连接失败(第 %d/3 次): %s，2s 后重试", attempt + 1, e)
+            time.sleep(2)
+    raise last_err if last_err else RuntimeError("未知连接错误")
 
 
 # ============== 日志 ==============
@@ -335,3 +383,50 @@ def safe_int(v):
         return int(float(v))
     except Exception:
         return None
+
+
+# ============== 高性能批量写入 ==============
+# 用 psycopg2 execute_values：一次 round-trip 写入多条 VALUES，
+# 避免 executemany 的逐行往返（跨境高延迟下极易触发连接超时）。
+def bulk_upsert(conn, cur, table, columns, rows, conflict_cols, update_cols=None, page_size=200, now_col="updated_at"):
+    """批量 UPSERT。
+    :param columns: 插入列清单（不含 updated_at，如需更新由 update_cols 指定）
+    :param rows: 与 columns 对应的元组列表
+    :param conflict_cols: ON CONFLICT 目标列
+    :param update_cols: 冲突时更新的列；None 则只更新 updated_at
+    """
+    if not rows:
+        return 0
+    cols = list(columns) + [now_col]
+    cols_str = ", ".join(cols)
+    sets = [f"{c} = EXCLUDED.{c}" for c in (update_cols or [])] + [f"{now_col} = now()"]
+    sql = (
+        f"INSERT INTO {table} ({cols_str}) VALUES %s "
+        f"ON CONFLICT ({', '.join(conflict_cols)}) DO UPDATE SET " + ", ".join(sets)
+    )
+    now = datetime.now()
+    values = [tuple(r) + (now,) for r in rows]
+
+    total = 0
+    for i in range(0, len(values), page_size):
+        chunk = values[i:i + page_size]
+        last_err = None
+        for attempt in range(3):
+            try:
+                execute_values(cur, sql, chunk, page_size=page_size)
+                conn.commit()
+                total += len(chunk)
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                log = _setup_logger("sync_base")
+                log.warning("批量写入 %s %d-%d 失败(第%d/3次): %s", table, i, i + len(chunk), attempt + 1, e)
+                time.sleep(3)
+        if last_err is not None:
+            _setup_logger("sync_base").warning("批次 %s %d-%d 放弃", table, i, i + len(chunk))
+    return total

@@ -83,17 +83,7 @@ create table if not exists asset_prices (
 );
 create index if not exists idx_asset_prices_date on asset_prices (trade_date);
 
-create table if not exists asset_snapshots (
-    id              bigserial primary key,
-    asset_id        bigint not null references assets(id) on delete cascade,
-    last_price      numeric(18,4),
-    change_percent  numeric(10,4),
-    volume          numeric(24,0),
-    updated_at      timestamptz not null default now(),
-    constraint uk_snapshot_asset unique (asset_id)
-);
-
--- ── 中国指数日线 ──
+-- ── 指数日线（沪深300，国家队资金事件研究基准）──
 create table if not exists index_daily (
     id            bigserial primary key,
     index_code    varchar(20) not null,
@@ -113,62 +103,7 @@ create table if not exists index_daily (
 );
 create index if not exists idx_index_daily_date on index_daily (trade_date);
 
--- ── A股估值 ──
-create table if not exists cn_valuation (
-    id              bigserial primary key,
-    date            date not null,
-    overall_pe      numeric(12,4),
-    overall_pb      numeric(12,4),
-    overall_signal  varchar(20),
-    industries_json jsonb,
-    created_at      timestamptz not null default now(),
-    updated_at      timestamptz not null default now(),
-    constraint uk_cn_valuation_date unique (date)
-);
-
--- ── 商品期货期限结构 ──
-create table if not exists commodity_curves (
-    id            bigserial primary key,
-    commodity     varchar(10) not null,
-    contract      varchar(20) not null,
-    month_label   varchar(7)  not null,
-    price         numeric(16,4),
-    snapshot_date date not null,
-    created_at    timestamptz not null default now(),
-    constraint uk_commodity_curve unique (commodity, contract, snapshot_date)
-);
-create index if not exists idx_commodity_curves_date on commodity_curves (snapshot_date);
-
--- ── 中国信贷脉冲 ──
-create table if not exists china_credit_pulse (
-    id                    bigserial primary key,
-    report_date           date not null,
-    tsf_stock             numeric(18,2),
-    tsf_increment         numeric(18,2),
-    nominal_gdp           numeric(18,2),
-    credit_pulse          numeric(12,4),
-    medium_long_loan_ent  numeric(18,2),
-    medium_long_loan_hh   numeric(18,2),
-    shadow_banking        numeric(18,2),
-    notes                 text,
-    updated_at            timestamptz not null default now(),
-    constraint uk_pulse_date unique (report_date)
-);
-
--- ── 央行黄金储备（IMF/世界黄金协会）──
-create table if not exists gold_reserves (
-    id                       bigserial primary key,
-    country_name             varchar(120) not null,
-    country_name_cn          varchar(120),
-    region                   varchar(20) default 'GLOBAL',
-    holding_tonnes           numeric(18,4),
-    share_of_total_reserves  numeric(10,4),
-    period_date              date not null,
-    updated_at               timestamptz not null default now(),
-    constraint uk_gold_country_period unique (country_name, period_date)
-);
-create index if not exists idx_gold_reserves_date on gold_reserves (period_date);
-
+-- ── 央行黄金变动 / 金价（供黄金决策）──
 create table if not exists gold_reserve_changes (
     id              bigserial primary key,
     country_name    varchar(120) not null,
