@@ -101,9 +101,24 @@ cd /opt/macro
 | --- | --- |
 | `DATABASE_URL` | Supabase Session Pooler 连接串（同 `.env`） |
 | `FRED_API_KEY` | FRED API Key |
+| `CN_HTTP_PROXY` | （可选）国内数据源代理，如 `http://4fu1768rz202.vicp.fun:8888` |
 
-> 注意：GitHub runner 在海外，akshare 拉取国内数据（ETF/中国宏观）可能超时。
+> 注意：GitHub runner 在海外，akshare 拉取国内数据（ETF/中国宏观）会超时。
+> 配置 `CN_HTTP_PROXY`（指向可回国的 HTTP 代理）后，这些请求会走代理；FRED/Yahoo/gold-api/Supabase 仍直连。
 > 金价历史来自 Yahoo Finance（GC=F），无需本地文件。失败时可在 Actions 页面查看 `sync-logs` 产物日志。
+
+#### 在 1Panel 服务器搭 tinyproxy（供国内数据源回源）
+
+在服务器上执行 `sync/setup_tinyproxy.sh`（需 root/sudo，默认监听 0.0.0.0:8888），并放行 TCP 8888。
+
+```bash
+# 可选：带 BasicAuth（更安全，防止被滥用）
+PROXY_USER=invest PROXY_PASSWORD='<strong-password>' bash sync/setup_tinyproxy.sh
+```
+
+- 代理地址：`http://4fu1768rz202.vicp.fun:8888`（改脚本里的域名即可）
+- 验证：`curl -x http://4fu1768rz202.vicp.fun:8888 https://api.stlouisfed.org -I`
+- 域名是动态公网 IP 的 DDNS，GitHub runner 需能正常解析；若解析失败，请改用固定 IP
 
 ---
 

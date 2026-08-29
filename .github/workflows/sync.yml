@@ -19,6 +19,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      CN_HTTP_PROXY: ${{ secrets.CN_HTTP_PROXY }}
 
     steps:
       - name: Checkout repository
@@ -36,6 +37,18 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Network diagnostics
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "== CN_HTTP_PROXY == ${CN_HTTP_PROXY:-<未设置>}"
+          if [ -n "$CN_HTTP_PROXY" ]; then
+            echo "== 通过代理测试国内数据源 (eastmoney) =="
+            curl -x "$CN_HTTP_PROXY" -sS -m 15 -o /dev/null -w "proxy eastmoney http_code=%{http_code}\n" https://push2.eastmoney.com || echo "代理访问 eastmoney 失败"
+          fi
+          echo "== 直连测试 FRED =="
+          curl -sS -m 15 -o /dev/null -w "fred http_code=%{http_code}\n" https://api.stlouisfed.org || echo "FRED 直连失败"
 
       - name: Run data sync (--group daily)
         working-directory: sync

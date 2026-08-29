@@ -322,13 +322,49 @@ def with_retry(fn, *args, timeout=30, max_retry=4, **kwargs):
     raise last_err if last_err else RuntimeError("未知错误")
 
 
-# ============== 中国脚本代理清理 ==============
+# ============== 中国脚本代理 ==============
+# 直连白名单：FRED / Yahoo / gold-api / Supabase 池化 / 本地
+DIRECT_HOSTS = (
+    "stlouisfed.org", "yahoo.com", "gold-api.com",
+    "pooler.supabase.com", "supabase.co",
+    "localhost", "127.0.0.1",
+)
+
+
+def _setup_cn_proxy():
+    """配置中国数据源代理。
+
+    当环境变量 CN_HTTP_PROXY（或 HTTP_PROXY/HTTPS_PROXY）存在时，把 akshare 等
+    拉取国内数据源的请求走代理；FRED/Yahoo/gold-api/Supabase 等保持直连（NO_PROXY）。
+    GitHub Actions 等海外 runner 无国内直连路由，需借助可回国的代理。
+    """
+    proxy = os.environ.get("CN_HTTP_PROXY") or os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+    if not proxy:
+        return None
+    # 归一化：保证 protocol://host:port
+    if "://" not in proxy:
+        proxy = "http://" + proxy
+    os.environ["HTTP_PROXY"] = proxy
+    os.environ["HTTPS_PROXY"] = proxy
+    os.environ["http_proxy"] = proxy
+    os.environ["https_proxy"] = proxy
+    os.environ["NO_PROXY"] = ",".join(DIRECT_HOSTS)
+    os.environ["no_proxy"] = ",".join(DIRECT_HOSTS)
+    return proxy
+
+
 def patch_cn_proxy():
-    """清空系统代理并伪装浏览器请求，用于中国数据源脚本。"""
-    for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
-        os.environ.pop(_k, None)
-    os.environ["NO_PROXY"] = "*"
-    os.environ["no_proxy"] = "*"
+    """配置代理并伪装浏览器请求，用于中国数据源脚本。
+
+    - 若配置了 CN_HTTP_PROXY / HTTP_PROXY：国内数据源走代理，FRED/Yahoo 等直连。
+    - 否则（本地/境内服务器）：清空系统代理，走直连。
+    """
+    proxy = _setup_cn_proxy()
+    if not proxy:
+        for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
+            os.environ.pop(_k, None)
+        os.environ["NO_PROXY"] = "*"
+        os.environ["no_proxy"] = "*"
 
     try:
         import requests as _req
@@ -355,13 +391,22 @@ def patch_cn_proxy():
         _orig_post = _req.post
         _orig_session_cls = _req.Session
 
+        # 注入代理：requests 未显式传 proxies 时使用环境代理
+        def _proxy_dict():
+            return ({
+                "http": proxy,
+                "https": proxy,
+            } if proxy else None)
+
         def _patched_get(url, params=None, headers=None, proxies=None, timeout=None, **kwargs):
             h = dict(_DEFAULT_HEADERS)
             if headers:
                 h.update(headers)
             if timeout is None:
                 timeout = (10, 20)
-            return _orig_get(url, params=params, headers=h, proxies=proxies or {}, timeout=timeout, **kwargs)
+            if proxies is None:
+                proxies = _proxy_dict()
+            return _orig_get(url, params=params, headers=h, proxies=proxies, timeout=timeout, **kwargs)
 
         def _patched_post(url, data=None, headers=None, proxies=None, timeout=None, **kwargs):
             h = dict(_DEFAULT_HEADERS)
@@ -369,7 +414,9 @@ def patch_cn_proxy():
                 h.update(headers)
             if timeout is None:
                 timeout = (10, 20)
-            return _orig_post(url, data=data, headers=h, proxies=proxies or {}, timeout=timeout, **kwargs)
+            if proxies is None:
+                proxies = _proxy_dict()
+            return _orig_post(url, data=data, headers=h, proxies=proxies, timeout=timeout, **kwargs)
 
         _req.get = _patched_get
         _req.post = _patched_post
@@ -378,6 +425,8 @@ def patch_cn_proxy():
             try:
                 s = _orig_session_cls(*args, **kwargs)
                 s.headers.update(_DEFAULT_HEADERS)
+                if proxy:
+                    s.proxies.update({"http": proxy, "https": proxy})
                 if _HAS_RETRY:
                     retry = _Retry(total=2, backoff_factor=0.5,
                                    status_forcelist=(429, 500, 502, 503, 504),
