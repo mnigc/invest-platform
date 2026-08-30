@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless'
+import { Pool } from '@neondatabase/serverless'
 
 const env = import.meta.env
 
@@ -6,16 +6,16 @@ if (!env.DATABASE_URL) {
   console.warn('[DB] Missing DATABASE_URL env var. Set it in .env')
 }
 
-let _sql: any = null
+let _pool: Pool | null = null
 
-function getSql(): any {
-  if (!_sql) {
+function getPool(): Pool {
+  if (!_pool) {
     if (!env.DATABASE_URL) {
       throw new Error('Database not configured: set DATABASE_URL env var')
     }
-    _sql = neon(env.DATABASE_URL)
+    _pool = new Pool({ connectionString: env.DATABASE_URL })
   }
-  return _sql
+  return _pool
 }
 
 // ── MySQL → PostgreSQL 兼容层 ──
@@ -54,10 +54,10 @@ function prepareSql(sqlStr: string): string {
 }
 
 export async function query<T = any>(sqlStr: string, values?: any[]): Promise<T[]> {
-  const client = getSql()
+  const pool = getPool()
   const prepared = prepareSql(sqlStr)
-  const rows: T[] = await client(prepared, values ?? [])
-  return rows
+  const result = await pool.query(prepared, values ?? [])
+  return result.rows as T[]
 }
 
 export async function queryOne<T = any>(sqlStr: string, values?: any[]): Promise<T | null> {
@@ -66,8 +66,8 @@ export async function queryOne<T = any>(sqlStr: string, values?: any[]): Promise
 }
 
 export async function execute(sqlStr: string, values?: any[]): Promise<{ rowCount: number }> {
-  const client = getSql()
+  const pool = getPool()
   const prepared = prepareSql(sqlStr)
-  const rows: any[] = await client(prepared, values ?? [])
-  return { rowCount: rows.length }
+  const result = await pool.query(prepared, values ?? [])
+  return { rowCount: result.rowCount ?? 0 }
 }
