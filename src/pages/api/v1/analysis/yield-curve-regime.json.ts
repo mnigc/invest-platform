@@ -185,42 +185,42 @@ export const GET = withCache(async () => {
         SELECT period_date, value FROM indicator_data d
         JOIN indicators i ON i.id = d.indicator_id
         WHERE i.code = 'T10Y2Y' AND i.region = 'US' AND d.value IS NOT NULL
-        ORDER BY period_date ASC
+        ORDER BY period_date DESC
         LIMIT $1
-      `, [horizon]),
+      `, [horizon]).then(r => r.reverse()),
       safeQuery(`
         SELECT period_date, value FROM indicator_data d
         JOIN indicators i ON i.id = d.indicator_id
         WHERE i.code = 'DGS2' AND i.region = 'US' AND d.value IS NOT NULL
-        ORDER BY period_date ASC
+        ORDER BY period_date DESC
         LIMIT $1
-      `, [horizon]),
+      `, [horizon]).then(r => r.reverse()),
       safeQuery(`
         SELECT period_date, value FROM indicator_data d
         JOIN indicators i ON i.id = d.indicator_id
         WHERE i.code = 'DGS10' AND i.region = 'US' AND d.value IS NOT NULL
-        ORDER BY period_date ASC
+        ORDER BY period_date DESC
         LIMIT $1
-      `, [horizon]),
+      `, [horizon]).then(r => r.reverse()),
       safeQuery(`
         SELECT period_date, value FROM indicator_data d
         JOIN indicators i ON i.id = d.indicator_id
         WHERE i.code = 'DGS3MO' AND i.region = 'US' AND d.value IS NOT NULL
-        ORDER BY period_date ASC
+        ORDER BY period_date DESC
         LIMIT $1
-      `, [horizon]),
+      `, [horizon]).then(r => r.reverse()),
       safeQuery(`
         SELECT trade_date, close_price FROM asset_prices p
         JOIN assets a ON a.id = p.asset_id
         WHERE a.symbol = '^GSPC' AND p.close_price IS NOT NULL
-        ORDER BY trade_date ASC
+        ORDER BY trade_date DESC
         LIMIT $1
-      `, [horizon]),
+      `, [horizon]).then(r => r.reverse()),
       safeQuery(`
         SELECT snapshot_date, regime FROM regime_snapshots
-        ORDER BY snapshot_date ASC
+        ORDER BY snapshot_date DESC
         LIMIT $1
-      `, [horizon]),
+      `, [horizon]).then(r => r.reverse()),
     ])
 
     const spreadHistory: Curve形态[] = spreadRows.map((r: Record<string, any>) => ({
