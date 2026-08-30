@@ -352,7 +352,10 @@ async function handleAnomalies(): Promise<Response> {
 
 async function handleBacktest(url: URL): Promise<Response> {
   try {
-    const startDate = url.searchParams.get('startDate') || '2010-01-01'
+    // 默认回测最近 10 年（避免逐月查询过慢）
+    const defaultStart = new Date()
+    defaultStart.setFullYear(defaultStart.getFullYear() - 10)
+    const startDate = url.searchParams.get('startDate') || defaultStart.toISOString().slice(0, 10)
     const endDate = url.searchParams.get('endDate') || new Date().toISOString().slice(0, 10)
 
     const prices = await query<any>(
