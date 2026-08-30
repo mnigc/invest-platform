@@ -1,0 +1,50 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { RegimeDetailDashboard } from '../../components/signals/RegimeDetailDashboard'
+---
+
+<Layout title="宏观体制 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="宏观体制研判"
+      subtitle="CFNAI · CPI · 联邦利率 · VIX · 信用利差 · 收益率曲线 · 实时体制判定与历史回测"
+      breadcrumb={[
+        { label: '首页', href: '/' },
+        { label: '信号分析' },
+        { label: '宏观体制' },
+      ]}
+    />
+
+    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
+      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+      <p class="my-1.5">
+        <strong class="text-ink">宏观体制</strong>是经济所处周期阶段的综合判断。不同体制下资产表现截然不同：金发女孩环境利好股票，滞胀环境利好实物资产，风险规避环境利好国债和黄金。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">CFNAI（芝加哥联储全国活动指数）</strong> — 衡量经济增长动能。高于零为扩张，低于 -0.7 为衰退信号。
+        </li>
+        <li>
+          <strong class="text-ink">CPI 同比</strong> — 通胀温度计。低于 3% 受控，3-5% 偏高，高于 5% 严重。
+        </li>
+        <li>
+          <strong class="text-ink">VIX 波动率</strong> — 市场恐慌指标。低于 20 平静，20-30 偏高，高于 30 恐慌。
+        </li>
+        <li>
+          <strong class="text-ink">BBB 信用利差</strong> — 信用市场压力。低于 1.5% 宽松，高于 2.5% 紧张。
+        </li>
+        <li>
+          <strong class="text-ink">10Y-2Y 期限利差</strong> — 衰退前瞻指标。深度倒挂（小于 -0.5%）为历史衰退信号。
+        </li>
+      </ul>
+      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
+        <strong class="text-ink">综合判定：</strong>各指标评分加权后，通过决策树映射到六大体制之一（金发女孩/风险偏好/过热/滞胀/风险规避/复苏）。
+      </p>
+    </section>
+
+    <RegimeDetailDashboard client:load />
+  </div>
+</Layout>

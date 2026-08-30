@@ -109,6 +109,7 @@ export interface RegimeSignal {
   value: number | string
   score: -1 | 0 | 1
   detail?: string
+  sparkline?: { date: string; value: number }[]
 }
 
 export interface RegimeResponse {

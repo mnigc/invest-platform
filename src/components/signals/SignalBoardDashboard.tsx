@@ -207,7 +207,7 @@ export function SignalBoardDashboard() {
                 (s: any) =>
                   `${s.name}: ${s.value}（${s.score === 1 ? '利好' : s.score === -1 ? '利空' : '中性'}）`,
               ),
-            link: '/signal-board',
+            link: '/signals/regime',
           })
         }
 
@@ -225,7 +225,7 @@ export function SignalBoardDashboard() {
             evidence: (a.anomalies || [])
               .slice(0, 5)
               .map((x: any) => `${x.title}: ${x.description}`),
-            link: '/signal-board',
+            link: '/signals/regime#anomalies',
           })
         }
 

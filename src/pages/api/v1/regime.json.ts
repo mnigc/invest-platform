@@ -12,6 +12,13 @@ const SIGNAL_NAMES: Record<string, string> = {
   sp500Pe: 'SP500 市盈率', erp: '股权风险溢价', slope: '期限利差 (10Y-2Y)',
 }
 
+// 指标代码到 FRED code 的映射（用于查询历史数据）
+const INDICATOR_CODE_MAP: Record<string, string> = {
+  cfnai: 'CFNAI', cpi: 'CPI', fedfunds: 'FEDFUNDS',
+  dgs10: 'DGS10', dgs2: 'DGS2', t10yie: 'T10YIE',
+  vix: 'VIXCLS', bbb: 'BAMLC0A4CBBB', dfii10: 'DFII10',
+}
+
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
@@ -27,6 +34,24 @@ async function valAtDate(code: string, asOf: string, region: string = 'US'): Pro
     )
     return row ? Number(row.value) : null
   } catch { return null }
+}
+
+async function sparklineData(code: string, months: number = 12): Promise<{ date: string; value: number }[]> {
+  try {
+    const fredCode = INDICATOR_CODE_MAP[code]
+    if (!fredCode) return []
+    const rows = await query<any>(
+      `SELECT d.period_date, d.value FROM indicator_data d
+       JOIN indicators i ON i.id = d.indicator_id
+       WHERE i.code = ? AND i.region = 'US' AND d.value IS NOT NULL
+       ORDER BY d.period_date DESC LIMIT ?`,
+      [fredCode, months]
+    )
+    return rows.reverse().map((r: any) => ({
+      date: String(r.period_date).slice(0, 10),
+      value: Number(r.value),
+    }))
+  } catch { return [] }
 }
 
 async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
@@ -95,6 +120,17 @@ async function detectRegime(asOf?: string) {
   const bbb = await valAtDate('BAMLC0A4CBBB', asOfDate, 'US')
   const dfii10 = await valAtDate('DFII10', asOfDate, 'US')
 
+  // 并行获取所有指标的走势数据（12个月）
+  const [sparkCfnai, sparkCpi, sparkFedfunds, sparkT10yie, sparkVix, sparkBbb, sparkDfii10] = await Promise.all([
+    sparklineData('cfnai', 12),
+    sparklineData('cpi', 12),
+    sparklineData('fedfunds', 12),
+    sparklineData('t10yie', 12),
+    sparklineData('vix', 12),
+    sparklineData('bbb', 12),
+    sparklineData('dfii10', 12),
+  ])
+
   const f = (v: number | null, fallback: number) => v ?? fallback
   const gCfnai = f(cfnai, 0.05)
   const gCpi = f(cpi, 3.0)
@@ -109,29 +145,29 @@ async function detectRegime(asOf?: string) {
 
   // 用 code 作为 key，与 decideRegime 中的查找键一致
   const signalMap = new Map<string, RegimeSignal>()
-  const sig = (code: string, val: number | string, score: -1 | 0 | 1, detail?: string): RegimeSignal => {
-    const s: RegimeSignal = { name: SIGNAL_NAMES[code] || code, value: val, score, detail }
+  const sig = (code: string, val: number | string, score: -1 | 0 | 1, detail?: string, sparkline?: { date: string; value: number }[]): RegimeSignal => {
+    const s: RegimeSignal = { name: SIGNAL_NAMES[code] || code, value: val, score, detail, sparkline }
     signalMap.set(code, s)
     return s
   }
 
   const signals: RegimeSignal[] = [
     sig('cfnai', gCfnai.toFixed(3), gCfnai > 0 ? 1 : gCfnai < -0.5 ? -1 : 0,
-      gCfnai > 0 ? '高于零，经济扩张' : '低于零，经济收缩'),
+      gCfnai > 0 ? '高于零，经济扩张' : '低于零，经济收缩', sparkCfnai),
     sig('cpi', `${gCpi.toFixed(1)}%`, gCpi < 3 ? 1 : gCpi < 5 ? 0 : -1,
-      gCpi < 3 ? '通胀受控' : gCpi < 5 ? '通胀偏高' : '通胀严重'),
+      gCpi < 3 ? '通胀受控' : gCpi < 5 ? '通胀偏高' : '通胀严重', sparkCpi),
     sig('fedfunds', `${gFedfunds.toFixed(2)}%`, gFedfunds > 5 ? 0 : gFedfunds > 2 ? 1 : gFedfunds > 0 ? 0 : -1,
-      gFedfunds > 5 ? '紧缩周期' : '正常或宽松'),
+      gFedfunds > 5 ? '紧缩周期' : '正常或宽松', sparkFedfunds),
     sig('t10yie', `${gT10yie.toFixed(2)}%`, gT10yie < 2.5 ? 1 : gT10yie < 3.5 ? 0 : -1,
-      gT10yie < 2.5 ? '通胀预期温和' : '通胀预期偏高'),
+      gT10yie < 2.5 ? '通胀预期温和' : '通胀预期偏高', sparkT10yie),
     sig('vix', gVix.toFixed(2), gVix < 20 ? 1 : gVix < 30 ? 0 : -1,
-      gVix < 20 ? '低波动，市场平静' : gVix < 30 ? '波动偏高' : '恐慌水平'),
+      gVix < 20 ? '低波动，市场平静' : gVix < 30 ? '波动偏高' : '恐慌水平', sparkVix),
     sig('bbb', `${gBbb.toFixed(2)}%`, gBbb < 1.5 ? 1 : gBbb < 2.5 ? 0 : -1,
-      gBbb < 1.5 ? '信用市场宽松' : gBbb < 2.5 ? '信用正常' : '信用紧张'),
+      gBbb < 1.5 ? '信用市场宽松' : gBbb < 2.5 ? '信用正常' : '信用紧张', sparkBbb),
     sig('slope', `${slope.toFixed(2)}%`, slope > 0 ? 1 : slope > -0.5 ? 0 : -1,
       slope > 0 ? '曲线正常陡峭' : slope > -0.5 ? '平坦' : '深度倒挂，衰退信号'),
     sig('dfii10', `${gDfii10.toFixed(2)}%`, gDfii10 < 2 ? 1 : gDfii10 < 3 ? 0 : -1,
-      gDfii10 < 2 ? '实际利率偏低，流动性宽松' : '实际利率偏高'),
+      gDfii10 < 2 ? '实际利率偏低，流动性宽松' : '实际利率偏高', sparkDfii10),
   ]
 
   const { regime, score } = decideRegime(signalMap)
