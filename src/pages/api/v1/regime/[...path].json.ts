@@ -2,6 +2,7 @@ export const prerender = false
 
 import type { APIRoute } from 'astro'
 import { query, queryOne } from '../../../../lib/db'
+import { toDateStr } from '../../../../lib/date'
 import type { Anomaly, AnomalyResponse, BacktestSnapshot, BacktestSummary, BacktestResponse, RegimeType, RegimeSignal } from '../../../../lib/core'
 
 const SIGNAL_NAMES: Record<string, string> = {
@@ -378,7 +379,7 @@ async function handleBacktest(url: URL): Promise<Response> {
     }
 
     const priceMap = new Map<string, number>()
-    prices.forEach((p: any) => priceMap.set(p.trade_date.toISOString().slice(0, 10), Number(p.close_price)))
+    prices.forEach((p: any) => priceMap.set(toDateStr(p.trade_date), Number(p.close_price)))
     const sortedDates = [...priceMap.keys()].sort()
 
     function priceAt(date: string): number | null {

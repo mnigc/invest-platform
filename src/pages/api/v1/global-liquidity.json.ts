@@ -2,6 +2,7 @@ export const prerender = false;
 
 import { query } from '../../../lib/db';
 import { withCache } from '../../../lib/cache';
+import { toDateStr } from '../../../lib/date';
 import type { GlobalLiquidityResponse, LiquiditySeries, LiquidityIndicatorCode } from '../../../lib/core';
 
 const CODES: { code: LiquidityIndicatorCode; zh: string; en: string }[] = [
@@ -23,7 +24,7 @@ async function loadSeries(code: string, limitDays = 1825): Promise<{ date: strin
     [code, limitDays]
   );
   return rows
-    .map((r: any) => ({ date: String(r.period_date).slice(0, 10), value: Number(r.value) }))
+    .map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
     .reverse();
 }
 

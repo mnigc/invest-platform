@@ -3,6 +3,7 @@ export const prerender = false
 import type { APIRoute } from 'astro'
 import { query } from '../../../../lib/db'
 import { withCache } from '../../../../lib/cache'
+import { toDateStr } from '../../../../lib/date'
 import {
   type SeriesPoint, corr, rollingCorr, logReturns, alignByDate,
   zScore, percentileRank, eventStudy, type SignalStrength,
@@ -156,10 +157,10 @@ export const GET = withCache(async () => {
       ORDER BY d.period_date ASC`),
   ])
 
-  const goldZ: SeriesPoint[] = goldRows.map((r: any) => ({ date: String(r.price_date).slice(0, 10), value: Number(r.close_price) }))
-  const dxyZ: SeriesPoint[] = dxyRows.map((r: any) => ({ date: String(r.trade_date).slice(0, 10), value: Number(r.close_price) }))
-  const dfiiZ: SeriesPoint[] = dfiiRows.map((r: any) => ({ date: String(r.period_date).slice(0, 10), value: Number(r.value) }))
-  const t10yieZ: SeriesPoint[] = t10yieRows.map((r: any) => ({ date: String(r.period_date).slice(0, 10), value: Number(r.value) }))
+  const goldZ: SeriesPoint[] = goldRows.map((r: any) => ({ date: toDateStr(r.price_date), value: Number(r.close_price) }))
+  const dxyZ: SeriesPoint[] = dxyRows.map((r: any) => ({ date: toDateStr(r.trade_date), value: Number(r.close_price) }))
+  const dfiiZ: SeriesPoint[] = dfiiRows.map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
+  const t10yieZ: SeriesPoint[] = t10yieRows.map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
 
   // —— 1. 双轴价格（近 2Y，用于页面对照）——
   const priceChart = alignByDate(goldZ, dxyZ).slice(-520).map(p => ({ date: p.date, gold: +p.a.toFixed(2), dxy: p.b != null ? +p.b.toFixed(2) : null }))
