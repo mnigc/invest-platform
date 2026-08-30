@@ -153,8 +153,8 @@ function SignalCard({ signal }: { signal: RegimeSignal }) {
           {signal.sparkline && signal.sparkline.length > 0 && (
             <Sparkline
               data={signal.sparkline}
-              width={64}
-              height={24}
+              width={120}
+              height={40}
               color={dir === 1 ? '#22c55e' : dir === -1 ? '#ef4444' : '#9ca3af'}
             />
           )}

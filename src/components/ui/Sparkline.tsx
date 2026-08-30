@@ -61,14 +61,14 @@ export function Sparkline({
         d={pathD}
         fill="none"
         stroke={strokeColor}
-        strokeWidth="1.5"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <circle
         cx={padding + chartWidth}
         cy={padding + chartHeight - ((values[values.length - 1] - min) / range) * chartHeight}
-        r="2"
+        r="2.5"
         fill={strokeColor}
       />
     </svg>
