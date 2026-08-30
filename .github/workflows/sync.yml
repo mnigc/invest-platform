@@ -50,6 +50,15 @@ jobs:
         run: python run_sync.py gold_decision
         # 说明：金价历史 + DXY 走 Yahoo，需境外网络，故在 GitHub Actions(海外) 跑。
 
+      - name: "Run sp500 sync (Yahoo Finance)"
+        working-directory: sync
+        run: python run_sync.py sp500
+
+      - name: "Run gold_reserves sync (FRED API)"
+        working-directory: sync
+        run: python run_sync.py gold_reserves
+        # 说明：央行购金数据来自 FRED，需要 FRED_API_KEY
+
       - name: Upload sync logs
         if: always()
         uses: actions/upload-artifact@v4
