@@ -1,2 +1,8 @@
 name = "invest-platform"
 compatibility_date = "2026-08-01"
+main = "src/worker.ts"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "none"
