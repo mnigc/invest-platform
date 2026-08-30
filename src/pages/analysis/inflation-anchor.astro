@@ -1,0 +1,22 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import InflationAnchorDashboard from '../../components/analysis/InflationAnchorDashboard'
+---
+
+<Layout title="通胀预期锚定分析 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="通胀预期锚定分析"
+      subtitle="TIPS隐含通胀率 vs 联储2%目标的偏离分析"
+      breadcrumb={[
+        { label: '首页', href: '/' },
+        { label: '宏观分析' },
+        { label: '通胀预期' },
+      ]}
+    />
+    <InflationAnchorDashboard client:only="react" />
+  </div>
+</Layout>

@@ -1,0 +1,22 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import YieldCurveRegimeDashboard from '../../components/analysis/YieldCurveRegimeDashboard'
+---
+
+<Layout title="收益率曲线 × 宏观体制联动 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="收益率曲线 × 宏观体制联动"
+      subtitle="曲线形态与经济周期的交叉分析"
+      breadcrumb={[
+        { label: '首页', href: '/' },
+        { label: '宏观分析' },
+        { label: '收益率曲线' },
+      ]}
+    />
+    <YieldCurveRegimeDashboard client:only="react" />
+  </div>
+</Layout>

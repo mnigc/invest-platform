@@ -60,18 +60,18 @@ TASKS = {
         "delay": 15,
         "args": [],
     },
-    "gold_reserves": {
-        "name": "全球央行黄金储备变动",
-        "script": "sync_gold_reserves",
-        "group": "daily",
-        "delay": 0,
-        "args": ["--fred"],
-    },
     "regime_backtest": {
         "name": "宏观体制回测（预计算）",
         "script": "sync_regime_backtest",
         "group": "daily",
         "delay": 0,
+        "args": [],
+    },
+    "macro_analysis": {
+        "name": "宏观分析（收益率曲线/通胀预期/信用利差）",
+        "script": "sync_macro_analysis",
+        "group": "daily",
+        "delay": 25,
         "args": [],
     },
 }

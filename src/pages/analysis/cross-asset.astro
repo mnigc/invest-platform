@@ -1,0 +1,22 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import CrossAssetDashboard from '../../components/analysis/CrossAssetDashboard'
+---
+
+<Layout title="跨资产联动矩阵 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="跨资产联动矩阵"
+      subtitle="动态相关性变化检测与分散化分析"
+      breadcrumb={[
+        { label: '首页', href: '/' },
+        { label: '宏观分析' },
+        { label: '跨资产联动' },
+      ]}
+    />
+    <CrossAssetDashboard client:only="react" />
+  </div>
+</Layout>

@@ -1,0 +1,22 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import MacroConsensusDashboard from '../../components/analysis/MacroConsensusDashboard'
+---
+
+<Layout title="宏观信号一致性评分 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="宏观信号一致性评分"
+      subtitle="多维度信号的一致性/分歧度分析"
+      breadcrumb={[
+        { label: '首页', href: '/' },
+        { label: '宏观分析' },
+        { label: '宏观一致性' },
+      ]}
+    />
+    <MacroConsensusDashboard client:only="react" />
+  </div>
+</Layout>
