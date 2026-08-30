@@ -3,7 +3,7 @@ import { Pool } from '@neondatabase/serverless'
 const env = import.meta.env
 
 if (!env.DATABASE_URL) {
-  console.warn('[DB] Missing DATABASE_URL env var. Set it in .env')
+  console.warn('[DB] Missing DATABASE_URL env var. Set it in .env or via `wrangler secret put DATABASE_URL`')
 }
 
 let _pool: Pool | null = null
@@ -18,7 +18,6 @@ function getPool(): Pool {
   return _pool
 }
 
-// ── MySQL → PostgreSQL 兼容层 ──
 function prepareSql(sqlStr: string): string {
   let out = ''
   let idx = 1

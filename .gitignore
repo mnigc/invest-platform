@@ -36,6 +36,10 @@ run_schema.py
 
 .doc/
 
+# Cloudflare
+.dev.vars/
+wrangler.toml.bak
+
 # tooling / session cache
 .kilo/
 .opencode/

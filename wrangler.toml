@@ -1,8 +1,16 @@
 name = "invest-platform"
 compatibility_date = "2026-08-01"
-main = "src/worker.ts"
+compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = "./dist"
-binding = "ASSETS"
-not_found_handling = "none"
+# Cloudflare Pages build output
+pages_build_output_dir = "./dist"
+
+# KV namespace for API response caching
+[[kv_namespaces]]
+binding = "API_CACHE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+
+# Environment variables (secrets set via `wrangler secret put`)
+# DATABASE_URL = "postgresql://..."  (set as secret)
+# FRED_API_KEY = "..."             (set as secret, used by sync scripts)
