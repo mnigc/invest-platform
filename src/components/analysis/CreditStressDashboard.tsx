@@ -8,52 +8,24 @@ import { EmptyState, ErrorState } from '../ui/States'
 import { PageHeader } from '../ui/PageHeader'
 
 interface CreditStressData {
-  creditSpreadHistory: {
-    dates: string[]
-    series: { name: string; rating: string; data: (number | null)[] }[]
+  spreadHistory: { dates: string[]; series: { name: string; data: (number | null)[] }[] }
+  combinedStress: {
+    creditStress: number | null
+    rateStress: number | null
+    combinedIndex: number | null
+    status: string
+    statusDesc: string
   }
-  creditRateStressIndex: {
-    dates: string[]
-    stressIndex: (number | null)[]
-    creditComponent: (number | null)[]
-    rateComponent: (number | null)[]
-  }
-  creditCyclePhase: {
-    currentPhase: string
-    phaseLabel: string
-    phaseDesc: string
-    monthsInPhase: number
-  }
-  forwardReturns: { stressLevel: string; avgReturn1m: number; avgReturn3m: number; avgReturn6m: number; avgReturn12m: number; winRate1m: number; winRate3m: number; winRate6m: number; winRate12m: number; sampleSize: number }[]
-  currentSnapshot: {
-    igSpread: number | null
-    hySpread: number | null
-    aaaSpread: number | null
-    cccSpread: number | null
-    dgs10: number | null
-    dgs2: number | null
-    stressIndex: number | null
-    stressPercentile1y: number | null
-    stressPercentile5y: number | null
-    creditCyclePhase: string
-    signal: string
-    signalDesc: string
-  }
-  signal: {
-    direction: string
-    strength: string
-    confidence: number
-    evidence: string[]
-    counterEvidence: string[]
-  }
+  currentSpread: { bbbSpread: number | null; hyOas: number | null; aaaSpread: number | null; spreadZScore: number | null }
+  rateCreditCorr: number | null
+  signal: { direction: string; strength: string; confidence: number; evidence: string[] }
   updatedAt: string
 }
 
-const SIGNAL_COLORS: Record<string, string> = {
-  low_stress: 'text-green-400',
-  moderate_stress: 'text-yellow-400',
-  high_stress: 'text-orange-400',
-  extreme_stress: 'text-red-400',
+const STATUS_COLORS: Record<string, string> = {
+  normal: 'text-green-400',
+  elevated: 'text-yellow-400',
+  high_stress: 'text-red-400',
 }
 
 const DIRECTION_COLORS: Record<string, string> = {
@@ -69,7 +41,7 @@ export default function CreditStressDashboard() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/v1/analysis/credit-rate-stress.json')
+    fetch('/api/v1/analysis/credit-stress.json')
       .then(r => r.json())
       .then(json => {
         if (cancelled) return
@@ -82,13 +54,13 @@ export default function CreditStressDashboard() {
   }, [])
 
   const spreadOption = useMemo<EChartsOption | null>(() => {
-    if (!data?.creditSpreadHistory) return null
-    const { dates, series } = data.creditSpreadHistory
+    if (!data?.spreadHistory) return null
+    const { dates, series } = data.spreadHistory
     return {
       tooltip: { trigger: 'axis' },
       legend: { data: series.map(s => s.name) },
       xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '利差 (%)' },
+      yAxis: { type: 'value', name: '利差 / 收益率 (%)' },
       series: series.map(s => ({
         name: s.name,
         type: 'line',
@@ -99,134 +71,67 @@ export default function CreditStressDashboard() {
     }
   }, [data])
 
-  const stressOption = useMemo<EChartsOption | null>(() => {
-    if (!data?.creditRateStressIndex) return null
-    const { dates, stressIndex, creditComponent, rateComponent } = data.creditRateStressIndex
-    return {
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['综合压力', '信用压力', '利率压力'] },
-      xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '压力指数 (σ)' },
-      series: [
-        { name: '综合压力', type: 'line', data: stressIndex, smooth: true, lineStyle: { width: 2 } },
-        { name: '信用压力', type: 'line', data: creditComponent, smooth: true },
-        { name: '利率压力', type: 'line', data: rateComponent, smooth: true },
-      ],
-      dataZoom: [{ type: 'slider', start: 70, end: 100 }],
-    }
-  }, [data])
-
   if (isLoading) return <LoadingSkeleton />
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const signalClass = SIGNAL_COLORS[data.currentSnapshot.signal] || 'text-yellow-400'
+  const statusClass = STATUS_COLORS[data.combinedStress.status] || 'text-yellow-400'
   const directionClass = DIRECTION_COLORS[data.signal.direction] || 'text-yellow-400'
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="信用-利率交叉压力分析"
-        subtitle="利差扩张 × 利率下行 = 衰退信号"
-        actions={<DataFreshness />}
-      />
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatTile
-          label="IG (BBB) 利差"
-          value={data.currentSnapshot.igSpread != null ? `${data.currentSnapshot.igSpread.toFixed(2)}%` : '--'}
+          label="BBB信用利差"
+          value={data.currentSpread.bbbSpread != null ? `${data.currentSpread.bbbSpread.toFixed(2)}%` : '--'}
         />
         <StatTile
-          label="HY 利差"
-          value={data.currentSnapshot.hySpread != null ? `${data.currentSnapshot.hySpread.toFixed(2)}%` : '--'}
+          label="HY OAS"
+          value={data.currentSpread.hyOas != null ? `${data.currentSpread.hyOas.toFixed(2)}%` : '--'}
         />
         <StatTile
-          label="10Y 收益率"
-          value={data.currentSnapshot.dgs10 != null ? `${data.currentSnapshot.dgs10.toFixed(2)}%` : '--'}
+          label="AAA利差"
+          value={data.currentSpread.aaaSpread != null ? `${data.currentSpread.aaaSpread.toFixed(2)}%` : '--'}
         />
         <StatTile
-          label="压力指数"
-          value={data.currentSnapshot.stressIndex != null ? `${data.currentSnapshot.stressIndex.toFixed(2)}σ` : '--'}
-          className={signalClass}
+          label="利差Z-Score"
+          value={data.currentSpread.spreadZScore != null ? data.currentSpread.spreadZScore.toFixed(2) : '--'}
+          className={data.currentSpread.spreadZScore != null && Math.abs(data.currentSpread.spreadZScore) > 1 ? 'text-yellow-400' : ''}
         />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatTile
-          label="压力 1年分位"
-          value={data.currentSnapshot.stressPercentile1y != null ? `${data.currentSnapshot.stressPercentile1y.toFixed(0)}%` : '--'}
+          label="信用压力指数"
+          value={data.combinedStress.creditStress != null ? data.combinedStress.creditStress.toFixed(3) : '--'}
         />
         <StatTile
-          label="压力 5年分位"
-          value={data.currentSnapshot.stressPercentile5y != null ? `${data.currentSnapshot.stressPercentile5y.toFixed(0)}%` : '--'}
+          label="利率压力指数"
+          value={data.combinedStress.rateStress != null ? data.combinedStress.rateStress.toFixed(3) : '--'}
         />
         <StatTile
-          label="信用周期"
-          value={data.creditCyclePhase.phaseLabel}
+          label="复合压力指数"
+          value={data.combinedStress.combinedIndex != null ? data.combinedStress.combinedIndex.toFixed(3) : '--'}
         />
         <StatTile
-          label="周期月数"
-          value={`${data.creditCyclePhase.monthsInPhase}`}
+          label="信用-利率相关性"
+          value={data.rateCreditCorr != null ? data.rateCreditCorr.toFixed(3) : '--'}
         />
       </div>
 
-      <div className={`p-4 rounded-lg border ${signalClass} bg-opacity-10`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
+      <div className={`p-4 rounded-lg border ${statusClass}`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
         <div className="flex items-center justify-between">
           <div>
-            <div className={`font-semibold ${signalClass}`}>{data.currentSnapshot.signal.replace('_', ' ').toUpperCase()}</div>
-            <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>{data.currentSnapshot.signalDesc}</div>
+            <div className={`font-semibold ${statusClass}`}>{data.combinedStress.status.toUpperCase()}</div>
+            <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>{data.combinedStress.statusDesc}</div>
           </div>
-          <div className={`font-semibold ${directionClass}`}>{data.signal.direction.replace('_', ' ').toUpperCase()}</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>信用利差走势</h3>
-          <ChartBox option={spreadOption} height={300} />
-        </div>
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>信用-利率压力指数</h3>
-          <ChartBox option={stressOption} height={300} />
+          <div className={`font-semibold ${directionClass}`}>{data.signal.direction.toUpperCase()}</div>
         </div>
       </div>
 
       <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>不同压力水平的前瞻收益</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                <th className="text-left py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>压力水平</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>1月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>3月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>6月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>12月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>样本数</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.forwardReturns.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                  <td className="py-2 px-3" style={{ color: 'rgb(var(--c-text))' }}>{row.stressLevel}</td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn1m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn1m.toFixed(2)}%
-                  </td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn3m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn3m.toFixed(2)}%
-                  </td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn6m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn6m.toFixed(2)}%
-                  </td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn12m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn12m.toFixed(2)}%
-                  </td>
-                  <td className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>{row.sampleSize}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>信用利差 vs 国债收益率</h3>
+        <ChartBox option={spreadOption} height={350} />
       </div>
 
       <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
@@ -237,6 +142,9 @@ export default function CreditStressDashboard() {
               {e}
             </div>
           ))}
+          {data.signal.evidence.length === 0 && (
+            <div className="text-sm py-2" style={{ color: 'rgb(var(--c-text-3))' }}>暂无显著信号</div>
+          )}
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ import { EmptyState, ErrorState } from '../ui/States'
 import { PageHeader } from '../ui/PageHeader'
 
 interface MacroConsensusData {
-  signals: { id: string; name: string; category: string; value: number | null; normalizedValue: number | null; direction: string; weight: number; confidence: number }[]
+  signals: { id: string; name: string; category: string; current: number | null; zScore: number | null; direction: string; weight: number }[]
   consensusScore: {
     overall: number | null
     growth: number | null
@@ -19,61 +19,26 @@ interface MacroConsensusData {
     strength: string
     confidence: number
   }
-  divergenceAnalysis: {
-    currentDivergence: number | null
-    divergenceLevel: string
-    divergenceDesc: string
-    divergentSignals: { signal1: string; signal2: string; divergence: number }[]
-  }
-  regimeAlignment: {
-    currentRegime: string
-    regimeLabel: string
-    alignmentScore: number
-    alignmentDesc: string
-    misalignedSignals: string[]
-  }
   historicalConsensus: {
     dates: string[]
     overall: (number | null)[]
-    growth: (number | null)[]
+    liquidity: (number | null)[]
     inflation: (number | null)[]
     risk: (number | null)[]
-    liquidity: (number | null)[]
-  }
-  currentSnapshot: {
-    overallScore: number | null
-    growthScore: number | null
-    inflationScore: number | null
-    riskScore: number | null
-    liquidityScore: number | null
-    signalCount: number
-    bullishCount: number
-    bearishCount: number
-    neutralCount: number
   }
   signal: {
     direction: string
     strength: string
     confidence: number
     evidence: string[]
-    counterEvidence: string[]
-    recommendedAction: string
   }
   updatedAt: string
 }
 
 const DIRECTION_COLORS: Record<string, string> = {
-  conviction_buy: 'text-green-500',
-  buy: 'text-green-400',
+  bullish: 'text-green-400',
+  bearish: 'text-red-400',
   neutral: 'text-yellow-400',
-  sell: 'text-red-400',
-  conviction_sell: 'text-red-500',
-}
-
-const SIGNAL_DIRECTION_COLORS: Record<string, string> = {
-  positive: 'text-green-400',
-  negative: 'text-red-400',
-  neutral: 'text-gray-400',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -81,11 +46,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   inflation: 'text-orange-400',
   risk: 'text-red-400',
   liquidity: 'text-purple-400',
-}
-
-function getBarWidth(value: number): string {
-  const width = Math.abs(value) * 100
-  return `${Math.min(100, width)}%`
 }
 
 export default function MacroConsensusDashboard() {
@@ -109,18 +69,17 @@ export default function MacroConsensusDashboard() {
 
   const historicalOption = useMemo<EChartsOption | null>(() => {
     if (!data?.historicalConsensus) return null
-    const { dates, overall, growth, inflation, risk, liquidity } = data.historicalConsensus
+    const { dates, overall, liquidity, inflation, risk } = data.historicalConsensus
     return {
       tooltip: { trigger: 'axis' },
-      legend: { data: ['综合', '增长', '通胀', '风险', '流动性'] },
+      legend: { data: ['综合', '流动性', '通胀', '风险'] },
       xAxis: { type: 'category', data: dates },
       yAxis: { type: 'value', name: '得分' },
       series: [
         { name: '综合', type: 'line', data: overall, smooth: true, lineStyle: { width: 2 } },
-        { name: '增长', type: 'line', data: growth, smooth: true },
+        { name: '流动性', type: 'line', data: liquidity, smooth: true },
         { name: '通胀', type: 'line', data: inflation, smooth: true },
         { name: '风险', type: 'line', data: risk, smooth: true },
-        { name: '流动性', type: 'line', data: liquidity, smooth: true },
       ],
       dataZoom: [{ type: 'slider', start: 70, end: 100 }],
     }
@@ -134,197 +93,77 @@ export default function MacroConsensusDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="宏观信号一致性评分"
-        subtitle="多维度信号的一致性/分歧度分析"
-        actions={<DataFreshness />}
-      />
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatTile
-          label="综合得分"
-          value={data.currentSnapshot.overallScore != null ? `${data.currentSnapshot.overallScore.toFixed(3)}` : '--'}
+          label="综合评分"
+          value={data.consensusScore.overall != null ? `${data.consensusScore.overall}` : '--'}
           className={directionClass}
         />
         <StatTile
-          label="分歧度"
-          value={data.divergenceAnalysis.currentDivergence != null ? `${data.divergenceAnalysis.currentDivergence.toFixed(3)}` : '--'}
+          label="增长维度"
+          value={data.consensusScore.growth != null ? `${data.consensusScore.growth}` : '--'}
+          className={CATEGORY_COLORS.growth}
         />
         <StatTile
-          label="看涨信号"
-          value={`${data.currentSnapshot.bullishCount}`}
-          className="text-green-400"
+          label="通胀维度"
+          value={data.consensusScore.inflation != null ? `${data.consensusScore.inflation}` : '--'}
+          className={CATEGORY_COLORS.inflation}
         />
         <StatTile
-          label="看跌信号"
-          value={`${data.currentSnapshot.bearishCount}`}
-          className="text-red-400"
+          label="风险维度"
+          value={data.consensusScore.risk != null ? `${data.consensusScore.risk}` : '--'}
+          className={CATEGORY_COLORS.risk}
         />
       </div>
 
-      <div className={`p-4 rounded-lg border ${directionClass} bg-opacity-10`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
+      <div className={`p-4 rounded-lg border ${directionClass}`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
         <div className="flex items-center justify-between">
           <div>
-            <div className={`font-semibold ${directionClass}`}>{data.signal.direction.replace('_', ' ').toUpperCase()}</div>
-            <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>{data.signal.recommendedAction}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm" style={{ color: 'rgb(var(--c-text-2))' }}>置信度</div>
-            <div className={`font-semibold ${directionClass}`}>{data.signal.confidence}%</div>
+            <div className={`font-semibold ${directionClass}`}>{data.consensusScore.direction.toUpperCase()}</div>
+            <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>信号强度: {data.consensusScore.strength} | 置信度: {data.consensusScore.confidence}%</div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>维度得分</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span className="text-sm" style={{ color: 'rgb(var(--c-text-2))' }}>增长</span>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${data.currentSnapshot.growthScore != null && data.currentSnapshot.growthScore > 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                    style={{ width: getBarWidth(data.currentSnapshot.growthScore ?? 0), marginLeft: data.currentSnapshot.growthScore != null && data.currentSnapshot.growthScore < 0 ? 'auto' : 0 }}
-                  />
-                </div>
-                <span className={`text-sm font-mono ${data.currentSnapshot.growthScore != null && data.currentSnapshot.growthScore > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.currentSnapshot.growthScore != null ? data.currentSnapshot.growthScore.toFixed(3) : '--'}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span className="text-sm" style={{ color: 'rgb(var(--c-text-2))' }}>通胀</span>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${data.currentSnapshot.inflationScore != null && data.currentSnapshot.inflationScore > 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                    style={{ width: getBarWidth(data.currentSnapshot.inflationScore ?? 0), marginLeft: data.currentSnapshot.inflationScore != null && data.currentSnapshot.inflationScore < 0 ? 'auto' : 0 }}
-                  />
-                </div>
-                <span className={`text-sm font-mono ${data.currentSnapshot.inflationScore != null && data.currentSnapshot.inflationScore > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.currentSnapshot.inflationScore != null ? data.currentSnapshot.inflationScore.toFixed(3) : '--'}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span className="text-sm" style={{ color: 'rgb(var(--c-text-2))' }}>风险</span>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${data.currentSnapshot.riskScore != null && data.currentSnapshot.riskScore > 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                    style={{ width: getBarWidth(data.currentSnapshot.riskScore ?? 0), marginLeft: data.currentSnapshot.riskScore != null && data.currentSnapshot.riskScore < 0 ? 'auto' : 0 }}
-                  />
-                </div>
-                <span className={`text-sm font-mono ${data.currentSnapshot.riskScore != null && data.currentSnapshot.riskScore > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.currentSnapshot.riskScore != null ? data.currentSnapshot.riskScore.toFixed(3) : '--'}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: 'rgb(var(--c-text-2))' }}>流动性</span>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${data.currentSnapshot.liquidityScore != null && data.currentSnapshot.liquidityScore > 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                    style={{ width: getBarWidth(data.currentSnapshot.liquidityScore ?? 0), marginLeft: data.currentSnapshot.liquidityScore != null && data.currentSnapshot.liquidityScore < 0 ? 'auto' : 0 }}
-                  />
-                </div>
-                <span className={`text-sm font-mono ${data.currentSnapshot.liquidityScore != null && data.currentSnapshot.liquidityScore > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.currentSnapshot.liquidityScore != null ? data.currentSnapshot.liquidityScore.toFixed(3) : '--'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>历史综合评分走势</h3>
+        <ChartBox option={historicalOption} height={350} />
+      </div>
 
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>宏观体制对齐</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span style={{ color: 'rgb(var(--c-text-2))' }}>当前体制</span>
-              <span style={{ color: 'rgb(var(--c-text))' }}>{data.regimeAlignment.regimeLabel}</span>
+      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>信号明细</h3>
+        <div className="space-y-2">
+          {data.signals.map((s, i) => (
+            <div key={i} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
+              <div>
+                <span className={CATEGORY_COLORS[s.category] || ''} style={{ color: 'rgb(var(--c-text))' }}>{s.name}</span>
+                <span className="text-xs ml-2" style={{ color: 'rgb(var(--c-text-3))' }}>{s.category}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span style={{ color: 'rgb(var(--c-text))' }}>{s.current != null ? s.current.toFixed(2) : '--'}</span>
+                <span className={s.zScore != null && s.zScore > 1 ? 'text-red-400' : s.zScore != null && s.zScore < -1 ? 'text-blue-400' : 'text-yellow-400'}>
+                  Z: {s.zScore != null ? s.zScore.toFixed(2) : '--'}
+                </span>
+                <span className="text-xs" style={{ color: 'rgb(var(--c-text-3))' }}>权重 {(s.weight * 100).toFixed(0)}%</span>
+              </div>
             </div>
-            <div className="flex justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span style={{ color: 'rgb(var(--c-text-2))' }}>对齐状态</span>
-              <span style={{ color: 'rgb(var(--c-text))' }}>{data.regimeAlignment.alignmentDesc}</span>
-            </div>
-            <div className="flex justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span style={{ color: 'rgb(var(--c-text-2))' }}>分歧水平</span>
-              <span style={{ color: 'rgb(var(--c-text))' }}>{data.divergenceAnalysis.divergenceLevel}</span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>历史一致性走势</h3>
-          <ChartBox option={historicalOption} height={300} />
-        </div>
-
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>信号详情</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {data.signals.map((signal) => (
-              <div key={signal.id} className="flex items-center justify-between text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs ${CATEGORY_COLORS[signal.category] || ''}`}>[{signal.category}]</span>
-                  <span style={{ color: 'rgb(var(--c-text))' }}>{signal.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span style={{ color: 'rgb(var(--c-text-2))' }}>{signal.value != null ? signal.value.toFixed(2) : '--'}</span>
-                  <span className={`font-mono ${SIGNAL_DIRECTION_COLORS[signal.direction] || ''}`}>
-                    {signal.normalizedValue != null ? signal.normalizedValue.toFixed(2) : '--'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>支持依据</h3>
-          <div className="space-y-2">
-            {data.signal.evidence.map((e, i) => (
-              <div key={i} className="text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))', color: 'rgb(var(--c-text))' }}>
-                {e}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {data.signal.counterEvidence.length > 0 && (
-          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>反向证据</h3>
-            <div className="space-y-2">
-              {data.signal.counterEvidence.map((e, i) => (
-                <div key={i} className="text-sm py-2 text-yellow-400" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                  {e}
-                </div>
-              ))}
+      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>分析依据</h3>
+        <div className="space-y-2">
+          {data.signal.evidence.map((e, i) => (
+            <div key={i} className="text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))', color: 'rgb(var(--c-text))' }}>
+              {e}
             </div>
-          </div>
-        )}
-      </div>
-
-      {data.divergenceAnalysis.divergentSignals.length > 0 && (
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>分歧信号对</h3>
-          <div className="space-y-2">
-            {data.divergenceAnalysis.divergentSignals.map((d, i) => (
-              <div key={i} className="flex justify-between text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                <span style={{ color: 'rgb(var(--c-text))' }}>{d.signal1}</span>
-                <span style={{ color: 'rgb(var(--c-text-2))' }}>vs</span>
-                <span style={{ color: 'rgb(var(--c-text))' }}>{d.signal2}</span>
-                <span className="text-yellow-400">{d.divergence.toFixed(3)}</span>
-              </div>
-            ))}
-          </div>
+          ))}
+          {data.signal.evidence.length === 0 && (
+            <div className="text-sm py-2" style={{ color: 'rgb(var(--c-text-3))' }}>暂无显著信号</div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

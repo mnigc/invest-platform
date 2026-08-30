@@ -1,42 +1,34 @@
 export const prerender = false
 
-import type { APIRoute } from 'astro'
 import { query } from '../../../../lib/db'
 import { withCache } from '../../../../lib/cache'
 import { toDateStr } from '../../../../lib/date'
+import { mean, std, zScore, percentileRank, corr } from '../../../../lib/analysis'
 
 interface MacroConsensusResponse {
-  regimeScore: {
-    current: string
-    currentPct: number
-    history: { date: string; score: number }[]
-    zScore: number | null
-    percentile: number | null
+  signals: { id: string; name: string; category: string; current: number | null; zScore: number | null; direction: string; weight: number }[]
+  consensusScore: {
+    overall: number | null
+    growth: number | null
+    inflation: number | null
+    risk: number | null
+    liquidity: number | null
+    direction: string
+    strength: string
+    confidence: number
   }
-  goldSignal: {
-    regime: string
-    regimePct: number
-    trend: string
-    trendPct: number
-    currentZScore: number | null
-    history: { date: string; regime: string; regimePct: number }[]
+  historicalConsensus: {
+    dates: string[]
+    overall: (number | null)[]
+    liquidity: (number | null)[]
+    inflation: (number | null)[]
+    risk: (number | null)[]
   }
-  liquiditySignal: {
-    regime: string
-    regimePct: number
-    trend: string
-    trendPct: number
-    currentZScore: number | null
-    history: { date: string; regime: string; regimePct: number }[]
-  }
-  consensusMatrix: {
-    dimensions: string[]
-    matrix: { pair: string; correlation: number }[]
-  }
-  overallConsensus: {
-    score: number
-    label: string
-    description: string
+  signal: {
+    direction: string
+    strength: string
+    confidence: number
+    evidence: string[]
   }
   updatedAt: string
 }
@@ -51,97 +43,116 @@ async function safeQuery(sql: string, params?: unknown[]): Promise<any[]> {
   }
 }
 
-function percentileRank(arr: number[], value: number): number {
-  if (arr.length === 0) return 50
-  const below = arr.filter(v => v < value).length
-  return Math.round((below / arr.length) * 100)
-}
-
 export const GET = withCache(async () => {
   try {
     const horizon = 365
-    const [liquidityRows, goldRows, vixRows] = await Promise.all([
-      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'WALCL' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
-      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'GOLDUSD' AND i.region = 'GLOBAL' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
-      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'VIX' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+    const [fedRows, vixRows, t10yRows, t2Rows, t10yieRows, bbbRows, hyRows] = await Promise.all([
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'FED_BALANCE_SHEET' AND i.region = 'GLOBAL' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'VIXCLS' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'DGS10' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'DGS2' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'T10YIE' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'BAMLC0A4CBBB' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
+      safeQuery(`SELECT period_date, value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id WHERE i.code = 'BAMLH0A0HYM2' AND i.region = 'US' AND d.value IS NOT NULL ORDER BY period_date ASC LIMIT $1`, [horizon]),
     ])
 
-    const liquidityMap = new Map(liquidityRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
-    const goldMap = new Map(goldRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const fedMap = new Map(fedRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const vixMap = new Map(vixRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const t10yMap = new Map(t10yRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const t2Map = new Map(t2Rows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const t10yieMap = new Map(t10yieRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const bbbMap = new Map(bbbRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const hyMap = new Map(hyRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
 
     const allDates = [...new Set([
-      ...liquidityRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...goldRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
+      ...fedRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
+      ...vixRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
+      ...t10yRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
     ])].sort()
 
-    const liquidityValues = allDates.map(d => liquidityMap.get(d) ?? null).filter((v): v is number => v != null)
-    const goldValues = allDates.map(d => goldMap.get(d) ?? null).filter((v): v is number => v != null)
+    function getValueFromMap(m: Map<string, number>, dates: string[]): (number | null)[] {
+      return dates.map(d => m.get(d) ?? null)
+    }
 
-    const latestLiquidity = liquidityValues[liquidityValues.length - 1] ?? null
-    const latestGold = goldValues[goldValues.length - 1] ?? null
-    const latestVix = allDates.length > 0 ? vixMap.get(allDates[allDates.length - 1]) ?? null : null
+    function getZScore(arr: number[]): number | null {
+      const valid = arr.filter(v => v != null && isFinite(v)) as number[]
+      if (valid.length < 63) return null
+      const latest = valid[valid.length - 1]
+      return +zScore(valid.slice(-252), latest).toFixed(2)
+    }
 
-    const liquidityHist = liquidityValues.slice(-252)
-    const goldHist = goldValues.slice(-252)
+    function getPercentile(arr: number[]): number | null {
+      const valid = arr.filter(v => v != null && isFinite(v)) as number[]
+      if (valid.length < 63) return null
+      return percentileRank(valid.slice(-252), valid[valid.length - 1])
+    }
 
-    const liquidityZScore = liquidityHist.length > 63 ? (latestLiquidity != null ? (latestLiquidity - liquidityHist.reduce((s, v) => s + v, 0) / liquidityHist.length) / Math.sqrt(liquidityHist.reduce((s, v) => s + (v - liquidityHist.reduce((s2, v2) => s2 + v2, 0) / liquidityHist.length) ** 2, 0) / liquidityHist.length) : null) : null
-    const goldZScore = goldHist.length > 63 ? (latestGold != null ? (latestGold - goldHist.reduce((s, v) => s + v, 0) / goldHist.length) / Math.sqrt(goldHist.reduce((s, v) => s + (v - goldHist.reduce((s2, v2) => s2 + v2, 0) / goldHist.length) ** 2, 0) / goldHist.length) : null) : null
+    const liquidityArr = getValueFromMap(fedMap, allDates)
+    const vixArr = getValueFromMap(vixMap, allDates)
+    const t10yArr = getValueFromMap(t10yMap, allDates)
+    const t2Arr = getValueFromMap(t2Map, allDates)
+    const t10yieArr = getValueFromMap(t10yieMap, allDates)
+    const bbbArr = getValueFromMap(bbbMap, allDates)
+    const hyArr = getValueFromMap(hyMap, allDates)
 
-    const liquidityPct = liquidityZScore != null ? percentileRank(liquidityHist, latestLiquidity ?? 0) : 50
-    const goldPct = goldZScore != null ? percentileRank(goldHist, latestGold ?? 0) : 50
-
-    const regimeScorePct = Math.round((liquidityPct + goldPct) / 2)
-
-    let regimeScoreLabel = '中性'
-    let regimeScoreDesc = ''
-    if (regimeScorePct > 70) { regimeScoreLabel = '宽松'; regimeScoreDesc = '流动性充裕，风险偏好改善' }
-    else if (regimeScorePct < 30) { regimeScoreLabel = '紧缩'; regimeScoreDesc = '流动性收紧，风险偏好下降' }
-    else { regimeScoreDesc = '流动性与风险偏好处于中性水平' }
-
-    const scoreHistory = allDates.slice(-63).map(d => {
-      const liq = liquidityMap.get(d)
-      const gld = goldMap.get(d)
-      return { date: d, score: liq != null && gld != null ? Math.round((liquidityPct + goldPct) / 2) : 50 }
+    const spread10y2y = t10yArr.map((v, i) => {
+      const t2 = t2Arr[i]
+      return v != null && t2 != null ? +(v - t2).toFixed(2) : null
     })
 
+    const signals = [
+      { id: 'liquidity', name: '美联储资产负债表', category: 'liquidity', current: liquidityArr[liquidityArr.length - 1] ?? null, zScore: getZScore(liquidityArr.filter((v): v is number => v != null)), direction: liquidityArr[liquidityArr.length - 1] != null && liquidityArr[liquidityArr.length - 1]! > mean(liquidityArr.filter((v): v is number => v != null)) ? 'expansion' : 'contraction', weight: 0.2 },
+      { id: 'vix', name: 'VIX恐慌指数', category: 'risk', current: vixArr[vixArr.length - 1] ?? null, zScore: getZScore(vixArr.filter((v): v is number => v != null)), direction: vixArr[vixArr.length - 1] != null && vixArr[vixArr.length - 1]! > 20 ? 'elevated' : 'calm', weight: 0.2 },
+      { id: 'spread', name: '10Y-2Y利差', category: 'growth', current: spread10y2y[spread10y2y.length - 1] ?? null, zScore: getZScore(spread10y2y.filter((v): v is number => v != null)), direction: spread10y2y[spread10y2y.length - 1] != null && spread10y2y[spread10y2y.length - 1]! < 0 ? 'inverted' : 'normal', weight: 0.25 },
+      { id: 'inflation', name: '10Y通胀预期', category: 'inflation', current: t10yieArr[t10yieArr.length - 1] ?? null, zScore: getZScore(t10yieArr.filter((v): v is number => v != null)), direction: t10yieArr[t10yieArr.length - 1] != null && t10yieArr[t10yieArr.length - 1]! > 2.5 ? 'above_target' : 'anchored', weight: 0.2 },
+      { id: 'credit', name: 'BBB信用利差', category: 'risk', current: bbbArr[bbbArr.length - 1] ?? null, zScore: getZScore(bbbArr.filter((v): v is number => v != null)), direction: bbbArr[bbbArr.length - 1] != null && bbbArr[bbbArr.length - 1]! > 1.5 ? 'stress' : 'normal', weight: 0.15 },
+    ]
+
+    const liquidityScore = signals.find(s => s.id === 'liquidity')?.zScore ?? 0
+    const inflationScore = signals.find(s => s.id === 'inflation')?.zScore ?? 0
+    const riskScore = signals.find(s => s.id === 'vix')?.zScore ?? 0
+    const growthScore = signals.find(s => s.id === 'spread')?.zScore ?? 0
+
+    const overallRaw = signals.reduce((s, sig) => s + (sig.zScore ?? 0) * sig.weight, 0)
+    const overallPct = Math.round(Math.min(100, Math.max(0, 50 + overallRaw * 15)))
+
+    let direction = 'neutral'
+    let strength = 'moderate'
+    if (overallPct > 70) { direction = 'bullish'; strength = overallPct > 85 ? 'strong' : 'moderate' }
+    else if (overallPct < 30) { direction = 'bearish'; strength = overallPct < 15 ? 'strong' : 'moderate' }
+
+    const evidence: string[] = []
+    if (spread10y2y[spread10y2y.length - 1] != null && spread10y2y[spread10y2y.length - 1]! < 0) evidence.push('收益率曲线倒挂，衰退信号')
+    if (vixArr[vixArr.length - 1] != null && vixArr[vixArr.length - 1]! > 25) evidence.push('VIX偏高，市场恐慌情绪上升')
+    if (t10yieArr[t10yieArr.length - 1] != null && t10yieArr[t10yieArr.length - 1]! > 2.5) evidence.push('通胀预期高于联储目标')
+
+    const historyDates = allDates.slice(-63)
+    const historicalConsensus = {
+      dates: historyDates,
+      overall: historyDates.map(() => overallPct),
+      liquidity: historyDates.map(d => fedMap.get(d) != null ? Math.round(50 + liquidityScore * 15) : null),
+      inflation: historyDates.map(d => t10yieMap.get(d) != null ? Math.round(50 + inflationScore * 15) : null),
+      risk: historyDates.map(d => vixMap.get(d) != null ? Math.round(50 - riskScore * 15) : null),
+    }
+
     const data: MacroConsensusResponse = {
-      regimeScore: {
-        current: regimeScoreLabel,
-        currentPct: regimeScorePct,
-        history: scoreHistory,
-        zScore: liquidityZScore != null ? +(liquidityZScore ?? 0).toFixed(2) : null,
-        percentile: liquidityPct,
+      signals,
+      consensusScore: {
+        overall: overallPct,
+        growth: Math.round(50 + growthScore * 15),
+        inflation: Math.round(50 + inflationScore * 15),
+        risk: Math.round(50 - riskScore * 15),
+        liquidity: Math.round(50 + liquidityScore * 15),
+        direction,
+        strength,
+        confidence: 70,
       },
-      goldSignal: {
-        regime: latestGold != null && latestGold > 2000 ? 'risk_off' : 'neutral',
-        regimePct: goldPct,
-        trend: latestGold != null && goldValues.length > 21 && latestGold > goldValues[goldValues.length - 21]! ? 'uptrend' : 'downtrend',
-        trendPct: goldPct,
-        currentZScore: goldZScore != null ? +(goldZScore ?? 0).toFixed(2) : null,
-        history: allDates.slice(-63).map(d => ({ date: d, regime: goldMap.get(d) != null && goldMap.get(d)! > 2000 ? 'risk_off' : 'neutral', regimePct: goldPct })),
-      },
-      liquiditySignal: {
-        regime: latestLiquidity != null && liquidityPct > 60 ? 'expansion' : 'contraction',
-        regimePct: liquidityPct,
-        trend: latestLiquidity != null && liquidityValues.length > 21 && latestLiquidity > liquidityValues[liquidityValues.length - 21]! ? 'expanding' : 'contracting',
-        trendPct: liquidityPct,
-        currentZScore: liquidityZScore != null ? +(liquidityZScore ?? 0).toFixed(2) : null,
-        history: allDates.slice(-63).map(d => ({ date: d, regime: liquidityMap.get(d) != null && liquidityPct > 60 ? 'expansion' : 'contraction', regimePct: liquidityPct })),
-      },
-      consensusMatrix: {
-        dimensions: ['流动性', '通胀预期', '信用利差', '波动率'],
-        matrix: [
-          { pair: '流动性-通胀', correlation: 0.7 },
-          { pair: '流动性-信用', correlation: 0.5 },
-          { pair: '通胀-信用', correlation: 0.3 },
-          { pair: '波动率-流动性', correlation: -0.4 },
-        ],
-      },
-      overallConsensus: {
-        score: regimeScorePct,
-        label: regimeScoreLabel,
-        description: regimeScoreDesc,
+      historicalConsensus,
+      signal: {
+        direction,
+        strength,
+        confidence: 70,
+        evidence,
       },
       updatedAt: new Date().toISOString().slice(0, 10),
     }

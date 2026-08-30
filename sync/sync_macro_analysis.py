@@ -27,47 +27,46 @@ def main():
     log.info("=" * 60)
     log.info("开始同步展示模块数据: 宏观分析")
 
-    # 收益率曲线相关指标
-    yield_curve_keys = [
-        ("DGS3MO", "US"),   # 3个月美债收益率
-        ("DGS6MO", "US"),   # 6个月美债收益率
-        ("DGS1", "US"),     # 1年美债收益率
-        ("DGS5", "US"),     # 5年美债收益率
-        ("DGS7", "US"),     # 7年美债收益率
-        ("DGS10", "US"),    # 10年美债收益率（可能已存在）
-        ("DGS20", "US"),    # 20年美债收益率
-        ("DGS30", "US"),    # 30年美债收益率
-        ("T10Y2Y", "US"),   # 10Y-2Y利差
-        ("T10Y3M", "US"),   # 10Y-3M利差
-    ]
+    all_keys = [
+        # 收益率曲线相关指标
+        ("DGS3MO", "US"),
+        ("DGS6MO", "US"),
+        ("DGS1", "US"),
+        ("DGS2", "US"),
+        ("DGS5", "US"),
+        ("DGS7", "US"),
+        ("DGS10", "US"),
+        ("DGS20", "US"),
+        ("DGS30", "US"),
+        ("T10Y2Y", "US"),
+        ("T10Y3M", "US"),
 
-    # 通胀预期相关指标
-    inflation_keys = [
-        ("T5YIE", "US"),    # 5年盈亏平衡通胀
-        ("T10YIE", "US"),   # 10年盈亏平衡通胀（可能已存在）
-        ("T20YIE", "US"),   # 20年盈亏平衡通胀
-        ("DFII5", "US"),    # 5年TIPS实际利率
-        ("DFII10", "US"),   # 10年TIPS实际利率（可能已存在）
-        ("DFII20", "US"),   # 20年TIPS实际利率
-        ("DFII30", "US"),   # 30年TIPS实际利率
-    ]
+        # 通胀预期相关指标
+        ("T5YIE", "US"),
+        ("T10YIE", "US"),
+        ("T20YIE", "US"),
+        ("DFII5", "US"),
+        ("DFII10", "US"),
+        ("DFII20", "US"),
+        ("DFII30", "US"),
 
-    # 信用利差相关指标
-    credit_keys = [
-        ("BAMLC0A4CBBB", "US"),    # BBB信用利差（可能已存在）
-        ("BAMLH0A0HYM2", "US"),    # 高收益债利差
-        ("BAMLC0A1CAAA", "US"),    # AAA信用利差
-        ("BAMLC0A2CAA", "US"),     # AA信用利差
-        ("BAMLC0A5CIIO", "US"),    # CCC及以下信用利差
-    ]
+        # 信用利差相关指标
+        ("BAMLC0A4CBBB", "US"),
+        ("BAMLH0A0HYM2", "US"),
+        ("BAMLC0A1CAAA", "US"),
+        ("BAMLC0A2CAA", "US"),
+        ("BAMLC0A5CIIO", "US"),
 
-    # 合并所有指标（去重）
-    all_keys = list(set(yield_curve_keys + inflation_keys + credit_keys))
+        # 波动率
+        ("VIXCLS", "US"),
+
+        # 流动性（全球）
+        ("FED_BALANCE_SHEET", "GLOBAL"),
+    ]
 
     total = 0
     errors = []
 
-    # 同步所有指标
     try:
         written, errs = sync_indicators("macro_analysis", all_keys)
         total += written
