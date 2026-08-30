@@ -54,9 +54,28 @@ export const GET = withCache(async () => {
       }
     }
 
+    // 计算净流动性：美联储总资产 - RRP - TGA
+    const fedData = results[0] // FED_BALANCE_SHEET
+    const rrpData = results[1] // FED_RRP
+    const tgaData = results[2] // FED_TGA
+
+    const rrpMap = new Map(rrpData.map(p => [p.date, p.value]))
+    const tgaMap = new Map(tgaData.map(p => [p.date, p.value]))
+
+    const netLiquidity: { date: string; value: number }[] = []
+    for (const p of fedData) {
+      const rrp = rrpMap.get(p.date) ?? 0
+      const tga = tgaMap.get(p.date) ?? 0
+      netLiquidity.push({
+        date: p.date,
+        value: +(p.value - rrp - tga).toFixed(2),
+      })
+    }
+
     const result: GlobalLiquidityResponse = {
       series,
       updatedAt: new Date().toISOString(),
+      netLiquidity,
     };
 
     return new Response(JSON.stringify({ success: true, data: result }), {

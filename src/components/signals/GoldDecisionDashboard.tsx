@@ -10,6 +10,7 @@ import { DataTable, type Column } from '../ui/DataTable'
 import {
   categoryAxis,
   chartAnimation,
+  chartDataZoom,
   chartLegend,
   chartTooltip,
   chartGrid,
@@ -53,6 +54,8 @@ interface Data {
     t10yie: number | null
     residZ: number | null
     residPercentile: number
+    momentum20: number
+    momentum60: number
   }
   priceChart: { date: string; gold: number; dxy: number | null }[]
   corrChart: {
@@ -62,6 +65,11 @@ interface Data {
   }
   bandSwitches: { date: string; from: string; to: string }[]
   residSeries: { date: string; z: number | null }[]
+  momentumChart: {
+    m20: { date: string; value: number }[]
+    m60: { date: string; value: number }[]
+  }
+  reserveChart: { date: string; change: number; cumulative: number }[]
   extremes: { date: string; dir: string }[]
   eventStudies: {
     broken: Study
@@ -132,7 +140,7 @@ function SignalPanel({ signal }: { signal: Data['signal'] }) {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4">
         <div>
           <h3 className="mb-1 text-xs font-semibold text-ink-3">证据链</h3>
           <ul className="list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-ink-2">
@@ -142,7 +150,7 @@ function SignalPanel({ signal }: { signal: Data['signal'] }) {
           </ul>
         </div>
         {signal.counterEvidence.length > 0 && (
-          <div>
+          <div className="mt-3">
             <h3 className="mb-1 text-xs font-semibold text-ink-3">反向证据</h3>
             <ul className="list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-down">
               {signal.counterEvidence.map((e, i) => (
@@ -258,11 +266,13 @@ export function GoldDecisionDashboard() {
 
   const priceOption = useMemo<EChartsOption | null>(() => {
     if (!data?.priceChart?.length) return null
+    const total = data.priceChart.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
       legend: chartLegend(t, ['金价 (USD/oz)', 'DXY']),
-      grid: chartGrid({ top: 32, bottom: 8 }),
+      grid: chartGrid({ top: 32, bottom: 32 }),
       xAxis: categoryAxis(t, data.priceChart.map((p) => p.date)),
       yAxis: [
         valueAxis(t, {
@@ -274,6 +284,7 @@ export function GoldDecisionDashboard() {
           nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
         }),
       ],
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
       series: [
         lineSeries(
           '金价 (USD/oz)',
@@ -293,15 +304,18 @@ export function GoldDecisionDashboard() {
 
   const corrOption = useMemo<EChartsOption | null>(() => {
     if (!data?.corrChart?.s60?.length) return null
+    const total = data.corrChart.s60.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(3)),
       }),
       legend: chartLegend(t, ['20 日', '60 日', '120 日']),
-      grid: chartGrid({ top: 32, bottom: 8 }),
+      grid: chartGrid({ top: 32, bottom: 32 }),
       xAxis: categoryAxis(t, data.corrChart.s60.map((p) => p.date)),
       yAxis: valueAxis(t, { min: -1, max: 1, scale: false }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
       series: [
         lineSeries(
           '20 日',
@@ -327,14 +341,17 @@ export function GoldDecisionDashboard() {
 
   const residOption = useMemo<EChartsOption | null>(() => {
     if (!data?.residSeries?.length) return null
+    const total = data.residSeries.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(2)),
       }),
-      grid: chartGrid({ top: 14, bottom: 8 }),
+      grid: chartGrid({ top: 14, bottom: 32 }),
       xAxis: categoryAxis(t, data.residSeries.map((p) => p.date)),
       yAxis: valueAxis(t),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
       series: [
         {
           name: '残差 z',
@@ -356,6 +373,81 @@ export function GoldDecisionDashboard() {
     } as EChartsOption
   }, [data, t])
 
+  const momentumOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.momentumChart?.m20?.length) return null
+    const total = data.momentumChart.m20.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : `${(v * 100).toFixed(2)}%`),
+      }),
+      legend: chartLegend(t, ['20D 动量', '60D 动量']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, data.momentumChart.m20.map((p) => p.date)),
+      yAxis: valueAxis(t),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [
+        lineSeries(
+          '20D 动量',
+          data.momentumChart.m20.map((p) => p.value),
+          t.series[2],
+          { lineStyle: { width: 1.5, color: t.series[2] } },
+        ),
+        lineSeries(
+          '60D 动量',
+          data.momentumChart.m60.map((p) => p.value),
+          t.series[1],
+          { lineStyle: { width: 2, color: t.series[1] } },
+        ),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
+  const reserveOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.reserveChart?.length) return null
+    const total = data.reserveChart.length
+    const defaultStart = Math.max(0, Math.floor((total - 60) / total * 100))
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : `${Number(v).toFixed(1)} 吨`),
+      }),
+      legend: chartLegend(t, ['月度净购金', '累计购金']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, data.reserveChart.map((p) => p.date)),
+      yAxis: [
+        valueAxis(t, {
+          name: '月度(吨)',
+          nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
+        }),
+        rightValueAxis(t, {
+          name: '累计(吨)',
+          nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
+        }),
+      ],
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [
+        {
+          name: '月度净购金',
+          type: 'bar',
+          barMaxWidth: 6,
+          data: data.reserveChart.map((p) => ({
+            value: p.change,
+            itemStyle: { color: p.change >= 0 ? t.up : t.down },
+          })),
+          yAxisIndex: 0,
+        },
+        lineSeries(
+          '累计购金',
+          data.reserveChart.map((p) => p.cumulative),
+          t.series[1],
+          { yAxisIndex: 1, lineStyle: { width: 2, color: t.series[1] } },
+        ),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
   if (loading) return <LoadingSkeleton type="card" rows={4} height={300} />
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data) return <ErrorState message="暂无数据" />
@@ -369,7 +461,7 @@ export function GoldDecisionDashboard() {
       {/* 关键指标 — 顶部全宽 */}
       <div className="lg:col-span-2">
         <MacroCard padding="sm">
-          <div className="stagger grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
+          <div className="stagger grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">
             <StatTile
               label="金价"
               value={latest.gold != null ? latest.gold.toFixed(2) : '--'}
@@ -410,14 +502,33 @@ export function GoldDecisionDashboard() {
               sub={`5Y 分位 ${latest.residPercentile.toFixed(0)}`}
               tone={residTone}
             />
+            <StatTile
+              label="金价动量 20D"
+              value={`${(latest.momentum20 * 100).toFixed(2)}%`}
+              sub="近20日对数收益"
+              tone={latest.momentum20 >= 0 ? 'up' : 'down'}
+            />
+            <StatTile
+              label="金价动量 60D"
+              value={`${(latest.momentum60 * 100).toFixed(2)}%`}
+              sub="近60日对数收益"
+              tone={latest.momentum60 >= 0 ? 'up' : 'down'}
+            />
           </div>
         </MacroCard>
       </div>
 
       {/* 主列：图表与事件研究 */}
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
-        <MacroCard title="金价 vs 美元指数（近 2 年）">
+        <MacroCard title="金价 vs 美元指数">
           <ResponsiveChartBox option={priceOption} deps={[priceOption]} />
+        </MacroCard>
+
+        <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
+          <ResponsiveChartBox option={momentumOption} deps={[momentumOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            说明：正值表示上涨趋势，负值表示下跌趋势。20D 反映短期，60D 反映中期动量。
+          </p>
         </MacroCard>
 
         <MacroCard title="黄金-美元收益率滚动相关（20 / 60 / 120 日）">
@@ -436,6 +547,21 @@ export function GoldDecisionDashboard() {
                 .slice(-8)
                 .map((e) => `${e.date}(${e.dir === 'overvalued' ? '高估' : '低估'})`)
                 .join(' · ')}
+            </p>
+          )}
+        </MacroCard>
+
+        <MacroCard title="全球央行购金（月度 / 累计）">
+          {data.reserveChart.length > 0 ? (
+            <>
+              <ResponsiveChartBox option={reserveOption} deps={[reserveOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                数据来源：世界黄金协会。央行购金是 2022 年后黄金定价的核心因素之一。
+              </p>
+            </>
+          ) : (
+            <p className="py-3 text-xs text-ink-3">
+              央行购金数据同步后将在此展示。数据来源：世界黄金协会。
             </p>
           )}
         </MacroCard>
@@ -460,7 +586,7 @@ export function GoldDecisionDashboard() {
 
         <MacroCard title="数据来源" padding="sm">
           <p className="text-2xs leading-relaxed text-ink-3">
-            Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）。
+            Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）、世界黄金协会（央行购金）。
           </p>
           <p className="num mt-1.5 text-2xs text-ink-3">更新 {data.updatedAt}</p>
           <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">

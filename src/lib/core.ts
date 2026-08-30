@@ -244,6 +244,7 @@ export interface LiquiditySeries {
 export interface GlobalLiquidityResponse {
   series: LiquiditySeries[]
   updatedAt: string
+  netLiquidity?: { date: string; value: number }[]
 }
 
 // ── 信贷脉冲 ──

@@ -29,6 +29,7 @@ interface SeriesData {
 interface Payload {
   series: SeriesData[]
   updatedAt: string
+  netLiquidity?: { date: string; value: number }[]
 }
 
 const CODE = {
@@ -135,6 +136,47 @@ function FedChart({ series }: { series: SeriesData[] }) {
   }, [series, t])
 
   if (!option) return <EmptyState title="美联储数据暂无" />
+  return <ResponsiveChartBox option={option} deps={[option]} />
+}
+
+function NetLiquidityChart({ netLiquidity }: { netLiquidity: { date: string; value: number }[] }) {
+  const t = useChartTheme()
+
+  const option = useMemo(() => {
+    if (!netLiquidity.length) return null
+    const dates = netLiquidity.map((p) => p.date)
+    const vals = netLiquidity.map((p) => +(p.value / 1e6).toFixed(4))
+
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        formatter: (params: any) => {
+          if (!params || !params.value) return ''
+          return `<div style="font-size:11px;color:${t.text3};margin-bottom:4px">${params.axisValue}</div>
+<div style="display:flex;align-items:center;gap:6px">
+  <span style="width:8px;height:8px;border-radius:50%;background:${t.series[0]};flex:none"></span>
+  <span>净流动性</span>
+  <span style="margin-left:20px;font-weight:600;color:${t.series[0]}">${fmtTrillion(params.value * 1e6)}</span>
+</div>`
+        },
+      }),
+      grid: chartGrid({ top: 14, bottom: 30 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, {
+        name: '万亿美元',
+        nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
+      }),
+      dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
+      series: [
+        lineSeries('净流动性', vals, t.series[0], {
+          lineStyle: { width: 2, color: t.series[0] },
+          areaStyle: { color: t.series[0], opacity: 0.08 },
+        }),
+      ],
+    }
+  }, [netLiquidity, t])
+
+  if (!option) return <EmptyState title="净流动性数据暂无" />
   return <ResponsiveChartBox option={option} deps={[option]} />
 }
 
@@ -361,6 +403,15 @@ export default function GlobalLiquidityDashboard() {
               ]}
             />
           </MacroCard>
+
+          {data.netLiquidity && data.netLiquidity.length > 0 && (
+            <MacroCard title="净流动性 (美联储总资产 - RRP - TGA)">
+              <NetLiquidityChart netLiquidity={data.netLiquidity} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                净流动性 = 美联储总资产 - RRP 逆回购 - TGA 账户余额。这是衡量市场真实流动性的更精确指标。
+              </p>
+            </MacroCard>
+          )}
 
           <MacroCard title="主要央行资产负债表对比 (基准=100)">
             <CbComparisonChart series={data.series} />

@@ -40,7 +40,7 @@ TASKS = {
         "args": [],
     },
     "gold_decision": {
-        "name": "黄金决策（金价/央行购金/DXY/实际利率）",
+        "name": "黄金决策（金价/DXY/实际利率）",
         "script": "sync_gold_decision",
         "group": "daily",
         "delay": 20,
@@ -52,6 +52,20 @@ TASKS = {
         "group": "daily",
         "delay": 5,
         "args": [],
+    },
+    "sp500": {
+        "name": "S&P500 指数（宏观体制回测）",
+        "script": "sync_sp500",
+        "group": "daily",
+        "delay": 15,
+        "args": [],
+    },
+    "gold_reserves": {
+        "name": "全球央行黄金储备变动",
+        "script": "sync_gold_reserves",
+        "group": "daily",
+        "delay": 0,
+        "args": ["--fred"],
     },
 }
 

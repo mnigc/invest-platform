@@ -133,28 +133,29 @@ function buildResidualZ(goldPointZ: SeriesPoint[], dxyZ: SeriesPoint[], dfiiZ: S
 export const GET = withCache(async () => {
   const horizon = 5 * 260
 
-  const [goldRows, dxyRows, dfiiRows, t10yieRows] = await Promise.all([
+  const [goldRows, dxyRows, dfiiRows, t10yieRows, reserveRows] = await Promise.all([
     safeQuery(`
       SELECT price_date, close_price FROM gold_price_history
       WHERE source IN ('yfinance', 'gold-api', 'LOCAL-XLSX', 'FRED')
         AND currency = 'USD' AND unit = 'OZ'
-        AND price_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR)
       ORDER BY price_date ASC`),
     safeQuery(`
       SELECT p.trade_date, p.close_price FROM asset_prices p JOIN assets a ON a.id = p.asset_id
       WHERE a.symbol = 'DX-Y.NYB' AND p.close_price IS NOT NULL
-        AND p.trade_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR)
       ORDER BY p.trade_date ASC`),
     safeQuery(`
       SELECT d.period_date, d.value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id
       WHERE i.code = 'DFII10' AND i.region = 'US' AND d.value IS NOT NULL
-        AND d.period_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR)
       ORDER BY d.period_date ASC`),
     safeQuery(`
       SELECT d.period_date, d.value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id
       WHERE i.code = 'T10YIE' AND i.region = 'US' AND d.value IS NOT NULL
-        AND d.period_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR)
       ORDER BY d.period_date ASC`),
+    safeQuery(`
+      SELECT period_date, SUM(change_tonnes) as total_change
+      FROM gold_reserve_changes
+      GROUP BY period_date
+      ORDER BY period_date ASC`),
   ])
 
   const goldZ: SeriesPoint[] = goldRows.map((r: any) => ({ date: toDateStr(r.price_date), value: Number(r.close_price) }))
@@ -162,8 +163,18 @@ export const GET = withCache(async () => {
   const dfiiZ: SeriesPoint[] = dfiiRows.map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
   const t10yieZ: SeriesPoint[] = t10yieRows.map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
 
-  // —— 1. 双轴价格（近 2Y，用于页面对照）——
-  const priceChart = alignByDate(goldZ, dxyZ).slice(-520).map(p => ({ date: p.date, gold: +p.a.toFixed(2), dxy: p.b != null ? +p.b.toFixed(2) : null }))
+  // —— 央行购金数据 ——
+  const reserveData: { date: string; change: number; cumulative: number }[] = []
+  let cumReserve = 0
+  for (const r of reserveRows) {
+    const d = toDateStr(r.period_date)
+    const change = Number(r.total_change)
+    cumReserve += change
+    reserveData.push({ date: d, change: +change.toFixed(2), cumulative: +cumReserve.toFixed(2) })
+  }
+
+  // —— 1. 双轴价格（全部历史数据）——
+  const priceChart = alignByDate(goldZ, dxyZ).map(p => ({ date: p.date, gold: +p.a.toFixed(2), dxy: p.b != null ? +p.b.toFixed(2) : null }))
 
   // —— 2. 收益率滚动相关（20/60/120）——
   const goldRet = logReturns(goldZ)
@@ -171,7 +182,20 @@ export const GET = withCache(async () => {
   const corr20 = rollingCorr(goldRet, dxyRetAll, 20)
   const corr60 = rollingCorr(goldRet, dxyRetAll, 60)
   const corr120 = rollingCorr(goldRet, dxyRetAll, 120)
-  const corrChart = corr60.slice(-1040).map(p => ({ date: p.date, value: p.value }))
+
+  // —— 金价动量（20D/60D 对数收益率累加）——
+  const momentum20: { date: string; value: number }[] = []
+  const momentum60: { date: string; value: number }[] = []
+  for (let i = 0; i < goldRet.length; i++) {
+    if (i >= 19) {
+      const sum20 = goldRet.slice(i - 19, i + 1).reduce((s, p) => s + p.value, 0)
+      momentum20.push({ date: goldRet[i].date, value: +sum20.toFixed(4) })
+    }
+    if (i >= 59) {
+      const sum60 = goldRet.slice(i - 59, i + 1).reduce((s, p) => s + p.value, 0)
+      momentum60.push({ date: goldRet[i].date, value: +sum60.toFixed(4) })
+    }
+  }
 
   // —— 3. 状态机 ——
   const latest60 = corr60.length ? corr60[corr60.length - 1].value : 0
@@ -302,17 +326,22 @@ export const GET = withCache(async () => {
       t10yie: t10yieZ.length ? +t10yieZ[t10yieZ.length - 1].value.toFixed(2) : null,
       residZ: app(latestResidZ),
       residPercentile,
+      momentum20: momentum20.length ? momentum20[momentum20.length - 1].value : 0,
+      momentum60: momentum60.length ? momentum60[momentum60.length - 1].value : 0,
     },
-    // 展示近 2Y 的对齐价格
     priceChart,
-    // 滚动相关序列（近 2Y，20/60/120）
     corrChart: {
-      s20: corr20.slice(-520).map(p => ({ date: p.date, value: +(p.value).toFixed(3) })),
-      s60: corr60.slice(-520).map(p => ({ date: p.date, value: +(p.value).toFixed(3) })),
-      s120: corr120.slice(-520).map(p => ({ date: p.date, value: +(p.value).toFixed(3) })),
+      s20: corr20.map(p => ({ date: p.date, value: +(p.value).toFixed(3) })),
+      s60: corr60.map(p => ({ date: p.date, value: +(p.value).toFixed(3) })),
+      s120: corr120.map(p => ({ date: p.date, value: +(p.value).toFixed(3) })),
     },
-    bandSwitches: switches.slice(-12).map(s => ({ date: s.date, from: s.from, to: s.to })),
-    residSeries: residSeries.slice(-520).map(p => ({ date: p.date, z: p.residualZ })),
+    bandSwitches: switches.map(s => ({ date: s.date, from: s.from, to: s.to })),
+    residSeries: residSeries.map(p => ({ date: p.date, z: p.residualZ })),
+    momentumChart: {
+      m20: momentum20,
+      m60: momentum60,
+    },
+    reserveChart: reserveData,
     extremes: extremeEvents.slice(-15),
     eventStudies: {
       broken: brokenStudy,

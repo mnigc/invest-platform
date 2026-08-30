@@ -3,6 +3,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ErrorState, EmptyState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
 import { Tooltip } from '../ui/Tooltip'
+import { DataTable, type Column } from '../ui/DataTable'
 
 type Dir = -1 | 0 | 1
 
@@ -21,6 +22,21 @@ interface Aggregate {
   label: string
   stance: string
   count: number
+}
+
+interface BacktestSummary {
+  regime: string
+  label: string
+  count: number
+  avgConfidence: number
+  avgReturn1m: number
+  avgReturn3m: number
+  avgReturn6m: number
+  avgReturn12m: number
+  winRate1m: number
+  winRate3m: number
+  winRate6m: number
+  winRate12m: number
 }
 
 function safeJson<T = any>(
@@ -150,6 +166,7 @@ export function SignalBoardDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [agg, setAgg] = useState<Aggregate | null>(null)
+  const [backtest, setBacktest] = useState<BacktestSummary[] | null>(null)
 
   const load = () => {
     let alive = true
@@ -159,6 +176,7 @@ export function SignalBoardDashboard() {
       safeJson<any>('/api/v1/regime.json'),
       safeJson<any>('/api/v1/regime/anomalies.json'),
       safeJson<any>('/api/v1/gold/correlation.json'),
+      safeJson<any>('/api/v1/regime/backtest.json'),
     ])
       .then((results) => {
         if (!alive) return
@@ -225,6 +243,12 @@ export function SignalBoardDashboard() {
             evidence: (s.evidence || []).slice(0, 5),
             link: '/signals/gold',
           })
+        }
+
+        const backtestResult =
+          results[3].status === 'fulfilled' ? results[3].value : EMPTY_RESULT
+        if (backtestResult.ok && backtestResult.data?.summaries) {
+          setBacktest(backtestResult.data.summaries)
         }
 
         const active = rows.filter((r) => r.direction !== 0)
@@ -312,6 +336,79 @@ export function SignalBoardDashboard() {
           <SignalCard key={s.id} s={s} />
         ))}
       </div>
+
+      {/* 宏观体制回测结果 */}
+      <MacroCard title="宏观体制回测：各体制下 S&P500 前瞻表现">
+        {backtest && backtest.length > 0 ? (
+          <>
+            <p className="mb-3 text-2xs leading-relaxed text-ink-3">
+              历史上各宏观体制出现后，S&P500 在 1/3/6/12 个月后的平均收益率和胜率。
+            </p>
+            <DataTable
+              columns={[
+                { key: 'label', header: '宏观体制', render: (r) => r.label },
+                { key: 'count', header: '样本数', numeric: true, render: (r) => `${r.count} 月` },
+                {
+                  key: 'avgReturn1m',
+                  header: '1M 收益',
+                  numeric: true,
+                  render: (r) => (
+                    <span className={r.avgReturn1m >= 0 ? 'text-up' : 'text-down'}>
+                      {(r.avgReturn1m * 100).toFixed(2)}%
+                    </span>
+                  ),
+                },
+                {
+                  key: 'avgReturn3m',
+                  header: '3M 收益',
+                  numeric: true,
+                  render: (r) => (
+                    <span className={r.avgReturn3m >= 0 ? 'text-up' : 'text-down'}>
+                      {(r.avgReturn3m * 100).toFixed(2)}%
+                    </span>
+                  ),
+                },
+                {
+                  key: 'avgReturn6m',
+                  header: '6M 收益',
+                  numeric: true,
+                  render: (r) => (
+                    <span className={r.avgReturn6m >= 0 ? 'text-up' : 'text-down'}>
+                      {(r.avgReturn6m * 100).toFixed(2)}%
+                    </span>
+                  ),
+                },
+                {
+                  key: 'avgReturn12m',
+                  header: '12M 收益',
+                  numeric: true,
+                  render: (r) => (
+                    <span className={r.avgReturn12m >= 0 ? 'text-up' : 'text-down'}>
+                      {(r.avgReturn12m * 100).toFixed(2)}%
+                    </span>
+                  ),
+                },
+                {
+                  key: 'winRate3m',
+                  header: '3M 胜率',
+                  numeric: true,
+                  render: (r) => (
+                    <span className={r.winRate3m >= 0.5 ? 'text-up' : 'text-down'}>
+                      {(r.winRate3m * 100).toFixed(1)}%
+                    </span>
+                  ),
+                },
+              ]}
+              rows={backtest}
+              rowKey={(r) => r.regime}
+            />
+          </>
+        ) : (
+          <p className="py-3 text-xs text-ink-3">
+            需要同步 S&P500 数据后自动生成回测统计。回测展示各宏观体制下 S&P500 的 1/3/6/12 个月前瞻收益。
+          </p>
+        )}
+      </MacroCard>
 
       <p className="text-xs leading-relaxed text-ink-3">
         组合信号板为多模块信号加权研究工具：权重 = 各信号置信度（黄金定价残差、宏观体制、风险异常）。所有结论均附证据链与历史验证，仅供研究参考，不构成投资建议。
