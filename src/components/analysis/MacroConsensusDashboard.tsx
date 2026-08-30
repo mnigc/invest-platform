@@ -1,169 +1,115 @@
 import { useMemo, useState, useEffect } from 'react'
 import type { EChartsOption } from 'echarts'
-import { ChartBox } from '../charts/ChartBox'
-import { StatTile } from '../ui/StatTile'
-import { DataFreshness } from '../ui/DataFreshness'
+import { ResponsiveChartBox } from '../charts/ChartBox'
+import { useChartTheme } from '../ui/theme'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState, ErrorState } from '../ui/States'
-import { PageHeader } from '../ui/PageHeader'
+import { MacroCard } from '../ui/MacroCard'
+import { StatTile } from '../ui/StatTile'
+import {
+  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
+  chartTooltip, lineSeries, valueAxis,
+} from '../../lib/chartOptions'
 
-interface MacroConsensusData {
+interface Data {
   signals: { id: string; name: string; category: string; current: number | null; zScore: number | null; direction: string; weight: number }[]
-  consensusScore: {
-    overall: number | null
-    growth: number | null
-    inflation: number | null
-    risk: number | null
-    liquidity: number | null
-    direction: string
-    strength: string
-    confidence: number
-  }
-  historicalConsensus: {
-    dates: string[]
-    overall: (number | null)[]
-    liquidity: (number | null)[]
-    inflation: (number | null)[]
-    risk: (number | null)[]
-  }
-  signal: {
-    direction: string
-    strength: string
-    confidence: number
-    evidence: string[]
-  }
+  consensusScore: { overall: number | null; growth: number | null; inflation: number | null; risk: number | null; liquidity: number | null; direction: string; strength: string; confidence: number }
+  historicalConsensus: { dates: string[]; overall: (number | null)[]; liquidity: (number | null)[]; inflation: (number | null)[]; risk: (number | null)[] }
+  signal: { direction: string; strength: string; confidence: number; evidence: string[] }
   updatedAt: string
 }
 
-const DIRECTION_COLORS: Record<string, string> = {
-  bullish: 'text-green-400',
-  bearish: 'text-red-400',
-  neutral: 'text-yellow-400',
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  growth: 'text-blue-400',
-  inflation: 'text-orange-400',
-  risk: 'text-red-400',
-  liquidity: 'text-purple-400',
-}
+const DIR_ACCENT: Record<string, 'green' | 'red' | 'none'> = { bullish: 'green', bearish: 'red', neutral: 'none' }
+const DIR_COLORS: Record<string, string> = { bullish: 'text-up', bearish: 'text-down', neutral: 'text-ink-3' }
+const CAT_COLORS: Record<string, string> = { growth: 'text-info', inflation: 'text-warn', risk: 'text-down', liquidity: 'text-accent' }
 
 export default function MacroConsensusDashboard() {
-  const [data, setData] = useState<MacroConsensusData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<Data | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const t = useChartTheme()
 
   useEffect(() => {
-    let cancelled = false
+    let alive = true
     fetch('/api/v1/analysis/macro-consensus.json')
       .then(r => r.json())
-      .then(json => {
-        if (cancelled) return
-        if (json.success) setData(json.data)
-        else setError(json.error || '加载失败')
-      })
-      .catch(e => { if (!cancelled) setError(e.message) })
-      .finally(() => { if (!cancelled) setIsLoading(false) })
-    return () => { cancelled = true }
+      .then(j => { if (!alive) return; if (j.success) setData(j.data); else setError(j.error || '加载失败') })
+      .catch(e => alive && setError(e.message))
+      .finally(() => alive && setLoading(false))
+    return () => { alive = false }
   }, [])
 
-  const historicalOption = useMemo<EChartsOption | null>(() => {
+  const historyOption = useMemo<EChartsOption | null>(() => {
     if (!data?.historicalConsensus) return null
     const { dates, overall, liquidity, inflation, risk } = data.historicalConsensus
+    const total = dates.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['综合', '流动性', '通胀', '风险'] },
-      xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '得分' },
+      ...chartAnimation,
+      tooltip: chartTooltip(t),
+      legend: chartLegend(t, ['综合', '流动性', '通胀', '风险']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, { name: '得分', nameTextStyle: { color: t.text3, fontSize: 10 } }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
       series: [
-        { name: '综合', type: 'line', data: overall, smooth: true, lineStyle: { width: 2 } },
-        { name: '流动性', type: 'line', data: liquidity, smooth: true },
-        { name: '通胀', type: 'line', data: inflation, smooth: true },
-        { name: '风险', type: 'line', data: risk, smooth: true },
+        lineSeries('综合', overall, t.series[2], { lineStyle: { width: 2.5 } }),
+        lineSeries('流动性', liquidity, t.series[0], { lineStyle: { width: 1.5 } }),
+        lineSeries('通胀', inflation, t.series[1], { lineStyle: { width: 1.5 } }),
+        lineSeries('风险', risk, t.series[3] || t.series[0], { lineStyle: { width: 1.5 } }),
       ],
-      dataZoom: [{ type: 'slider', start: 70, end: 100 }],
-    }
-  }, [data])
+    } as EChartsOption
+  }, [data, t])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (loading) return <LoadingSkeleton />
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const directionClass = DIRECTION_COLORS[data.signal.direction] || 'text-yellow-400'
+  const dirTone = DIR_COLORS[data.signal.direction] || 'text-ink-3'
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatTile
-          label="综合评分"
-          value={data.consensusScore.overall != null ? `${data.consensusScore.overall}` : '--'}
-          className={directionClass}
-        />
-        <StatTile
-          label="增长维度"
-          value={data.consensusScore.growth != null ? `${data.consensusScore.growth}` : '--'}
-          className={CATEGORY_COLORS.growth}
-        />
-        <StatTile
-          label="通胀维度"
-          value={data.consensusScore.inflation != null ? `${data.consensusScore.inflation}` : '--'}
-          className={CATEGORY_COLORS.inflation}
-        />
-        <StatTile
-          label="风险维度"
-          value={data.consensusScore.risk != null ? `${data.consensusScore.risk}` : '--'}
-          className={CATEGORY_COLORS.risk}
-        />
-      </div>
-
-      <div className={`p-4 rounded-lg border ${directionClass}`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className={`font-semibold ${directionClass}`}>{data.consensusScore.direction.toUpperCase()}</div>
-            <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>信号强度: {data.consensusScore.strength} | 置信度: {data.consensusScore.confidence}%</div>
-          </div>
+    <div className="space-y-4">
+      <MacroCard accent={DIR_ACCENT[data.signal.direction] || 'none'}>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatTile label="综合评分" value={data.consensusScore.overall != null ? `${data.consensusScore.overall}` : '--'} className={dirTone} />
+          <StatTile label="增长" value={data.consensusScore.growth != null ? `${data.consensusScore.growth}` : '--'} className={CAT_COLORS.growth} />
+          <StatTile label="通胀" value={data.consensusScore.inflation != null ? `${data.consensusScore.inflation}` : '--'} className={CAT_COLORS.inflation} />
+          <StatTile label="风险" value={data.consensusScore.risk != null ? `${data.consensusScore.risk}` : '--'} className={CAT_COLORS.risk} />
+          <StatTile label="流动性" value={data.consensusScore.liquidity != null ? `${data.consensusScore.liquidity}` : '--'} className={CAT_COLORS.liquidity} />
         </div>
-      </div>
+        <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
+          <span className={`font-semibold ${dirTone}`}>{data.consensusScore.direction.toUpperCase()}</span>
+          <span>强度 {data.consensusScore.strength} · 置信度 {data.consensusScore.confidence}%</span>
+        </div>
+      </MacroCard>
 
-      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>历史综合评分走势</h3>
-        <ChartBox option={historicalOption} height={350} />
-      </div>
+      <MacroCard title="历史综合评分走势" padding="sm">
+        <ResponsiveChartBox option={historyOption} deps={[historyOption]} />
+      </MacroCard>
 
-      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>信号明细</h3>
-        <div className="space-y-2">
+      <MacroCard title="信号明细" padding="sm">
+        <div className="space-y-1.5">
           {data.signals.map((s, i) => (
-            <div key={i} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <div>
-                <span className={CATEGORY_COLORS[s.category] || ''} style={{ color: 'rgb(var(--c-text))' }}>{s.name}</span>
-                <span className="text-xs ml-2" style={{ color: 'rgb(var(--c-text-3))' }}>{s.category}</span>
-              </div>
+            <div key={i} className="flex justify-between items-center py-1.5 border-b border-line last:border-0 text-xs">
+              <span className="text-ink-2">{s.name}</span>
               <div className="flex items-center gap-3">
-                <span style={{ color: 'rgb(var(--c-text))' }}>{s.current != null ? s.current.toFixed(2) : '--'}</span>
-                <span className={s.zScore != null && s.zScore > 1 ? 'text-red-400' : s.zScore != null && s.zScore < -1 ? 'text-blue-400' : 'text-yellow-400'}>
+                <span className="num">{s.current != null ? s.current.toFixed(2) : '--'}</span>
+                <span className={`num ${(s.zScore ?? 0) > 1 ? 'text-down' : (s.zScore ?? 0) < -1 ? 'text-up' : 'text-ink-3'}`}>
                   Z: {s.zScore != null ? s.zScore.toFixed(2) : '--'}
                 </span>
-                <span className="text-xs" style={{ color: 'rgb(var(--c-text-3))' }}>权重 {(s.weight * 100).toFixed(0)}%</span>
+                <span className="text-ink-3">权重 {(s.weight * 100).toFixed(0)}%</span>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </MacroCard>
 
-      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>分析依据</h3>
-        <div className="space-y-2">
-          {data.signal.evidence.map((e, i) => (
-            <div key={i} className="text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))', color: 'rgb(var(--c-text))' }}>
-              {e}
-            </div>
-          ))}
-          {data.signal.evidence.length === 0 && (
-            <div className="text-sm py-2" style={{ color: 'rgb(var(--c-text-3))' }}>暂无显著信号</div>
-          )}
-        </div>
-      </div>
+      <MacroCard title="分析依据" padding="sm">
+        <ul className="list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-ink-2">
+          {data.signal.evidence.map((e, i) => <li key={i}>{e}</li>)}
+          {data.signal.evidence.length === 0 && <li className="text-ink-3">暂无显著信号</li>}
+        </ul>
+      </MacroCard>
     </div>
   )
 }

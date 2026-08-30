@@ -1,195 +1,122 @@
 import { useMemo, useState, useEffect } from 'react'
 import type { EChartsOption } from 'echarts'
-import { ChartBox } from '../charts/ChartBox'
-import { StatTile } from '../ui/StatTile'
-import { DataFreshness } from '../ui/DataFreshness'
+import { ResponsiveChartBox } from '../charts/ChartBox'
+import { useChartTheme } from '../ui/theme'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState, ErrorState } from '../ui/States'
-import { PageHeader } from '../ui/PageHeader'
+import { MacroCard } from '../ui/MacroCard'
+import { StatTile } from '../ui/StatTile'
+import {
+  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
+  chartTooltip, lineSeries, valueAxis,
+} from '../../lib/chartOptions'
 
-interface InflationAnchorData {
-  breakevenHistory: {
-    dates: string[]
-    series: { name: string; tenor: string; data: (number | null)[] }[]
-  }
-  anchorDeviation: {
-    currentDeviation10y: number | null
-    zScore: number | null
-    percentile1y: number | null
-    percentile5y: number | null
-    anchorStatus: string
-    anchorDesc: string
-  }
-  termStructure: {
-    slope5y10y: number | null
-  }
-  currentSnapshot: {
-    breakeven5y: number | null
-    breakeven10y: number | null
-    realYield5y: number | null
-    realYield10y: number | null
-    realYield20y: number | null
-    fedTargetPct: number
-  }
-  signal: {
-    direction: string
-    strength: string
-    confidence: number
-    evidence: string[]
-  }
+interface Data {
+  breakevenHistory: { dates: string[]; series: { name: string; tenor: string; data: (number | null)[] }[] }
+  anchorDeviation: { currentDeviation10y: number | null; zScore: number | null; percentile1y: number | null; anchorStatus: string; anchorDesc: string }
+  termStructure: { slope5y10y: number | null }
+  currentSnapshot: { breakeven5y: number | null; breakeven10y: number | null; realYield5y: number | null; realYield10y: number | null; realYield20y: number | null; fedTargetPct: number }
+  signal: { direction: string; strength: string; confidence: number; evidence: string[] }
   updatedAt: string
 }
 
-const ANCHOR_STATUS_COLORS: Record<string, string> = {
-  anchored: 'text-green-400',
-  drifting: 'text-yellow-400',
-  deanchored: 'text-red-400',
-}
-
-const DIRECTION_COLORS: Record<string, string> = {
-  dovish: 'text-green-400',
-  hawkish: 'text-red-400',
-  neutral: 'text-yellow-400',
-}
+const STATUS_COLORS: Record<string, string> = { anchored: 'text-up', drifting: 'text-warn', deanchored: 'text-down' }
+const DIR_COLORS: Record<string, string> = { dovish: 'text-up', hawkish: 'text-down', neutral: 'text-ink-3' }
 
 export default function InflationAnchorDashboard() {
-  const [data, setData] = useState<InflationAnchorData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<Data | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const t = useChartTheme()
 
   useEffect(() => {
-    let cancelled = false
+    let alive = true
     fetch('/api/v1/analysis/inflation-anchor.json')
       .then(r => r.json())
-      .then(json => {
-        if (cancelled) return
-        if (json.success) setData(json.data)
-        else setError(json.error || '加载失败')
-      })
-      .catch(e => { if (!cancelled) setError(e.message) })
-      .finally(() => { if (!cancelled) setIsLoading(false) })
-    return () => { cancelled = true }
+      .then(j => { if (!alive) return; if (j.success) setData(j.data); else setError(j.error || '加载失败') })
+      .catch(e => alive && setError(e.message))
+      .finally(() => alive && setLoading(false))
+    return () => { alive = false }
   }, [])
 
   const breakevenOption = useMemo<EChartsOption | null>(() => {
     if (!data?.breakevenHistory) return null
     const { dates, series } = data.breakevenHistory
+    const total = dates.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
-      tooltip: { trigger: 'axis' },
-      legend: { data: series.map(s => s.name) },
-      xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '盈亏平衡通胀 (%)' },
-      series: series.map(s => ({
-        name: s.name,
-        type: 'line',
-        data: s.data,
-        smooth: true,
-      })),
-      dataZoom: [{ type: 'slider', start: 70, end: 100 }],
-    }
-  }, [data])
+      ...chartAnimation,
+      tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
+      legend: chartLegend(t, series.map(s => s.name)),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, { name: '%', nameTextStyle: { color: t.text3, fontSize: 10 } }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: series.map((s, i) => lineSeries(s.name, s.data, t.series[i], { lineStyle: { width: 2 } })),
+    } as EChartsOption
+  }, [data, t])
 
   const deviationOption = useMemo<EChartsOption | null>(() => {
     if (!data?.breakevenHistory) return null
     const { dates } = data.breakevenHistory
-    const deviationData = data.breakevenHistory.series.find(s => s.tenor === '10Y')?.data.map(v => {
-      if (v == null) return null
-      return +(v - 2.0).toFixed(2)
-    }) ?? []
+    const devData = data.breakevenHistory.series.find(s => s.tenor === '10Y')?.data.map(v => v != null ? +(v - 2.0).toFixed(3) : null) ?? []
+    const total = dates.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '偏差 (%)' },
-      series: [
-        { name: '偏差', type: 'line', data: deviationData, smooth: true },
-        { name: '零线', type: 'line', data: dates.map(() => 0), lineStyle: { type: 'dashed', color: '#666' } },
-      ],
-      dataZoom: [{ type: 'slider', start: 70, end: 100 }],
-    }
-  }, [data])
+      ...chartAnimation,
+      tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
+      grid: chartGrid({ top: 14, bottom: 32 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [{
+        name: '偏差',
+        type: 'bar',
+        data: devData.map(v => ({ value: v, itemStyle: { color: v != null && v >= 0 ? t.downSoft : t.upSoft } })),
+        markLine: { data: [{ yAxis: 0, lineStyle: { color: t.border, type: 'dashed' } }] },
+      }],
+    } as EChartsOption
+  }, [data, t])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (loading) return <LoadingSkeleton />
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const anchorClass = ANCHOR_STATUS_COLORS[data.anchorDeviation.anchorStatus] || 'text-yellow-400'
-  const directionClass = DIRECTION_COLORS[data.signal.direction] || 'text-yellow-400'
+  const anchorTone = STATUS_COLORS[data.anchorDeviation.anchorStatus] || 'text-ink-3'
+  const dirTone = DIR_COLORS[data.signal.direction] || 'text-ink-3'
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatTile
-          label="5Y 盈亏平衡"
-          value={data.currentSnapshot.breakeven5y != null ? `${data.currentSnapshot.breakeven5y.toFixed(2)}%` : '--'}
-        />
-        <StatTile
-          label="10Y 盈亏平衡"
-          value={data.currentSnapshot.breakeven10y != null ? `${data.currentSnapshot.breakeven10y.toFixed(2)}%` : '--'}
-        />
-        <StatTile
-          label="联储目标"
-          value={`${data.currentSnapshot.fedTargetPct}%`}
-        />
-        <StatTile
-          label="偏差 Z-Score"
-          value={data.anchorDeviation.zScore != null ? data.anchorDeviation.zScore.toFixed(2) : '--'}
-          className={data.anchorDeviation.zScore != null && Math.abs(data.anchorDeviation.zScore) > 1 ? 'text-yellow-400' : ''}
-        />
+    <div className="space-y-4">
+      <MacroCard accent={data.anchorDeviation.anchorStatus === 'deanchored' ? 'red' : data.anchorDeviation.anchorStatus === 'drifting' ? 'gold' : 'green'}>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatTile label="5Y 盈亏平衡" value={data.currentSnapshot.breakeven5y != null ? `${data.currentSnapshot.breakeven5y.toFixed(2)}%` : '--'} />
+          <StatTile label="10Y 盈亏平衡" value={data.currentSnapshot.breakeven10y != null ? `${data.currentSnapshot.breakeven10y.toFixed(2)}%` : '--'} />
+          <StatTile label="10Y 偏差" value={data.anchorDeviation.currentDeviation10y != null ? `${data.anchorDeviation.currentDeviation10y.toFixed(2)}%` : '--'} className={anchorTone} />
+          <StatTile label="Z-Score" value={data.anchorDeviation.zScore != null ? data.anchorDeviation.zScore.toFixed(2) : '--'} className={Math.abs(data.anchorDeviation.zScore ?? 0) > 1 ? 'text-warn' : ''} />
+          <StatTile label="状态" value={data.anchorDeviation.anchorStatus} className={anchorTone} />
+        </div>
+        <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
+          <span className={`font-semibold ${dirTone}`}>{data.signal.direction.toUpperCase()}</span>
+          <span>置信度 {data.signal.confidence}%</span>
+          <span>{data.anchorDeviation.anchorDesc}</span>
+        </div>
+      </MacroCard>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MacroCard title="盈亏平衡通胀率" padding="sm">
+          <ResponsiveChartBox option={breakevenOption} deps={[breakevenOption]} />
+        </MacroCard>
+        <MacroCard title="10Y 偏离联储2%目标" padding="sm">
+          <ResponsiveChartBox option={deviationOption} deps={[deviationOption]} />
+        </MacroCard>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatTile
-          label="5Y 实际利率"
-          value={data.currentSnapshot.realYield5y != null ? `${data.currentSnapshot.realYield5y.toFixed(2)}%` : '--'}
-        />
-        <StatTile
-          label="10Y 实际利率"
-          value={data.currentSnapshot.realYield10y != null ? `${data.currentSnapshot.realYield10y.toFixed(2)}%` : '--'}
-        />
-        <StatTile
-          label="20Y 实际利率"
-          value={data.currentSnapshot.realYield20y != null ? `${data.currentSnapshot.realYield20y.toFixed(2)}%` : '--'}
-        />
-        <StatTile
-          label="5Y-10Y 斜率"
-          value={data.termStructure.slope5y10y != null ? `${data.termStructure.slope5y10y.toFixed(2)}%` : '--'}
-        />
-      </div>
-
-      <div className={`p-4 rounded-lg border ${anchorClass}`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className={`font-semibold ${anchorClass}`}>{data.anchorDeviation.anchorStatus.toUpperCase()}</div>
-            <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>{data.anchorDeviation.anchorDesc}</div>
-          </div>
-          <div className={`font-semibold ${directionClass}`}>{data.signal.direction.toUpperCase()}</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>盈亏平衡通胀率曲线</h3>
-          <ChartBox option={breakevenOption} height={300} />
-        </div>
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>10Y 偏差走势</h3>
-          <ChartBox option={deviationOption} height={300} />
-        </div>
-      </div>
-
-      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>分析依据</h3>
-        <div className="space-y-2">
-          {data.signal.evidence.map((e, i) => (
-            <div key={i} className="text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))', color: 'rgb(var(--c-text))' }}>
-              {e}
-            </div>
-          ))}
-          {data.signal.evidence.length === 0 && (
-            <div className="text-sm py-2" style={{ color: 'rgb(var(--c-text-3))' }}>暂无显著信号</div>
-          )}
-        </div>
-      </div>
+      <MacroCard title="分析依据" padding="sm">
+        <ul className="list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-ink-2">
+          {data.signal.evidence.map((e, i) => <li key={i}>{e}</li>)}
+          {data.signal.evidence.length === 0 && <li className="text-ink-3">暂无显著信号</li>}
+        </ul>
+      </MacroCard>
     </div>
   )
 }

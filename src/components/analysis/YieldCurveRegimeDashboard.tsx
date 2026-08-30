@@ -1,206 +1,158 @@
 import { useState, useMemo, useEffect } from 'react'
 import type { EChartsOption } from 'echarts'
-import { ChartBox } from '../charts/ChartBox'
-import { StatTile } from '../ui/StatTile'
-import { DataFreshness } from '../ui/DataFreshness'
+import { ResponsiveChartBox } from '../charts/ChartBox'
+import { useChartTheme } from '../ui/theme'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState, ErrorState } from '../ui/States'
-import { PageHeader } from '../ui/PageHeader'
+import { MacroCard } from '../ui/MacroCard'
+import { StatTile } from '../ui/StatTile'
+import {
+  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
+  chartTooltip, lineSeries, valueAxis,
+} from '../../lib/chartOptions'
 
-interface YieldCurveRegimeData {
-  curveHistory: {
-    dates: string[]
-    tenors: { name: string; data: (number | null)[] }[]
-  }
+interface Data {
+  curveHistory: { dates: string[]; tenors: { name: string; data: (number | null)[] }[] }
   spreadHistory: { date: string; spread10y2y: number | null; shape: string }[]
   regimeTransitions: { fromRegime: string; toRegime: string; date: string; spreadAtTransition: number | null }[]
   forwardReturns: { spreadRange: string; avgReturn1m: number; avgReturn3m: number; avgReturn6m: number; avgReturn12m: number; winRate1m: number; winRate3m: number; winRate6m: number; winRate12m: number; sampleSize: number }[]
-  currentSpread: {
-    spread10y2y: number | null
-    percentile1y: number | null
-    percentile5y: number | null
-    zScore: number | null
-    inversionMonths: number
-    signal: string
-    signalDesc: string
-  }
+  currentSpread: { spread10y2y: number | null; percentile1y: number | null; percentile5y: number | null; zScore: number | null; inversionMonths: number; signal: string; signalDesc: string }
   updatedAt: string
 }
 
-const REGIME_LABELS: Record<string, string> = {
-  GOLDILOCKS: '金发女孩', RISK_ON: '风险偏好', OVERHEAT: '过热',
-  STAGFLATION: '滞胀', RISK_OFF: '风险规避', RECOVERY: '复苏', UNKNOWN: '不确定',
-}
-
-const SIGNAL_COLORS: Record<string, string> = {
-  strong_buy: 'text-green-400',
-  buy: 'text-green-300',
-  neutral: 'text-yellow-400',
-  warning: 'text-orange-400',
-  strong_warning: 'text-red-400',
-}
+const SIGNAL_ACCENT: Record<string, 'green' | 'red' | 'gold' | 'none'> = { strong_buy: 'green', buy: 'green', neutral: 'none', warning: 'gold', strong_warning: 'red' }
+const SIGNAL_COLORS: Record<string, string> = { strong_buy: 'text-up', buy: 'text-up', neutral: 'text-ink-3', warning: 'text-warn', strong_warning: 'text-down' }
 
 export default function YieldCurveRegimeDashboard() {
-  const [data, setData] = useState<YieldCurveRegimeData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<Data | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const t = useChartTheme()
 
   useEffect(() => {
-    let cancelled = false
+    let alive = true
     fetch('/api/v1/analysis/yield-curve-regime.json')
       .then(r => r.json())
-      .then(json => {
-        if (cancelled) return
-        if (json.success) setData(json.data)
-        else setError(json.error || '加载失败')
-      })
-      .catch(e => { if (!cancelled) setError(e.message) })
-      .finally(() => { if (!cancelled) setIsLoading(false) })
-    return () => { cancelled = true }
+      .then(j => { if (!alive) return; if (j.success) setData(j.data); else setError(j.error || '加载失败') })
+      .catch(e => alive && setError(e.message))
+      .finally(() => alive && setLoading(false))
+    return () => { alive = false }
   }, [])
 
   const spreadOption = useMemo<EChartsOption | null>(() => {
     if (!data?.spreadHistory) return null
     const dates = data.spreadHistory.map(p => p.date)
     const spreadData = data.spreadHistory.map(p => p.spread10y2y)
+    const total = dates.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '利差 (%)' },
-      series: [
-        { name: '10Y-2Y 利差', type: 'line', data: spreadData, smooth: true },
-        { name: '零线', type: 'line', data: dates.map(() => 0), lineStyle: { type: 'dashed', color: '#666' } },
-      ],
-      dataZoom: [{ type: 'slider', start: 70, end: 100 }],
-    }
-  }, [data])
+      ...chartAnimation,
+      tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
+      grid: chartGrid({ top: 14, bottom: 32 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, { name: '%', nameTextStyle: { color: t.text3, fontSize: 10 } }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [{
+        name: '10Y-2Y',
+        type: 'line',
+        data: spreadData,
+        smooth: true,
+        lineStyle: { width: 2, color: t.series[2] },
+        markLine: { data: [{ yAxis: 0, lineStyle: { color: t.border, type: 'dashed' }, label: { show: false } }] },
+      }],
+    } as EChartsOption
+  }, [data, t])
 
   const curveOption = useMemo<EChartsOption | null>(() => {
     if (!data?.curveHistory) return null
     const { dates, tenors } = data.curveHistory
+    const total = dates.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
-      tooltip: { trigger: 'axis' },
-      legend: { data: tenors.map(t => t.name) },
-      xAxis: { type: 'category', data: dates },
-      yAxis: { type: 'value', name: '收益率 (%)' },
-      series: tenors.map((t, i) => ({
-        name: t.name,
-        type: 'line',
-        data: t.data,
-        smooth: true,
-        lineStyle: { width: i === 0 ? 1 : 2 },
-      })),
-      dataZoom: [{ type: 'slider', start: 70, end: 100 }],
-    }
-  }, [data])
+      ...chartAnimation,
+      tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
+      legend: chartLegend(t, tenors.map(tn => tn.name)),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, { name: '%', nameTextStyle: { color: t.text3, fontSize: 10 } }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: tenors.map((tn, i) => lineSeries(tn.name, tn.data, t.series[i % t.series.length], { lineStyle: { width: i === 0 ? 1 : 2 } })),
+    } as EChartsOption
+  }, [data, t])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (loading) return <LoadingSkeleton />
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const signalClass = SIGNAL_COLORS[data.currentSpread.signal] || 'text-yellow-400'
+  const sigTone = SIGNAL_COLORS[data.currentSpread.signal] || 'text-ink-3'
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="收益率曲线 × 宏观体制联动"
-        subtitle="曲线形态与经济周期的交叉分析"
-        actions={<DataFreshness />}
-      />
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatTile
-          label="10Y-2Y 利差"
-          value={data.currentSpread.spread10y2y != null ? `${data.currentSpread.spread10y2y.toFixed(2)}%` : '--'}
-          className={data.currentSpread.spread10y2y != null && data.currentSpread.spread10y2y < 0 ? 'text-red-400' : 'text-green-400'}
-        />
-        <StatTile
-          label="1年分位数"
-          value={data.currentSpread.percentile1y != null ? `${data.currentSpread.percentile1y.toFixed(0)}%` : '--'}
-        />
-        <StatTile
-          label="5年分位数"
-          value={data.currentSpread.percentile5y != null ? `${data.currentSpread.percentile5y.toFixed(0)}%` : '--'}
-        />
-        <StatTile
-          label="倒挂月数"
-          value={`${data.currentSpread.inversionMonths}`}
-          className={data.currentSpread.inversionMonths > 0 ? 'text-red-400' : ''}
-        />
-      </div>
-
-      <div className={`p-4 rounded-lg border ${signalClass} bg-opacity-10`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
-        <div className={`font-semibold ${signalClass}`}>{data.currentSpread.signal.replace('_', ' ').toUpperCase()}</div>
-        <div className="text-sm mt-1" style={{ color: 'rgb(var(--c-text-2))' }}>{data.currentSpread.signalDesc}</div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>收益率曲线形态</h3>
-          <ChartBox option={curveOption} height={300} />
+    <div className="space-y-4">
+      <MacroCard accent={SIGNAL_ACCENT[data.currentSpread.signal] || 'none'}>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatTile label="10Y-2Y 利差" value={data.currentSpread.spread10y2y != null ? `${data.currentSpread.spread10y2y.toFixed(2)}%` : '--'} className={data.currentSpread.spread10y2y != null && data.currentSpread.spread10y2y < 0 ? 'text-down' : ''} />
+          <StatTile label="1Y 百分位" value={data.currentSpread.percentile1y != null ? `${data.currentSpread.percentile1y.toFixed(0)}%` : '--'} />
+          <StatTile label="5Y 百分位" value={data.currentSpread.percentile5y != null ? `${data.currentSpread.percentile5y.toFixed(0)}%` : '--'} />
+          <StatTile label="Z-Score" value={data.currentSpread.zScore != null ? data.currentSpread.zScore.toFixed(2) : '--'} className={Math.abs(data.currentSpread.zScore ?? 0) > 1 ? 'text-warn' : ''} />
+          <StatTile label="倒挂月数" value={`${data.currentSpread.inversionMonths}`} className={data.currentSpread.inversionMonths > 0 ? 'text-down' : ''} />
         </div>
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>10Y-2Y 利差走势</h3>
-          <ChartBox option={spreadOption} height={300} />
+        <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
+          <span className={`font-semibold ${sigTone}`}>{data.currentSpread.signal.toUpperCase()}</span>
+          <span>{data.currentSpread.signalDesc}</span>
         </div>
+      </MacroCard>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MacroCard title="10Y-2Y 利差走势" padding="sm">
+          <ResponsiveChartBox option={spreadOption} deps={[spreadOption]} />
+        </MacroCard>
+        <MacroCard title="收益率曲线" padding="sm">
+          <ResponsiveChartBox option={curveOption} deps={[curveOption]} />
+        </MacroCard>
       </div>
 
-      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>不同利差区间的前瞻收益</h3>
+      {data.regimeTransitions.length > 0 && (
+        <MacroCard title="近期体制转换" padding="sm">
+          <div className="space-y-1.5">
+            {data.regimeTransitions.slice(0, 5).map((r, i) => (
+              <div key={i} className="flex justify-between items-center py-1.5 border-b border-line last:border-0 text-xs">
+                <span className="text-ink-2">{r.date}</span>
+                <span className="text-ink-3">{r.fromRegime} → {r.toRegime}</span>
+                {r.spreadAtTransition != null && <span className="num">{r.spreadAtTransition.toFixed(2)}%</span>}
+              </div>
+            ))}
+          </div>
+        </MacroCard>
+      )}
+
+      <MacroCard title="利差区间前瞻收益" padding="sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
-              <tr style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                <th className="text-left py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>利差区间</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>1月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>3月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>6月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>12月收益</th>
-                <th className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>样本数</th>
+              <tr className="border-b border-line text-ink-3">
+                <th className="py-1.5 text-left font-medium">区间</th>
+                <th className="py-1.5 text-right font-medium">1M 均值</th>
+                <th className="py-1.5 text-right font-medium">3M 均值</th>
+                <th className="py-1.5 text-right font-medium">6M 均值</th>
+                <th className="py-1.5 text-right font-medium">胜率</th>
+                <th className="py-1.5 text-right font-medium">样本</th>
               </tr>
             </thead>
             <tbody>
-              {data.forwardReturns.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                  <td className="py-2 px-3" style={{ color: 'rgb(var(--c-text))' }}>{row.spreadRange}</td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn1m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn1m.toFixed(2)}%
-                  </td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn3m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn3m.toFixed(2)}%
-                  </td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn6m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn6m.toFixed(2)}%
-                  </td>
-                  <td className={`text-right py-2 px-3 ${row.avgReturn12m >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {row.avgReturn12m.toFixed(2)}%
-                  </td>
-                  <td className="text-right py-2 px-3" style={{ color: 'rgb(var(--c-text-2))' }}>{row.sampleSize}</td>
+              {data.forwardReturns.map((r, i) => (
+                <tr key={i} className="border-b border-line last:border-0">
+                  <td className="py-1.5 text-ink-2">{r.spreadRange}</td>
+                  <td className="py-1.5 text-right num">{(r.avgReturn1m * 100).toFixed(2)}%</td>
+                  <td className="py-1.5 text-right num">{(r.avgReturn3m * 100).toFixed(2)}%</td>
+                  <td className="py-1.5 text-right num">{(r.avgReturn6m * 100).toFixed(2)}%</td>
+                  <td className="py-1.5 text-right num">{(r.winRate12m * 100).toFixed(0)}%</td>
+                  <td className="py-1.5 text-right num text-ink-3">{r.sampleSize}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {data.regimeTransitions.length > 0 && (
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>近期体制转换</h3>
-          <div className="space-y-2">
-            {data.regimeTransitions.slice(-5).reverse().map((t, i) => (
-              <div key={i} className="flex items-center justify-between text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                <span style={{ color: 'rgb(var(--c-text-2))' }}>{t.date}</span>
-                <span style={{ color: 'rgb(var(--c-text))' }}>
-                  {REGIME_LABELS[t.fromRegime] || t.fromRegime} → {REGIME_LABELS[t.toRegime] || t.toRegime}
-                </span>
-                <span style={{ color: 'rgb(var(--c-text-2))' }}>
-                  利差: {t.spreadAtTransition != null ? `${t.spreadAtTransition.toFixed(2)}%` : '--'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      </MacroCard>
     </div>
   )
 }
