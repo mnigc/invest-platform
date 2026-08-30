@@ -255,7 +255,7 @@ async function handleBacktest(url: URL): Promise<Response> {
               avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
               win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
        FROM regime_backtest_summaries
-       WHERE period_start <= ? AND period_end >= ?
+       WHERE period_start >= ? AND period_end <= ?
        ORDER BY count DESC`,
       [startDate, endDate]
     )
