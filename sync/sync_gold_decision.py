@@ -18,6 +18,8 @@
 """
 import os
 import re
+import time
+import calendar
 import datetime
 import pandas
 
@@ -116,15 +118,21 @@ def fetch_today_gold_price():
     return [(d, float(price))]
 
 
-def fetch_gold_history():
-    """Yahoo Finance 拉取 COMEX 黄金期货（GC=F）历史日线收盘价 -> [(date, close)]"""
-    def _download():
-        return yf.download(GOLD_SYMBOL, start=GOLD_START, progress=False,
-                           auto_adjust=False, prepost=False)
+YAHOO_TIMEOUT = 30
+YAHOO_MAX_RETRY = 4
 
-    df = with_retry(_download, timeout=90, max_retry=4)
+
+def _yahoo_via_yfinance(symbol, start):
+    """用 yfinance 拉取 Yahoo 日线收盘价 -> [(date, close)]；拉空/异常返回 []（不抛）"""
+    try:
+        df = yf.download(symbol, start=start, progress=False,
+                         auto_adjust=False, prepost=False, threads=False)
+    except Exception as e:
+        log.warning("yfinance %s 拉取异常: %s", symbol, e)
+        return []
+
     if df is None or getattr(df, "empty", True):
-        log.warning("Yahoo 未返回 %s 数据", GOLD_SYMBOL)
+        log.warning("yfinance %s 返回空", symbol)
         return []
 
     if isinstance(df.columns, pandas.MultiIndex):
@@ -141,7 +149,7 @@ def fetch_gold_history():
     if date_col is None:
         date_col = df.columns[0]
     if close_col is None:
-        log.warning("%s 未找到 Close 列: %s", GOLD_SYMBOL, list(df.columns))
+        log.warning("%s 未找到 Close 列: %s", symbol, list(df.columns))
         return []
 
     rows = []
@@ -153,7 +161,67 @@ def fetch_gold_history():
                 rows.append((d, v))
         except Exception:
             continue
-    log.info("金价历史 (yfinance %s) -> %d 条", GOLD_SYMBOL, len(rows))
+    log.info("yfinance %s -> %d 条", symbol, len(rows))
+    return rows
+
+
+def _yahoo_via_curl(symbol, start):
+    """curl_cffi 浏览器伪造直连 Yahoo chart API（境外 / GHA 更稳）-> [(date, close)]。
+
+    连续失败抛 RuntimeError（区别于 yfinance 的静默返回空），保证不被记成"假成功"。
+    """
+    from curl_cffi import requests as c_requests
+
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+    period1 = calendar.timegm(time.strptime(start, "%Y-%m-%d"))
+    period2 = int(time.time())
+    params = {"period1": period1, "period2": period2, "interval": "1d"}
+
+    last_err = None
+    for attempt in range(1, YAHOO_MAX_RETRY + 1):
+        try:
+            r = c_requests.get(url, params=params, impersonate="chrome", timeout=YAHOO_TIMEOUT)
+            if r.status_code != 200:
+                last_err = "HTTP %d" % r.status_code
+                log.warning("curl_cffi %s 状态码 %d（尝试 %d/%d）", symbol, r.status_code, attempt, YAHOO_MAX_RETRY)
+                time.sleep(min(2 ** (attempt - 1), 15))
+                continue
+            j = r.json()
+            res = (j.get("chart") or {}).get("result") or []
+            if not res:
+                last_err = "chart.result 为空"
+                time.sleep(min(2 ** (attempt - 1), 15))
+                continue
+            ts = res[0].get("timestamp") or []
+            closes = (res[0].get("indicators", {}).get("quote", [{}])[0]).get("close") or []
+            rows = []
+            for t_, c_ in zip(ts, closes):
+                try:
+                    d = datetime.datetime.utcfromtimestamp(t_).strftime("%Y-%m-%d")
+                    v = float(c_)
+                    if d and v > 0:
+                        rows.append((d, v))
+                except Exception:
+                    continue
+            rows.sort()
+            if rows:
+                log.info("curl_cffi %s -> %d 条", symbol, len(rows))
+                return rows
+            last_err = "拉取 0 条"
+        except Exception as e:
+            last_err = repr(e)[:120]
+            log.warning("curl_cffi %s 异常: %s", symbol, e)
+        time.sleep(min(2 ** (attempt - 1), 15))
+
+    raise RuntimeError("Yahoo %s 拉取失败: %s" % (symbol, last_err))
+
+
+def fetch_gold_history():
+    """Yahoo Finance 拉取 COMEX 黄金期货（GC=F）历史日线收盘价 -> [(date, close)]"""
+    rows = _yahoo_via_yfinance(GOLD_SYMBOL, GOLD_START)
+    if not rows:
+        rows = _yahoo_via_curl(GOLD_SYMBOL, GOLD_START)
+    log.info("金价历史 %s -> %d 条", GOLD_SYMBOL, len(rows))
     return rows
 
 
@@ -188,42 +256,10 @@ def ensure_dxy_asset():
 
 def fetch_dxy_history():
     """Yahoo Finance 拉取美元指数历史日线收盘价 -> [(date, close)]"""
-    def _download():
-        return yf.download(DXY_SYMBOL, start=DXY_START, progress=False,
-                           auto_adjust=False, prepost=False)
-
-    df = with_retry(_download, timeout=60, max_retry=4)
-    if df is None or getattr(df, "empty", True):
-        log.warning("Yahoo 未返回 %s 数据", DXY_SYMBOL)
-        return []
-
-    if isinstance(df.columns, pandas.MultiIndex):
-        df.columns = [str(c[-1]).strip() for c in df.columns]
-    df = df.reset_index()
-
-    date_col, close_col = None, None
-    for c in df.columns:
-        low = str(c).lower()
-        if date_col is None and (low == "date" or low.startswith("date")):
-            date_col = c
-        if close_col is None and low == "close":
-            close_col = c
-    if date_col is None:
-        date_col = df.columns[0]
-    if close_col is None:
-        log.warning("%s 未找到 Close 列: %s", DXY_SYMBOL, list(df.columns))
-        return []
-
-    rows = []
-    for _, r in df.iterrows():
-        try:
-            d = _parse_date(r[date_col])
-            v = float(r[close_col])
-            if d and v > 0:
-                rows.append((d, v))
-        except Exception:
-            continue
-    log.info("DXY 历史 -> %d 条", len(rows))
+    rows = _yahoo_via_yfinance(DXY_SYMBOL, DXY_START)
+    if not rows:
+        rows = _yahoo_via_curl(DXY_SYMBOL, DXY_START)
+    log.info("DXY %s -> %d 条", DXY_SYMBOL, len(rows))
     return rows
 
 
