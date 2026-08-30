@@ -12,7 +12,7 @@ from sync_base import get_conn
 
 EXPECTED_TABLES = [
     "indicators", "indicator_data", "assets", "asset_prices",
-    "gold_reserve_changes", "gold_price_history", "data_sync_logs",
+    "gold_price_history", "data_sync_logs",
 ]
 
 DATE_COLUMNS = {

@@ -133,7 +133,7 @@ function buildResidualZ(goldPointZ: SeriesPoint[], dxyZ: SeriesPoint[], dfiiZ: S
 export const GET = withCache(async () => {
   const horizon = 5 * 260
 
-  const [goldRows, dxyRows, dfiiRows, t10yieRows, reserveRows] = await Promise.all([
+  const [goldRows, dxyRows, dfiiRows, t10yieRows] = await Promise.all([
     safeQuery(`
       SELECT price_date, close_price FROM gold_price_history
       WHERE source IN ('yfinance', 'gold-api', 'LOCAL-XLSX', 'FRED')
@@ -151,27 +151,12 @@ export const GET = withCache(async () => {
       SELECT d.period_date, d.value FROM indicator_data d JOIN indicators i ON i.id = d.indicator_id
       WHERE i.code = 'T10YIE' AND i.region = 'US' AND d.value IS NOT NULL
       ORDER BY d.period_date ASC`),
-    safeQuery(`
-      SELECT period_date, SUM(change_tonnes) as total_change
-      FROM gold_reserve_changes
-      GROUP BY period_date
-      ORDER BY period_date ASC`),
   ])
 
   const goldZ: SeriesPoint[] = goldRows.map((r: any) => ({ date: toDateStr(r.price_date), value: Number(r.close_price) }))
   const dxyZ: SeriesPoint[] = dxyRows.map((r: any) => ({ date: toDateStr(r.trade_date), value: Number(r.close_price) }))
   const dfiiZ: SeriesPoint[] = dfiiRows.map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
   const t10yieZ: SeriesPoint[] = t10yieRows.map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
-
-  // —— 央行购金数据 ——
-  const reserveData: { date: string; change: number; cumulative: number }[] = []
-  let cumReserve = 0
-  for (const r of reserveRows) {
-    const d = toDateStr(r.period_date)
-    const change = Number(r.total_change)
-    cumReserve += change
-    reserveData.push({ date: d, change: +change.toFixed(2), cumulative: +cumReserve.toFixed(2) })
-  }
 
   // —— 1. 双轴价格（全部历史数据）——
   const priceChart = alignByDate(goldZ, dxyZ).map(p => ({ date: p.date, gold: +p.a.toFixed(2), dxy: p.b != null ? +p.b.toFixed(2) : null }))
@@ -341,7 +326,6 @@ export const GET = withCache(async () => {
       m20: momentum20,
       m60: momentum60,
     },
-    reserveChart: reserveData,
     extremes: extremeEvents.slice(-15),
     eventStudies: {
       broken: brokenStudy,

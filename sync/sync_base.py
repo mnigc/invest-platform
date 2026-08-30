@@ -60,7 +60,6 @@ CONFLICT_COLS = {
     "asset_prices": ["asset_id", "trade_date"],
     "asset_snapshots": ["asset_id"],
     "china_credit_pulse": ["report_date"],
-    "gold_reserve_changes": ["country_name", "period_date"],
     "gold_price_history": ["source", "price_date"],
     "regime_snapshots": ["snapshot_date"],
     "regime_backtest_summaries": ["period_start", "period_end", "regime"],

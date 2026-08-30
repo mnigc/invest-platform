@@ -83,17 +83,6 @@ create table if not exists asset_prices (
 );
 create index if not exists idx_asset_prices_date on asset_prices (trade_date);
 
--- ── 央行黄金变动 / 金价（供黄金决策）──
-create table if not exists gold_reserve_changes (
-    id              bigserial primary key,
-    country_name    varchar(120) not null,
-    country_name_cn varchar(120),
-    period_date     date not null,
-    change_tonnes   numeric(18,4) not null,
-    updated_at      timestamptz  not null default now(),
-    constraint uk_gold_change_country_period unique (country_name, period_date)
-);
-
 create table if not exists gold_price_history (
     id           bigserial primary key,
     source       varchar(40) not null,

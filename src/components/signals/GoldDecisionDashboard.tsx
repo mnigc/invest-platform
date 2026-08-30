@@ -69,7 +69,6 @@ interface Data {
     m20: { date: string; value: number }[]
     m60: { date: string; value: number }[]
   }
-  reserveChart: { date: string; change: number; cumulative: number }[]
   extremes: { date: string; dir: string }[]
   eventStudies: {
     broken: Study
@@ -404,50 +403,6 @@ export function GoldDecisionDashboard() {
     } as EChartsOption
   }, [data, t])
 
-  const reserveOption = useMemo<EChartsOption | null>(() => {
-    if (!data?.reserveChart?.length) return null
-    const total = data.reserveChart.length
-    const defaultStart = Math.max(0, Math.floor((total - 60) / total * 100))
-    return {
-      ...chartAnimation,
-      tooltip: chartTooltip(t, {
-        valueFormatter: (v: any) => (v == null ? '--' : `${Number(v).toFixed(1)} 吨`),
-      }),
-      legend: chartLegend(t, ['月度净购金', '累计购金']),
-      grid: chartGrid({ top: 32, bottom: 32 }),
-      xAxis: categoryAxis(t, data.reserveChart.map((p) => p.date)),
-      yAxis: [
-        valueAxis(t, {
-          name: '月度(吨)',
-          nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
-        }),
-        rightValueAxis(t, {
-          name: '累计(吨)',
-          nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
-        }),
-      ],
-      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: [
-        {
-          name: '月度净购金',
-          type: 'bar',
-          barMaxWidth: 6,
-          data: data.reserveChart.map((p) => ({
-            value: p.change,
-            itemStyle: { color: p.change >= 0 ? t.up : t.down },
-          })),
-          yAxisIndex: 0,
-        },
-        lineSeries(
-          '累计购金',
-          data.reserveChart.map((p) => p.cumulative),
-          t.series[1],
-          { yAxisIndex: 1, lineStyle: { width: 2, color: t.series[1] } },
-        ),
-      ],
-    } as EChartsOption
-  }, [data, t])
-
   if (loading) return <LoadingSkeleton type="card" rows={4} height={300} />
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data) return <ErrorState message="暂无数据" />
@@ -551,21 +506,6 @@ export function GoldDecisionDashboard() {
           )}
         </MacroCard>
 
-        <MacroCard title="全球央行购金（月度 / 累计）">
-          {data.reserveChart.length > 0 ? (
-            <>
-              <ResponsiveChartBox option={reserveOption} deps={[reserveOption]} />
-              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-                数据来源：世界黄金协会。央行购金是 2022 年后黄金定价的核心因素之一。
-              </p>
-            </>
-          ) : (
-            <p className="py-3 text-xs text-ink-3">
-              央行购金数据同步后将在此展示。数据来源：世界黄金协会。
-            </p>
-          )}
-        </MacroCard>
-
         <MacroCard title="事件研究：信号出现后的黄金后市收益">
           <StudyTable title="① 相关性失效/正相关切换后" study={data.eventStudies.broken} />
           <StudyTable title="② 残差高估（z ≥ 2）后" study={data.eventStudies.overvalued} />
@@ -586,7 +526,7 @@ export function GoldDecisionDashboard() {
 
         <MacroCard title="数据来源" padding="sm">
           <p className="text-2xs leading-relaxed text-ink-3">
-            Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）、世界黄金协会（央行购金）。
+            Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）。
           </p>
           <p className="num mt-1.5 text-2xs text-ink-3">更新 {data.updatedAt}</p>
           <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">

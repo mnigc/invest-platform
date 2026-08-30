@@ -12,10 +12,4 @@ export default defineConfig({
     host: process.env.HOST || '0.0.0.0',
     port: Number(process.env.PORT) || 4321,
   },
-  vite: {
-    ssr: {
-      noExternal: [],
-      external: ['pg', 'events', 'stream', 'buffer', 'util', 'path', 'net', 'tls', 'crypto', 'url', 'http', 'https', 'zlib', 'os'],
-    },
-  },
 });

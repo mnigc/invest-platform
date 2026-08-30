@@ -1,6 +1,6 @@
 const store = new Map<string, { value: string; expiresAt: number }>()
 
-export function withCache(handler: (context: any) => Promise<Response>, ttlSeconds: number) {
+export function withCache(handler: (context: any) => Promise<Response>, ttlSeconds: number = 300) {
   return async (context: any) => {
     const url = new URL(context.request.url)
     const key = `${url.pathname}?${url.searchParams.toString()}`
