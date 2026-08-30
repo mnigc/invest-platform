@@ -3,31 +3,7 @@ export const prerender = false
 import type { APIRoute } from 'astro'
 import { query, queryOne } from '../../../../lib/db'
 import { toDateStr } from '../../../../lib/date'
-import type { Anomaly, AnomalyResponse, BacktestSnapshot, BacktestSummary, BacktestResponse, RegimeType, RegimeSignal } from '../../../../lib/core'
-
-const SIGNAL_NAMES: Record<string, string> = {
-  cfnai: 'CFNAI 景气', cpi: 'CPI 通胀', fedfunds: '联邦利率',
-  dgs10: '10Y 收益率', dgs2: '2Y 收益率', t10yie: '盈亏平衡通胀',
-  vix: 'VIX 波动率', bbb: '信用利差 (BBB)', dfii10: 'TIPS 实际利率',
-  sp500Pe: 'SP500 市盈率', erp: '股权风险溢价', slope: '期限利差 (10Y-2Y)',
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v))
-}
-
-async function valAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
-  try {
-    const row = await queryOne<any>(
-      `SELECT d.value FROM indicator_data d
-       JOIN indicators i ON i.id = d.indicator_id
-       WHERE i.code = ? AND i.region = ? AND d.period_date <= ? AND d.value IS NOT NULL
-       ORDER BY d.period_date DESC LIMIT 1`,
-      [code, region, asOf]
-    )
-    return row ? Number(row.value) : null
-  } catch { return null }
-}
+import type { Anomaly, BacktestSnapshot, BacktestSummary } from '../../../../lib/core'
 
 async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
   try {
@@ -54,93 +30,6 @@ async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Pro
     if (yearAgo == null || yearAgo === 0) return null
     return +(((current - yearAgo) / yearAgo) * 100).toFixed(2)
   } catch { return null }
-}
-
-function decideRegime(signals: Map<string, RegimeSignal>): { regime: RegimeType; score: number } {
-  const ok = (name: string) => (signals.get(name)?.score ?? 0) === 1
-  const ko = (name: string) => (signals.get(name)?.score ?? 0) === -1
-  const neutral = (name: string) => (signals.get(name)?.score ?? 0) === 0
-
-  const growthOk = ok('cfnai')
-  const inflationHigh = ko('cpi')
-  const stress = ko('vix') || ko('bbb')
-  const slopeNormal = ok('slope')
-
-  if (growthOk && !inflationHigh && !stress && slopeNormal) return { regime: 'GOLDILOCKS', score: 10 }
-  if (growthOk && !inflationHigh && stress) return { regime: 'RISK_ON', score: 7 }
-  if (growthOk && inflationHigh && !stress) return { regime: 'OVERHEAT', score: 6 }
-  if (growthOk && inflationHigh && stress) return { regime: 'STAGFLATION', score: 4 }
-  if (!growthOk && inflationHigh && stress) return { regime: 'STAGFLATION', score: 3 }
-  if (!growthOk && !inflationHigh && stress) return { regime: 'RISK_OFF', score: 2 }
-  if (neutral('cfnai') && ok('fedfunds') && !stress) return { regime: 'RECOVERY', score: 5 }
-
-  return { regime: 'UNKNOWN', score: 0 }
-}
-
-const LABELS: Record<RegimeType, string> = {
-  GOLDILOCKS: '金发女孩', RISK_ON: '风险偏好', OVERHEAT: '过热',
-  STAGFLATION: '滞胀', RISK_OFF: '风险规避', RECOVERY: '复苏', UNKNOWN: '不确定',
-}
-
-async function detectRegime(asOf?: string) {
-  const asOfDate = asOf ?? new Date().toISOString().slice(0, 10)
-  const cfnai = await valAtDate('CFNAI', asOfDate, 'US')
-  const cpi = await yoyAtDate('CPI', asOfDate, 'US')
-  const fedfunds = await valAtDate('FEDFUNDS', asOfDate, 'US')
-  const dgs10 = await valAtDate('DGS10', asOfDate, 'US')
-  const dgs2 = await valAtDate('DGS2', asOfDate, 'US')
-  const t10yie = await valAtDate('T10YIE', asOfDate, 'US')
-  const vix = await valAtDate('VIXCLS', asOfDate, 'US')
-  const bbb = await valAtDate('BAMLC0A4CBBB', asOfDate, 'US')
-  const dfii10 = await valAtDate('DFII10', asOfDate, 'US')
-
-  const f = (v: number | null, fallback: number) => v ?? fallback
-  const gCfnai = f(cfnai, 0.05)
-  const gCpi = f(cpi, 3.0)
-  const gFedfunds = f(fedfunds, 5.25)
-  const gDgs10 = f(dgs10, 4.30)
-  const gDgs2 = f(dgs2, 4.70)
-  const gT10yie = f(t10yie, 2.20)
-  const gVix = f(vix, 14.0)
-  const gBbb = f(bbb, 1.20)
-  const gDfii10 = f(dfii10, 1.80)
-  const slope = +(gDgs10 - gDgs2).toFixed(4)
-
-  const signalMap = new Map<string, RegimeSignal>()
-  const sig = (code: string, val: number | string, score: -1 | 0 | 1, detail?: string): RegimeSignal => {
-    const s: RegimeSignal = { name: SIGNAL_NAMES[code] || code, value: val, score, detail }
-    signalMap.set(code, s)
-    return s
-  }
-
-  const signals: RegimeSignal[] = [
-    sig('cfnai', gCfnai.toFixed(3), gCfnai > 0 ? 1 : gCfnai < -0.5 ? -1 : 0,
-      gCfnai > 0 ? '高于零，经济扩张' : '低于零，经济收缩'),
-    sig('cpi', `${gCpi.toFixed(1)}%`, gCpi < 3 ? 1 : gCpi < 5 ? 0 : -1,
-      gCpi < 3 ? '通胀受控' : gCpi < 5 ? '通胀偏高' : '通胀严重'),
-    sig('fedfunds', `${gFedfunds.toFixed(2)}%`, gFedfunds > 5 ? 0 : gFedfunds > 2 ? 1 : gFedfunds > 0 ? 0 : -1,
-      gFedfunds > 5 ? '紧缩周期' : '正常或宽松'),
-    sig('t10yie', `${gT10yie.toFixed(2)}%`, gT10yie < 2.5 ? 1 : gT10yie < 3.5 ? 0 : -1,
-      gT10yie < 2.5 ? '通胀预期温和' : '通胀预期偏高'),
-    sig('vix', gVix.toFixed(2), gVix < 20 ? 1 : gVix < 30 ? 0 : -1,
-      gVix < 20 ? '低波动，市场平静' : gVix < 30 ? '波动偏高' : '恐慌水平'),
-    sig('bbb', `${gBbb.toFixed(2)}%`, gBbb < 1.5 ? 1 : gBbb < 2.5 ? 0 : -1,
-      gBbb < 1.5 ? '信用市场宽松' : gBbb < 2.5 ? '信用正常' : '信用紧张'),
-    sig('slope', `${slope.toFixed(2)}%`, slope > 0 ? 1 : slope > -0.5 ? 0 : -1,
-      slope > 0 ? '曲线正常陡峭' : slope > -0.5 ? '平坦' : '深度倒挂，衰退信号'),
-    sig('dfii10', `${gDfii10.toFixed(2)}%`, gDfii10 < 2 ? 1 : gDfii10 < 3 ? 0 : -1,
-      gDfii10 < 2 ? '实际利率偏低，流动性宽松' : '实际利率偏高'),
-  ]
-
-  const { regime, score } = decideRegime(signalMap)
-
-  const signalCount = signals.filter(s => s.score !== 0).length
-  const maxScore = signalCount * 0.15
-  const confidence = signalCount > 0
-    ? clamp(Math.abs(score) / Math.max(maxScore, 0.01) * 100, 0, 100)
-    : 0
-
-  return { signals, confidence: Math.round(confidence), regime, label: LABELS[regime] }
 }
 
 async function latestVal(code: string, region: string = 'US'): Promise<number | null> {
@@ -290,25 +179,6 @@ async function detectAnomalies(): Promise<Anomaly[]> {
   return anomalies
 }
 
-function addMonths(date: string, n: number): string {
-  const d = new Date(date)
-  d.setUTCMonth(d.getUTCMonth() + n)
-  return d.toISOString().slice(0, 10)
-}
-
-function monthEnds(start: string, end: string): string[] {
-  const dates: string[] = []
-  let d = new Date(start)
-  const endD = new Date(end)
-  while (d <= endD) {
-    const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))
-    const me = lastDay <= endD ? lastDay : endD
-    dates.push(me.toISOString().slice(0, 10))
-    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))
-  }
-  return dates
-}
-
 export const GET = async ({ request }: { request: Request }) => {
   const url = new URL(request.url)
   const path = url.pathname
@@ -352,124 +222,74 @@ async function handleAnomalies(): Promise<Response> {
 
 async function handleBacktest(url: URL): Promise<Response> {
   try {
-    // 默认回测最近 10 年（避免逐月查询过慢）
-    const defaultStart = new Date()
-    defaultStart.setFullYear(defaultStart.getFullYear() - 10)
-    const startDate = url.searchParams.get('startDate') || defaultStart.toISOString().slice(0, 10)
+    const startDate = url.searchParams.get('startDate') || '2010-01-01'
     const endDate = url.searchParams.get('endDate') || new Date().toISOString().slice(0, 10)
 
-    const prices = await query<any>(
-      `SELECT ap.trade_date, ap.close_price
-       FROM asset_prices ap
-       JOIN assets a ON a.id = ap.asset_id
-       WHERE a.symbol = '^GSPC' AND ap.trade_date BETWEEN ? AND ?
-       ORDER BY ap.trade_date ASC`,
+    // 直接读取预计算的回测数据（1次查询，替代原来1200+次查询）
+    const snapshots = await query<any>(
+      `SELECT snapshot_date as date, regime, label, confidence, sp500_price,
+              fwd_return_1m, fwd_return_3m, fwd_return_6m, fwd_return_12m
+       FROM regime_snapshots
+       WHERE snapshot_date BETWEEN ? AND ?
+       ORDER BY snapshot_date ASC`,
       [startDate, endDate]
     )
 
-    if (prices.length < 2) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: {
-            snapshots: [],
-            summaries: [],
-            overall: { startDate, endDate, totalSnapshots: 0, avgReturn1m: 0, avgReturn3m: 0, avgReturn6m: 0, avgReturn12m: 0 },
-          },
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
+    const snapshotsFormatted: BacktestSnapshot[] = snapshots.map((s: any) => ({
+      date: toDateStr(s.date),
+      regime: s.regime,
+      label: s.label,
+      confidence: s.confidence,
+      sp500Price: Number(s.sp500_price),
+      forwardReturns: {
+        1: Number(s.fwd_return_1m) || 0,
+        3: Number(s.fwd_return_3m) || 0,
+        6: Number(s.fwd_return_6m) || 0,
+        12: Number(s.fwd_return_12m) || 0,
+      },
+    }))
 
-    const priceMap = new Map<string, number>()
-    prices.forEach((p: any) => priceMap.set(toDateStr(p.trade_date), Number(p.close_price)))
-    const sortedDates = [...priceMap.keys()].sort()
+    // 直接读取预计算的汇总统计
+    const summariesRaw = await query<any>(
+      `SELECT regime, label, count, avg_confidence,
+              avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
+              win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
+       FROM regime_backtest_summaries
+       WHERE period_start <= ? AND period_end >= ?
+       ORDER BY count DESC`,
+      [startDate, endDate]
+    )
 
-    function priceAt(date: string): number | null {
-      for (let i = sortedDates.length - 1; i >= 0; i--) {
-        if (sortedDates[i] <= date) return priceMap.get(sortedDates[i])!
-      }
-      return null
-    }
+    const summaries: BacktestSummary[] = summariesRaw.map((s: any) => ({
+      regime: s.regime,
+      label: s.label,
+      count: s.count,
+      avgConfidence: Number(s.avg_confidence) * 100,
+      avgReturn1m: Number(s.avg_return_1m),
+      avgReturn3m: Number(s.avg_return_3m),
+      avgReturn6m: Number(s.avg_return_6m),
+      avgReturn12m: Number(s.avg_return_12m),
+      winRate1m: Number(s.win_rate_1m),
+      winRate3m: Number(s.win_rate_3m),
+      winRate6m: Number(s.win_rate_6m),
+      winRate12m: Number(s.win_rate_12m),
+    }))
 
-    const evalDates = monthEnds(startDate, endDate)
-    const snapshots: BacktestSnapshot[] = []
-
-    for (const date of evalDates) {
-      const spPrice = priceAt(date)
-      if (spPrice === null) continue
-
-      const regime = await detectRegime(date)
-
-      const forwardMonths = [1, 3, 6, 12] as const
-      const returns: { 1: number; 3: number; 6: number; 12: number } = { 1: 0, 3: 0, 6: 0, 12: 0 }
-
-      for (const m of forwardMonths) {
-        const fwdDate = addMonths(date, m)
-        const fwdPrice = priceAt(fwdDate)
-        if (fwdPrice && fwdPrice > 0) {
-          returns[m] = +(fwdPrice / spPrice - 1).toFixed(4)
-        }
-      }
-
-      snapshots.push({
-        date,
-        regime: regime.regime,
-        label: regime.label,
-        confidence: regime.confidence,
-        sp500Price: spPrice,
-        forwardReturns: returns,
-      })
-    }
-
-    const byRegime = new Map<RegimeType, BacktestSnapshot[]>()
-    for (const s of snapshots) {
-      const arr = byRegime.get(s.regime) || []
-      arr.push(s)
-      byRegime.set(s.regime, arr)
-    }
-
-    const summaries: BacktestSummary[] = []
-    for (const [regime, snaps] of byRegime) {
-      const n = snaps.length
-      const avg = (field: (s: BacktestSnapshot) => number) =>
-        +(snaps.reduce((sum, s) => sum + field(s), 0) / n).toFixed(4)
-      const winRate = (field: (s: BacktestSnapshot) => number) =>
-        +(snaps.filter(s => field(s) > 0).length / n).toFixed(4)
-
-      summaries.push({
-        regime,
-        label: LABELS[regime] || regime,
-        count: n,
-        avgConfidence: avg(s => s.confidence),
-        avgReturn1m: avg(s => s.forwardReturns[1]),
-        avgReturn3m: avg(s => s.forwardReturns[3]),
-        avgReturn6m: avg(s => s.forwardReturns[6]),
-        avgReturn12m: avg(s => s.forwardReturns[12]),
-        winRate1m: winRate(s => s.forwardReturns[1]),
-        winRate3m: winRate(s => s.forwardReturns[3]),
-        winRate6m: winRate(s => s.forwardReturns[6]),
-        winRate12m: winRate(s => s.forwardReturns[12]),
-      })
-    }
-
-    summaries.sort((a, b) => b.count - a.count)
-
-    const total = snapshots.length
+    const total = snapshotsFormatted.length
     const overall = {
       startDate,
       endDate,
       totalSnapshots: total,
-      avgReturn1m: +(snapshots.reduce((s, x) => s + x.forwardReturns[1], 0) / Math.max(total, 1)).toFixed(4),
-      avgReturn3m: +(snapshots.reduce((s, x) => s + x.forwardReturns[3], 0) / Math.max(total, 1)).toFixed(4),
-      avgReturn6m: +(snapshots.reduce((s, x) => s + x.forwardReturns[6], 0) / Math.max(total, 1)).toFixed(4),
-      avgReturn12m: +(snapshots.reduce((s, x) => s + x.forwardReturns[12], 0) / Math.max(total, 1)).toFixed(4),
+      avgReturn1m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[1], 0) / total).toFixed(4) : 0,
+      avgReturn3m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[3], 0) / total).toFixed(4) : 0,
+      avgReturn6m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[6], 0) / total).toFixed(4) : 0,
+      avgReturn12m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[12], 0) / total).toFixed(4) : 0,
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        data: { snapshots, summaries, overall },
+        data: { snapshots: snapshotsFormatted, summaries, overall },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )

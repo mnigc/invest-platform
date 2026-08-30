@@ -67,6 +67,13 @@ TASKS = {
         "delay": 0,
         "args": ["--fred"],
     },
+    "regime_backtest": {
+        "name": "宏观体制回测（预计算）",
+        "script": "sync_regime_backtest",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
 }
 
 

@@ -59,6 +59,11 @@ jobs:
         run: python run_sync.py gold_reserves
         # 说明：央行购金数据来自 FRED，需要 FRED_API_KEY
 
+      - name: "Run regime_backtest sync (预计算回测)"
+        working-directory: sync
+        run: python run_sync.py regime_backtest
+        # 说明：基于指标数据预计算宏观体制回测，解决 backtest API 性能问题
+
       - name: Upload sync logs
         if: always()
         uses: actions/upload-artifact@v4

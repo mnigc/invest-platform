@@ -118,3 +118,50 @@ create table if not exists data_sync_logs (
     finished_at   timestamptz not null default now()
 );
 create index if not exists idx_sync_logs_time on data_sync_logs (started_at desc);
+
+-- ── 宏观体制回测（预计算，解决 backtest API 性能问题）──
+create table if not exists regime_snapshots (
+    id              bigserial primary key,
+    snapshot_date   date not null,
+    regime          varchar(30) not null,
+    label           varchar(50) not null,
+    confidence      smallint not null,
+    sp500_price     numeric(18,4),
+    cfnai           numeric(10,4),
+    cpi_yoy         numeric(10,4),
+    fedfunds        numeric(10,4),
+    dgs10           numeric(10,4),
+    dgs2            numeric(10,4),
+    t10yie          numeric(10,4),
+    vix             numeric(10,4),
+    bbb_spread      numeric(10,4),
+    dfii10          numeric(10,4),
+    fwd_return_1m   numeric(10,6),
+    fwd_return_3m   numeric(10,6),
+    fwd_return_6m   numeric(10,6),
+    fwd_return_12m  numeric(10,6),
+    updated_at      timestamptz not null default now(),
+    constraint uk_regime_snapshot_date unique (snapshot_date)
+);
+create index if not exists idx_regime_snapshots_date on regime_snapshots (snapshot_date);
+create index if not exists idx_regime_snapshots_regime on regime_snapshots (regime);
+
+create table if not exists regime_backtest_summaries (
+    id              bigserial primary key,
+    period_start    date not null,
+    period_end      date not null,
+    regime          varchar(30) not null,
+    label           varchar(50) not null,
+    count           int not null,
+    avg_confidence  numeric(5,3),
+    avg_return_1m   numeric(10,6),
+    avg_return_3m   numeric(10,6),
+    avg_return_6m   numeric(10,6),
+    avg_return_12m  numeric(10,6),
+    win_rate_1m     numeric(5,3),
+    win_rate_3m     numeric(5,3),
+    win_rate_6m     numeric(5,3),
+    win_rate_12m    numeric(5,3),
+    updated_at      timestamptz not null default now(),
+    constraint uk_backtest_summary unique (period_start, period_end, regime)
+);
