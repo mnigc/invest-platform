@@ -17,6 +17,30 @@ import YieldCurveRegimeDashboard from '../../components/analysis/YieldCurveRegim
         { label: '收益率曲线' },
       ]}
     />
+    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
+      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+      <p class="my-1.5">
+        <strong class="text-ink">收益率曲线</strong>反映市场对未来经济增长和通胀的预期。曲线形态变化领先经济周期6-18个月，是最可靠的衰退前瞻指标之一。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">10Y-2Y 期限利差</strong> — 核心衰退指标。高于 0.5% 正常陡峭化，0 至 -0.3% 趋平，低于 -0.5% 深度倒挂（历史衰退信号）。
+        </li>
+        <li>
+          <strong class="text-ink">10Y-3M 期限利差</strong> — 短端利差更敏感。倒挂时银行惜贷，信用收缩加速衰退到来。
+        </li>
+        <li>
+          <strong class="text-ink">曲线形态（陡峭/平坦/倒挂）</strong> — 陡峭化=复苏初期，平坦化=周期中后段，倒挂=衰退临近。
+        </li>
+        <li>
+          <strong class="text-ink">3M / 2Y / 10Y / 30Y 各期限利率</strong> — 短端受联储政策驱动，长端反映增长通胀预期。长端下行快于短端=衰退定价。
+        </li>
+      </ul>
+      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
+        <strong class="text-ink">投资指引：</strong>曲线倒挂→防御配置（国债+黄金）；曲线陡峭化→风险资产（股票+信用债）；曲线平坦化→减仓长端利率敏感资产，关注短端机会。
+      </p>
+    </section>
+
     <YieldCurveRegimeDashboard client:load />
   </div>
 </Layout>

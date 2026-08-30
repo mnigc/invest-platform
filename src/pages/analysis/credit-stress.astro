@@ -17,6 +17,30 @@ import CreditStressDashboard from '../../components/analysis/CreditStressDashboa
         { label: '信用压力' },
       ]}
     />
+    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
+      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+      <p class="my-1.5">
+        <strong class="text-ink">信用-利率交叉压力</strong>同时监测信用市场和利率市场。两者同步恶化是最强衰退信号——信用利差扩大+利率下行=资金逃离风险资产涌入国债。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">BBB 投资级利差</strong> — 信用市场温度计。低于 1.5% 宽松，1.5-2.5% 正常，高于 2.5% 紧张，高于 4% 危机。
+        </li>
+        <li>
+          <strong class="text-ink">HY 高收益利差</strong> — 垃圾债利差反映最脆弱企业的融资压力。HY 利差 > 8% = 市场定价大规模违约。
+        </li>
+        <li>
+          <strong class="text-ink">AAA 利差</strong> — 最优质企业债利差，与 BBB 利差对比可判断信用分层是否加剧。
+        </li>
+        <li>
+          <strong class="text-ink">10Y / 2Y 国债收益率</strong> — 利率环境背景。利率下行+利差扩大=典型衰退模式；利率上行+利差扩大=紧缩性信用收缩。
+        </li>
+      </ul>
+      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
+        <strong class="text-ink">投资指引：</strong>BBB 利差 > 2.5% + 利率下行 → 避险模式（国债+黄金），减持信用债；利差收窄 + 利率企稳 → 信用修复初期，可抄底高收益债；利差稳定低位 → 正常配置，享受信用溢价。
+      </p>
+    </section>
+
     <CreditStressDashboard client:load />
   </div>
 </Layout>

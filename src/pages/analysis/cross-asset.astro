@@ -17,6 +17,33 @@ import CrossAssetDashboard from '../../components/analysis/CrossAssetDashboard'
         { label: '跨资产联动' },
       ]}
     />
+    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
+      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+      <p class="my-1.5">
+        <strong class="text-ink">跨资产联动</strong>衡量不同资产类别之间的相关性变化。正常市场相关性稳定，危机来临时相关性急剧上升（"一切同跌"），分散化失效。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">国债-BBB 利差相关性</strong> — 正相关=正常市场，负相关=避险资金从信用债流向国债。相关性突变=市场结构转换。
+        </li>
+        <li>
+          <strong class="text-ink">国债-HY 利差相关性</strong> — 与 BBB 类似但 HY 更敏感。HY 与国债负相关加深=信用恐慌加剧。
+        </li>
+        <li>
+          <strong class="text-ink">国债-VIX 相关性</strong> — 正相关=国债与恐慌同升（典型避险）。负相关=市场情绪分化。
+        </li>
+        <li>
+          <strong class="text-ink">实际利率-VIX 相关性** — 衡量货币政策与市场恐慌的联动。高正相关=紧缩政策直接冲击风险偏好。
+        </li>
+        <li>
+          <strong class="text-ink">滚动窗口相关性（63日/252日）</strong> — 短窗口捕捉突发事件，长窗口反映结构性变化。窗口差异大=短期冲击vs长期趋势。
+        </li>
+      </ul>
+      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
+        <strong class="text-ink">投资指引：</strong>多数资产对相关性飙升 → 分散化失效，减仓+增加现金比例；国债与风险资产负相关恢复 → 分散化有效，可正常配置；实际利率与 VIX 正相关加强 → 货币政策主导市场，紧盯利率方向。
+      </p>
+    </section>
+
     <CrossAssetDashboard client:load />
   </div>
 </Layout>
