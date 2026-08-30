@@ -13,7 +13,6 @@ interface InflationAnchorData {
     series: { name: string; tenor: string; data: (number | null)[] }[]
   }
   anchorDeviation: {
-    currentDeviation: number | null
     currentDeviation10y: number | null
     zScore: number | null
     percentile1y: number | null
@@ -22,15 +21,11 @@ interface InflationAnchorData {
     anchorDesc: string
   }
   termStructure: {
-    current: { tenor: string; value: number }[]
     slope5y10y: number | null
-    slope5y20y: number | null
-    slope10y20y: number | null
   }
   currentSnapshot: {
     breakeven5y: number | null
     breakeven10y: number | null
-    breakeven20y: number | null
     realYield5y: number | null
     realYield10y: number | null
     realYield20y: number | null
@@ -41,7 +36,6 @@ interface InflationAnchorData {
     strength: string
     confidence: number
     evidence: string[]
-    counterEvidence: string[]
   }
   updatedAt: string
 }
@@ -98,7 +92,7 @@ export default function InflationAnchorDashboard() {
   const deviationOption = useMemo<EChartsOption | null>(() => {
     if (!data?.breakevenHistory) return null
     const { dates } = data.breakevenHistory
-    const deviationData = data.breakevenHistory.series.find(s => s.tenor === '10Y')?.data.map((v, i) => {
+    const deviationData = data.breakevenHistory.series.find(s => s.tenor === '10Y')?.data.map(v => {
       if (v == null) return null
       return +(v - 2.0).toFixed(2)
     }) ?? []
@@ -123,12 +117,6 @@ export default function InflationAnchorDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="通胀预期锚定分析"
-        subtitle="TIPS隐含通胀率 vs 联储2%目标的偏离分析"
-        actions={<DataFreshness />}
-      />
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatTile
           label="5Y 盈亏平衡"
@@ -139,12 +127,13 @@ export default function InflationAnchorDashboard() {
           value={data.currentSnapshot.breakeven10y != null ? `${data.currentSnapshot.breakeven10y.toFixed(2)}%` : '--'}
         />
         <StatTile
-          label="20Y 盈亏平衡"
-          value={data.currentSnapshot.breakeven20y != null ? `${data.currentSnapshot.breakeven20y.toFixed(2)}%` : '--'}
-        />
-        <StatTile
           label="联储目标"
           value={`${data.currentSnapshot.fedTargetPct}%`}
+        />
+        <StatTile
+          label="偏差 Z-Score"
+          value={data.anchorDeviation.zScore != null ? data.anchorDeviation.zScore.toFixed(2) : '--'}
+          className={data.anchorDeviation.zScore != null && Math.abs(data.anchorDeviation.zScore) > 1 ? 'text-yellow-400' : ''}
         />
       </div>
 
@@ -162,13 +151,12 @@ export default function InflationAnchorDashboard() {
           value={data.currentSnapshot.realYield20y != null ? `${data.currentSnapshot.realYield20y.toFixed(2)}%` : '--'}
         />
         <StatTile
-          label="偏差 Z-Score"
-          value={data.anchorDeviation.zScore != null ? data.anchorDeviation.zScore.toFixed(2) : '--'}
-          className={data.anchorDeviation.zScore != null && Math.abs(data.anchorDeviation.zScore) > 1 ? 'text-yellow-400' : ''}
+          label="5Y-10Y 斜率"
+          value={data.termStructure.slope5y10y != null ? `${data.termStructure.slope5y10y.toFixed(2)}%` : '--'}
         />
       </div>
 
-      <div className={`p-4 rounded-lg border ${anchorClass} bg-opacity-10`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
+      <div className={`p-4 rounded-lg border ${anchorClass}`} style={{ backgroundColor: 'rgb(var(--c-surface-2))' }}>
         <div className="flex items-center justify-between">
           <div>
             <div className={`font-semibold ${anchorClass}`}>{data.anchorDeviation.anchorStatus.toUpperCase()}</div>
@@ -189,44 +177,17 @@ export default function InflationAnchorDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>期限结构斜率</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span style={{ color: 'rgb(var(--c-text-2))' }}>5Y-10Y 斜率</span>
-              <span style={{ color: 'rgb(var(--c-text))' }}>{data.termStructure.slope5y10y != null ? `${data.termStructure.slope5y10y.toFixed(2)}%` : '--'}</span>
+      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>分析依据</h3>
+        <div className="space-y-2">
+          {data.signal.evidence.map((e, i) => (
+            <div key={i} className="text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))', color: 'rgb(var(--c-text))' }}>
+              {e}
             </div>
-            <div className="flex justify-between" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-              <span style={{ color: 'rgb(var(--c-text-2))' }}>5Y-20Y 斜率</span>
-              <span style={{ color: 'rgb(var(--c-text))' }}>{data.termStructure.slope5y20y != null ? `${data.termStructure.slope5y20y.toFixed(2)}%` : '--'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span style={{ color: 'rgb(var(--c-text-2))' }}>10Y-20Y 斜率</span>
-              <span style={{ color: 'rgb(var(--c-text))' }}>{data.termStructure.slope10y20y != null ? `${data.termStructure.slope10y20y.toFixed(2)}%` : '--'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--c-surface))', borderColor: 'rgb(var(--c-border))' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--c-text))' }}>分析依据</h3>
-          <div className="space-y-2">
-            {data.signal.evidence.map((e, i) => (
-              <div key={i} className="text-sm py-2" style={{ borderBottom: '1px solid rgb(var(--c-border))', color: 'rgb(var(--c-text))' }}>
-                {e}
-              </div>
-            ))}
-            {data.signal.counterEvidence.length > 0 && (
-              <div className="mt-3">
-                <div className="text-xs font-semibold mb-2" style={{ color: 'rgb(var(--c-text-3))' }}>反向证据</div>
-                {data.signal.counterEvidence.map((e, i) => (
-                  <div key={i} className="text-sm py-2 text-yellow-400" style={{ borderBottom: '1px solid rgb(var(--c-border))' }}>
-                    {e}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
+          {data.signal.evidence.length === 0 && (
+            <div className="text-sm py-2" style={{ color: 'rgb(var(--c-text-3))' }}>暂无显著信号</div>
+          )}
         </div>
       </div>
     </div>

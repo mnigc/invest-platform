@@ -44,7 +44,6 @@ def main():
         # 通胀预期相关指标
         ("T5YIE", "US"),
         ("T10YIE", "US"),
-        ("T20YIE", "US"),
         ("DFII5", "US"),
         ("DFII10", "US"),
         ("DFII20", "US"),
@@ -55,7 +54,6 @@ def main():
         ("BAMLH0A0HYM2", "US"),
         ("BAMLC0A1CAAA", "US"),
         ("BAMLC0A2CAA", "US"),
-        ("BAMLC0A5CIIO", "US"),
 
         # 波动率
         ("VIXCLS", "US"),

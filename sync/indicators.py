@@ -94,14 +94,12 @@ INDICATORS = {
     # ── 通胀预期（FRED）──
     ("T5YIE", "US"): dict(zh="5Y 盈亏平衡通胀", en="5Y Breakeven Inflation", cat="利率",
                            sub="通胀预期", unit="%", freq="daily", source="fred", series="T5YIE"),
-    ("T20YIE", "US"): dict(zh="20Y 盈亏平衡通胀", en="20Y Breakeven Inflation", cat="利率",
-                            sub="通胀预期", unit="%", freq="daily", source="fred", series="T20YIE"),
     ("DFII5", "US"): dict(zh="5Y TIPS 实际利率", en="5Y TIPS Real Yield", cat="利率",
                            sub="实际利率", unit="%", freq="daily", source="fred", series="DFII5"),
     ("DFII20", "US"): dict(zh="20Y TIPS 实际利率", en="20Y TIPS Real Yield", cat="利率",
-                            sub="实际利率", unit="%", freq="daily", source="fred", series="DFII20"),
+                             sub="实际利率", unit="%", freq="daily", source="fred", series="DFII20"),
     ("DFII30", "US"): dict(zh="30Y TIPS 实际利率", en="30Y TIPS Real Yield", cat="利率",
-                            sub="实际利率", unit="%", freq="daily", source="fred", series="DFII30"),
+                             sub="实际利率", unit="%", freq="daily", source="fred", series="DFII30"),
 
     # ── 信用利差（FRED）──
     ("BAMLH0A0HYM2", "US"): dict(zh="高收益债利差 (HY)", en="HY OAS", cat="信用",
@@ -111,11 +109,8 @@ INDICATORS = {
                                    sub="信用利差", unit="%", freq="daily", source="fred",
                                    series="BAMLC0A1CAAA"),
     ("BAMLC0A2CAA", "US"): dict(zh="AA 信用利差", en="AA OAS", cat="信用",
-                                  sub="信用利差", unit="%", freq="daily", source="fred",
-                                  series="BAMLC0A2CAA"),
-    ("BAMLC0A5CIIO", "US"): dict(zh="CCC及以下信用利差", en="CCC & Below OAS", cat="信用",
                                    sub="信用利差", unit="%", freq="daily", source="fred",
-                                   series="BAMLC0A5CIIO"),
+                                   series="BAMLC0A2CAA"),
 
     # ── 全球流动性（FRED，region=GLOBAL）──
     ("FED_BALANCE_SHEET", "GLOBAL"): dict(zh="美联储总资产", en="Fed Total Assets", cat="全球流动性",
