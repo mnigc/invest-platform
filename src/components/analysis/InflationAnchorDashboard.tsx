@@ -1,5 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { EChartsOption } from 'echarts'
 import { ChartBox } from '../charts/ChartBox'
 import { StatTile } from '../ui/StatTile'
@@ -60,18 +59,23 @@ const DIRECTION_COLORS: Record<string, string> = {
 }
 
 export default function InflationAnchorDashboard() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['inflationAnchor'],
-    queryFn: async () => {
-      const res = await fetch('/api/v1/analysis/inflation-anchor.json')
-      if (!res.ok) throw new Error('Network error')
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      return json.data as InflationAnchorData
-    },
-    refetchInterval: 600000,
-    staleTime: 300000,
-  })
+  const [data, setData] = useState<InflationAnchorData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/v1/analysis/inflation-anchor.json')
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return
+        if (json.success) setData(json.data)
+        else setError(json.error || '加载失败')
+      })
+      .catch(e => { if (!cancelled) setError(e.message) })
+      .finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   const breakevenOption = useMemo<EChartsOption | null>(() => {
     if (!data?.breakevenHistory) return null
@@ -111,7 +115,7 @@ export default function InflationAnchorDashboard() {
   }, [data])
 
   if (isLoading) return <LoadingSkeleton />
-  if (error) return <ErrorState message="加载失败" />
+  if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
   const anchorClass = ANCHOR_STATUS_COLORS[data.anchorDeviation.anchorStatus] || 'text-yellow-400'

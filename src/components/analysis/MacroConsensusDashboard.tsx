@@ -1,5 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { EChartsOption } from 'echarts'
 import { ChartBox } from '../charts/ChartBox'
 import { StatTile } from '../ui/StatTile'
@@ -90,18 +89,23 @@ function getBarWidth(value: number): string {
 }
 
 export default function MacroConsensusDashboard() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['macroConsensus'],
-    queryFn: async () => {
-      const res = await fetch('/api/v1/analysis/macro-consensus.json')
-      if (!res.ok) throw new Error('Network error')
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      return json.data as MacroConsensusData
-    },
-    refetchInterval: 600000,
-    staleTime: 300000,
-  })
+  const [data, setData] = useState<MacroConsensusData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/v1/analysis/macro-consensus.json')
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return
+        if (json.success) setData(json.data)
+        else setError(json.error || '加载失败')
+      })
+      .catch(e => { if (!cancelled) setError(e.message) })
+      .finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   const historicalOption = useMemo<EChartsOption | null>(() => {
     if (!data?.historicalConsensus) return null
@@ -123,7 +127,7 @@ export default function MacroConsensusDashboard() {
   }, [data])
 
   if (isLoading) return <LoadingSkeleton />
-  if (error) return <ErrorState message="加载失败" />
+  if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
   const directionClass = DIRECTION_COLORS[data.signal.direction] || 'text-yellow-400'
