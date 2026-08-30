@@ -32,20 +32,6 @@ GROUPS = ["daily"]
 # 指标定义与取数逻辑统一在 indicators.py（注册表 + 增量引擎），
 # 跨模块共用的指标（DGS10 / VIXCLS / DFII10 …）同一次运行只拉一次。
 TASKS = {
-    "etf_flow": {
-        "name": "国家队资金（ETF行情/份额 + 沪深300）",
-        "script": "sync_etf_flow",
-        "group": "daily",
-        "delay": 0,
-        "args": ["--daily"],
-    },
-    "cn_us_spread": {
-        "name": "中美10Y利差（美债/中债 + 跨境资金）",
-        "script": "sync_cn_us_spread",
-        "group": "daily",
-        "delay": 30,
-        "args": [],
-    },
     "global_liquidity": {
         "name": "全球流动性（央行资产负债表/SOFR）",
         "script": "sync_global_liquidity",

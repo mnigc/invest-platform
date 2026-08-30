@@ -3,7 +3,7 @@
 """展示指标注册表 + 通用同步引擎（FRED / akshare）。
 
 同步脚本按「展示模块」组织（sync_regime / sync_gold_decision /
-sync_cn_us_spread / sync_etf_flow / sync_global_liquidity），每个脚本只声明自己
+sync_global_liquidity），每个脚本只声明自己
 需要的指标 key=(code, region)；真正的取数逻辑集中在本文件：
 
   * 指标定义（中文名/单位/频率/数据源）自动 UPSERT 进 `indicators` 表
@@ -70,22 +70,6 @@ INDICATORS = {
     ("BAMLC0A4CBBB", "US"): dict(zh="BBB 信用利差", en="BBB Credit Spread", cat="信用",
                                  sub="信用利差", unit="%", freq="daily", source="fred",
                                  series="BAMLC0A4CBBB"),
-    ("USDCNY", "US"): dict(zh="美元兑人民币", en="USD/CNY", cat="汇率", sub="人民币汇率",
-                           unit="汇率", freq="daily", source="fred", series="DEXCHUS"),
-
-    # ── 中国利率与资金流（akshare）──
-    ("CN_TREASURY_10Y", "CN"): dict(zh="中国 10 年期国债收益率", en="China 10Y Treasury Yield",
-                                    cat="利率", sub="国债收益率", unit="%", freq="daily",
-                                    source="akshare", fn="bond_zh_us_rate",
-                                    date_col="日期", value_col="中国国债收益率10年"),
-    ("NORTHBOUND_FLOW", "CN"): dict(zh="北向资金净流入", en="Northbound Net Flow", cat="资金流向",
-                                    sub="沪深港通", unit="百万元", freq="daily", source="akshare",
-                                    fn="stock_hsgt_hist_em", kwargs={"symbol": "北向资金"},
-                                    date_col="日期", value_col="当日成交净买额"),
-    ("SOUTHBOUND_FLOW", "CN"): dict(zh="南向资金净流入", en="Southbound Net Flow", cat="资金流向",
-                                    sub="沪深港通", unit="百万元", freq="daily", source="akshare",
-                                    fn="stock_hsgt_hist_em", kwargs={"symbol": "南向资金"},
-                                    date_col="日期", value_col="当日成交净买额"),
 
     # ── 全球流动性（FRED，region=GLOBAL）──
     ("FED_BALANCE_SHEET", "GLOBAL"): dict(zh="美联储总资产", en="Fed Total Assets", cat="全球流动性",

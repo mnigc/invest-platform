@@ -9,10 +9,8 @@ sync/
 ├── sync_base.py            # 连接、日志、重试、MySQL→PostgreSQL SQL 适配、批量 UPSERT
 ├── run_sync.py             # 统一调度入口
 ├── sync_regime.py          # 宏观体制与风险异常 /signal-board
-├── sync_cn_us_spread.py    # 中美 10Y 利差 + 跨境资金 /indicators/cn-us-spread
 ├── sync_global_liquidity.py# 全球流动性 /indicators/global-liquidity
 ├── sync_gold_decision.py   # 黄金决策 /signals/gold
-├── sync_etf_flow.py        # 国家队资金 /tracking/etf-flow
 └── verify_db.py            # 连接与表清单自检
 ```
 
@@ -22,8 +20,6 @@ sync/
 
 | 任务 key | 展示模块（页面） | 同步内容 | 数据源 |
 |---|---|---|---|
-| `etf_flow` | 国家队资金 | ETF 日线行情 + 交易所份额（净申赎/申赎成交比）+ 沪深300 日线 | akshare + Yahoo |
-| `cn_us_spread` | 中美 10Y 利差 | DGS10、中国 10Y 国债、北向/南向资金、USDCNY | akshare + FRED |
 | `global_liquidity` | 全球流动性 | 美联储/欧央行/日央行总资产、RRP、TGA、SOFR | FRED |
 | `gold_decision` | 黄金决策 | 金价历史（GC=F）+ 今日金价、美元指数 DXY、DFII10、T10YIE | gold-api + Yahoo + FRED |
 | `regime` | 宏观体制 / 风险异常 | CPI、DGS10、DGS2、CFNAI、FEDFUNDS、DFII10、T10YIE、BBB 信用利差、VIXCLS | FRED |
@@ -63,7 +59,7 @@ cd /opt/macro
 
 | 组 | 任务数 | 包含 |
 | --- | --- | --- |
-| **daily** | 5 | 国家队资金、宏观体制、黄金决策、全球流动性、中美利差 |
+| **daily** | 3 | 宏观体制、黄金决策、全球流动性 |
 
 ### 全量回补
 
@@ -71,7 +67,6 @@ cd /opt/macro
 
 ```bash
 /opt/macro/.venv/bin/python3 sync_regime.py --full
-/opt/macro/.venv/bin/python3 sync_etf_flow.py --full --since 20230101
 ```
 
 ---
@@ -92,7 +87,7 @@ cd /opt/macro
 
 项目内置 `.github/workflows/sync.yml`，可用 GitHub 托管 runner 定时同步：
 
-- **定时**：每个交易日 23:30（北京时间）执行 `run_sync.py --group daily`（GitHub cron 用 UTC，即 `30 15 * * 1-5`）
+- **定时**：每个交易日 23:30（北京时间）执行 `run_sync.py gold_decision`（GitHub cron 用 UTC，即 `30 15 * * 1-5`）
 - **手动触发**：Actions 页面 → run workflow → 可随时补跑
 
 需要在仓库 **Settings → Secrets and variables → Actions** 配置两个 secret：
@@ -102,10 +97,8 @@ cd /opt/macro
 | `DATABASE_URL` | Supabase Session Pooler 连接串（同 `.env`） |
 | `FRED_API_KEY` | FRED API Key |
 
-> 注意：**主用同步建议放在 1Panel 服务器（境内）跑**，国内数据源（akshare/东财/沪深交所）在境内直连最稳。
-> GitHub runner 在海外，akshare 拉取国内数据会超时并降级为空——FRED/Yahoo/gold-api 等国际数据不受影响。
-> 数据库连接已强制走 IPv4，GitHub runner 无需 IPv6。
-> 金价历史来自 Yahoo Finance（GC=F），无需本地文件。失败时可在 Actions 页面查看 `sync-logs` 产物日志。
+> 说明：金价历史 + DXY 走 Yahoo，需境外网络，故 `gold_decision` 在 GitHub Actions(海外) 跑；
+> 其余国际源（FRED）任务在 1Panel 服务器定时跑。数据库连接已强制走 IPv4。
 
 ---
 
@@ -123,7 +116,7 @@ cd /opt/macro
 - `source="fred"` → `series` 为 FRED series id
 - `source="akshare"` → `fn` 为 akshare 函数名；宽表用 `date_col` / `value_col` 指定列，
   省略则按「首个日期单元 + 首个正数数值单元」自动推断
-- 跨模块共用的指标（如 DGS10 同时被 regime / cn_us_spread 使用）在同一次 `run_sync`
+- 跨模块共用的指标（如 DGS10 同时被 regime / gold_decision 使用）在同一次 `run_sync`
   进程内只会真正拉取一次，日志里显示「本轮已同步过，跳过」
 
 ```bash

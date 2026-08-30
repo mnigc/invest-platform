@@ -83,26 +83,6 @@ create table if not exists asset_prices (
 );
 create index if not exists idx_asset_prices_date on asset_prices (trade_date);
 
--- ── 指数日线（沪深300，国家队资金事件研究基准）──
-create table if not exists index_daily (
-    id            bigserial primary key,
-    index_code    varchar(20) not null,
-    index_name    varchar(60),
-    category      varchar(20) default 'main',
-    trade_date    date not null,
-    open_price    numeric(18,4),
-    high_price    numeric(18,4),
-    low_price     numeric(18,4),
-    close_price   numeric(18,4),
-    volume        numeric(24,0),
-    amount        numeric(24,2),
-    change_pct    numeric(10,4),
-    turnover_rate numeric(10,4),
-    updated_at    timestamptz not null default now(),
-    constraint uk_index_daily unique (index_code, trade_date)
-);
-create index if not exists idx_index_daily_date on index_daily (trade_date);
-
 -- ── 央行黄金变动 / 金价（供黄金决策）──
 create table if not exists gold_reserve_changes (
     id              bigserial primary key,
@@ -125,41 +105,6 @@ create table if not exists gold_price_history (
     constraint uk_gold_price_source_date unique (source, price_date)
 );
 create index if not exists idx_gold_price_history_date on gold_price_history (price_date);
-
--- ── ETF 资金流（国家队跟踪）──
-create table if not exists etf_master (
-    code        varchar(10) primary key,
-    name        varchar(60) not null,
-    exchange    varchar(4)  not null,
-    track_index varchar(60),
-    category    varchar(20) not null default 'broad',
-    is_active   smallint    not null default 1,
-    updated_at  timestamptz not null default now()
-);
-
-create table if not exists etf_daily (
-    code       varchar(10) not null,
-    trade_date date not null,
-    open       numeric(12,4),
-    high       numeric(12,4),
-    low        numeric(12,4),
-    close      numeric(12,4),
-    volume     numeric(20,2),
-    amount     numeric(20,2),
-    turnover   numeric(10,4),
-    change_pct numeric(10,4),
-    constraint uk_etf_daily unique (code, trade_date)
-);
-create index if not exists idx_etf_daily_date on etf_daily (trade_date);
-
-create table if not exists etf_shares (
-    code         varchar(10) not null,
-    trade_date   date not null,
-    shares_10k   numeric(20,4) not null,
-    is_converted smallint not null default 0,
-    constraint uk_etf_shares unique (code, trade_date)
-);
-create index if not exists idx_etf_shares_date on etf_shares (trade_date);
 
 -- ── 同步日志 ──
 create table if not exists data_sync_logs (

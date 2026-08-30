@@ -49,7 +49,6 @@ jobs:
         working-directory: sync
         run: python run_sync.py gold_decision
         # 说明：金价历史 + DXY 走 Yahoo，需境外网络，故在 GitHub Actions(海外) 跑。
-        # 依赖 akshare 的模块(etf_flow / cn_us_spread) 在海外 runner 易超时，另行在境内跑或后续再迁。
 
       - name: Upload sync logs
         if: always()

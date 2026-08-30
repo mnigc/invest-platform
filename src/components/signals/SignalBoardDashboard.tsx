@@ -45,8 +45,6 @@ export function SignalBoardDashboard() {
       safeJson<any>('/api/v1/regime.json'),
       safeJson<any>('/api/v1/regime/anomalies.json'),
       safeJson<any>('/api/v1/gold/correlation.json'),
-      safeJson<any>('/api/v1/etf-flow/event-study.json'),
-      safeJson<any>('/api/v1/bonds/cn-us-spread.json'),
     ]).then(results => {
       if (!alive) return
       const rows: SignalInput[] = []
@@ -91,49 +89,6 @@ export function SignalBoardDashboard() {
           evidence: (s.evidence || []).slice(0, 5),
           link: '/signals/gold',
         })
-      }
-
-      const etf = results[3].status === 'fulfilled' ? results[3].value : { ok: false }
-      if (etf.ok && etf.data && etf.data.ready) {
-        const l = etf.data.latest
-        let dir: Dir = 0
-        let conf = 50
-        const ev: string[] = []
-        if (l.z >= 2) {
-          dir = 1
-          conf = Math.min(90, 55 + l.z * 8)
-          const h = etf.data.groups?.find((g: any) => g.key === 'buy')
-          ev.push(`宽基净申赎率 z=${l.z.toFixed(2)}（分位 ${l.percentile.toFixed(0)}），显著大额净申购`)
-          if (h) ev.push(`历史：大额净申购后 20 日沪深300 中位数 ${(h.median * 100).toFixed(1)}%，胜率 ${(h.winRate * 100).toFixed(0)}%（${h.n} 次）`)
-        } else if (l.z <= -2) {
-          dir = -1
-          conf = Math.min(90, 55 + Math.abs(l.z) * 8)
-          const h = etf.data.groups?.find((g: any) => g.key === 'sell')
-          ev.push(`宽基净申赎率 z=${l.z.toFixed(2)}（分位 ${l.percentile.toFixed(0)}），显著大额净赎回`)
-          if (h) ev.push(`历史：大额净赎回后 20 日沪深300 中位数 ${(h.median * 100).toFixed(1)}%，胜率 ${(h.winRate * 100).toFixed(0)}%（${h.n} 次）`)
-        } else {
-          ev.push(`宽基净申赎率处于常态（z=${l.z.toFixed(2)}，分位 ${l.percentile.toFixed(0)}）`)
-          ev.push('跟踪主要宽基 ETF 份额与「净申赎/成交额」比率：放量申购是底部区域、持续净赎回是高位减持的经典信号')
-        }
-        rows.push({ id: 'etf-flow', module: '国家队资金', title: '宽基 ETF 资金流向', direction: dir, confidence: conf, evidence: ev, link: '/tracking/etf-flow' })
-      }
-
-      const spread = results[4].status === 'fulfilled' ? results[4].value : { ok: false }
-      if (spread.ok && spread.data) {
-        const l = spread.data.latest
-        const sp = l?.spread != null ? l.spread : null
-        if (sp != null) {
-          const invCount = spread.data.inversionCount ?? 0
-          rows.push({
-            id: 'spread', module: '中美利差', title: `10Y 中美国债利差 ${(sp * 100).toFixed(0)}bp`,
-            direction: sp < -1 ? -1 : sp < -0.5 ? 0 : 1,
-            confidence: Math.min(70, Math.abs(sp) * 25 + 20),
-            evidence: [
-              `当前 ${(sp * 100).toFixed(0)}bp（5Y 分位 ${spread.data.percentile5y ?? '--'}），历史倒挂 ${invCount} 次`,
-              '深度负利差通常伴随美债高收益率虹吸与人民币资产承压',
-            ],
-          })
-        }
       }
 
       const active = rows.filter(r => r.direction !== 0)
@@ -255,7 +210,7 @@ export function SignalBoardDashboard() {
       </div>
 
       <div style={{ marginTop: 'var(--space-4)', fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)', lineHeight: 1.8 }}>
-        组合信号板为多模块信号加权研究工具：权重=各信号置信度（黄金定价残差、宏观体制、风险异常、宽基资金流、中美利差）。所有结论均附证据链与历史验证，仅供研究参考，不构成投资建议。
+        组合信号板为多模块信号加权研究工具：权重=各信号置信度（黄金定价残差、宏观体制、风险异常）。所有结论均附证据链与历史验证，仅供研究参考，不构成投资建议。
       </div>
     </div>
   )

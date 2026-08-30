@@ -22,13 +22,12 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
 
 
-# ============== 读取 .env（项目根目录，不覆盖已有环境变量）==============
+# ============== 读取 .env（项目根目录 + sync 目录，不覆盖已有环境变量）==============
 def _load_dotenv():
-    here = os.path.dirname(os.path.abspath(__file__))
-    for path in (
-        os.path.join(here, ".env"),
-        os.path.join(os.path.dirname(here), ".env"),
-    ):
+    here = os.path.dirname(os.path.abspath(__file__))      # /opt/macro/sync
+    root = os.path.dirname(here)                           # /opt/macro
+    paths = (os.path.join(here, ".env"), os.path.join(root, ".env"))
+    for path in paths:
         if not os.path.exists(path):
             continue
         try:
@@ -43,7 +42,6 @@ def _load_dotenv():
                         os.environ[k] = v
         except Exception:
             pass
-        break
 
 
 _load_dotenv()
@@ -61,14 +59,9 @@ CONFLICT_COLS = {
     "assets": ["symbol"],
     "asset_prices": ["asset_id", "trade_date"],
     "asset_snapshots": ["asset_id"],
-    "index_daily": ["index_code", "trade_date"],
-    "cn_valuation": ["date"],
     "china_credit_pulse": ["report_date"],
     "gold_reserve_changes": ["country_name", "period_date"],
     "gold_price_history": ["source", "price_date"],
-    "etf_master": ["code"],
-    "etf_daily": ["code", "trade_date"],
-    "etf_shares": ["code", "trade_date"],
 }
 
 
@@ -327,8 +320,12 @@ def patch_cn_proxy():
     """清空系统代理并伪装浏览器请求，用于中国数据源脚本。
 
     在境内服务器/本机直连运行，无需代理；清空环境代理避免误走代理导致失败。
+    务必覆盖 all_proxy / ALL_PROXY（socks5 代理）与大小写 http(s)_proxy。
     """
-    for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
+    for _k in (
+        "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
+        "ALL_PROXY", "all_proxy", "FTP_PROXY", "ftp_proxy",
+    ):
         os.environ.pop(_k, None)
     os.environ["NO_PROXY"] = "*"
     os.environ["no_proxy"] = "*"

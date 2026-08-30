@@ -50,7 +50,7 @@ const { title = 'MACRO EDGE - 宏观投资研究终端' } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="description" content="MACRO EDGE — 宏观投资研究终端 | 资金流 · 宏观体制 · 中美利差 · 全球流动性" />
+    <meta name="description" content="MACRO EDGE — 宏观投资研究终端 | 资金流 · 宏观体制 · 全球流动性" />
     <meta name="theme-color" content="#f5f7fa" />
   </head>
   <body>
@@ -58,30 +58,13 @@ const { title = 'MACRO EDGE - 宏观投资研究终端' } = Astro.props;
       <div class="global-loader-bar"></div>
     </div>
     <Sidebar />
-    <header class="header">
-      <div class="header-left">
-        <button class="hamburger" data-sidebar-toggle aria-label="打开导航" aria-pressed="false">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
-        <span class="header-page-title" id="pageTitle"></span>
-      </div>
-      <div class="header-right">
-        <div class="market-status" id="marketStatus">
-          <span class="market-status-dot"></span>
-          <span class="market-status-text">--</span>
-        </div>
-        <div class="status-badge">
-          <span class="status-dot"></span>
-          <span>LIVE</span>
-        </div>
-        <span class="header-time" id="headerTime">--:--:--</span>
-        <span class="freshness-dot freshness-dot--online" id="dataFreshness" data-tooltip="数据已同步"></span>
-      </div>
-    </header>
+    <button class="nav-trigger" data-sidebar-toggle aria-label="打开导航" aria-pressed="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
     <main class="main">
       <ClientRoot client:load>
         <slot />
@@ -91,51 +74,6 @@ const { title = 'MACRO EDGE - 宏观投资研究终端' } = Astro.props;
 </html>
 
 <script>
-  function updateTime() {
-    const el = document.getElementById('headerTime');
-    if (el) {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2, '0');
-      const m = String(now.getMinutes()).padStart(2, '0');
-      const s = String(now.getSeconds()).padStart(2, '0');
-      el.innerHTML = `${h}:${m}:<span class="second">${s}</span>`;
-    }
-  }
-  updateTime();
-  setInterval(updateTime, 1000);
-
-  // 市场状态判断
-  function updateMarketStatus() {
-    const el = document.getElementById('marketStatus');
-    if (!el) return;
-    const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    const time = hour + minute / 60;
-
-    let status, isOpen;
-    if (day === 0 || day === 6) {
-      status = '休市';
-      isOpen = false;
-    } else if ((time >= 9.5 && time < 11.5) || (time >= 13 && time < 15)) {
-      status = 'A股开盘';
-      isOpen = true;
-    } else if (time >= 21.5 || time < 2.5) {
-      status = '美股开盘';
-      isOpen = true;
-    } else {
-      status = '已收盘';
-      isOpen = false;
-    }
-
-    el.classList.toggle('market-status--open', isOpen);
-    el.classList.toggle('market-status--close', !isOpen);
-    el.querySelector('.market-status-text').textContent = status;
-  }
-  updateMarketStatus();
-  setInterval(updateMarketStatus, 60000);
-
   // 全局页面导航 loading 进度条
   const loader = document.getElementById('globalLoader');
   let loaderTimer = null;
@@ -200,130 +138,34 @@ const { title = 'MACRO EDGE - 宏观投资研究终端' } = Astro.props;
 </script>
 
 <style>
-  .header {
-    position: fixed;
-    top: 0;
-    left: var(--sidebar-width);
-    right: 0;
-    height: var(--header-height);
-    background: color-mix(in srgb, var(--bg-primary) 35%, transparent);
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    z-index: 50;
-    gap: 12px;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  .header-page-title {
-    font-size: var(--font-size-md);
-    font-weight: var(--font-weight-medium);
-    font-family: var(--font-display);
-    color: var(--text-secondary);
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .hamburger {
+  .nav-trigger {
     display: none;
-    background: transparent;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 60;
+    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+    backdrop-filter: blur(8px);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     align-items: center;
     justify-content: center;
     color: var(--text-primary);
     cursor: pointer;
-    flex-shrink: 0;
+    box-shadow: var(--shadow-md);
   }
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  .market-status {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: var(--font-size-xs);
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    padding: 3px 8px;
-    border-radius: var(--radius-sm);
-    background: var(--bg-card-hover);
-    border: 1px solid var(--border-subtle);
-  }
-
-  .market-status-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--text-muted);
-  }
-
-  .market-status--open .market-status-dot {
-    background: var(--green);
-    box-shadow: 0 0 4px var(--green);
-  }
-
-  .market-status--close .market-status-dot {
-    background: var(--text-muted);
-  }
-
-  .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
-    border-radius: 10px;
-    font-size: var(--font-size-xs);
-    font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: var(--accent-cyan);
-    background: var(--accent-cyan-dim);
-    border: 1px solid var(--accent-cyan-dim);
-  }
-
-  .status-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--accent-cyan);
-    animation: neonPulse 2s ease-in-out infinite;
-  }
-
-  .header-time {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-    letter-spacing: 0.08em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .header-time .second {
-    animation: secondPulse 2s ease-in-out infinite;
+  @media (max-width: 767px) {
+    .nav-trigger {
+      display: flex;
+    }
   }
 
   .main {
     margin-left: var(--sidebar-width);
-    margin-top: var(--header-height);
-    min-height: calc(100vh - var(--header-height));
+    min-height: 100vh;
     padding: 24px 28px;
     max-width: var(--content-max-width);
     margin-left: calc(var(--sidebar-width) + max(0px, (100vw - var(--sidebar-width) - var(--content-max-width)) / 2));
@@ -337,44 +179,14 @@ const { title = 'MACRO EDGE - 宏观投资研究终端' } = Astro.props;
   }
 
   @media (max-width: 767px) {
-    .header {
-      left: 0;
-      padding: 0 16px;
-    }
-
-    .hamburger {
-      display: flex;
-    }
-
     .main {
       margin-left: 0;
       padding: 16px 14px;
       max-width: none;
     }
-
-    .market-status {
-      display: none;
-    }
   }
 
   @media (max-width: 480px) {
-    .header {
-      padding: 0 12px;
-    }
-
-    .header-right {
-      gap: 8px;
-    }
-
-    .status-badge {
-      padding: 3px 6px;
-      font-size: 9px;
-    }
-
-    .header-time {
-      font-size: var(--font-size-xs);
-    }
-
     .main {
       padding: 14px 12px;
     }

@@ -12,17 +12,12 @@ from sync_base import get_conn
 
 EXPECTED_TABLES = [
     "indicators", "indicator_data", "assets", "asset_prices",
-    "index_daily", "gold_reserve_changes", "gold_price_history",
-    "etf_master", "etf_daily", "etf_shares", "data_sync_logs",
+    "gold_reserve_changes", "gold_price_history", "data_sync_logs",
 ]
 
 DATE_COLUMNS = {
     "indicator_data": "MAX(period_date)",
-    "index_daily": "MAX(trade_date)",
     "gold_price_history": "MAX(price_date)",
-    "etf_daily": "MAX(trade_date)",
-    "etf_shares": "MAX(trade_date)",
-    "cn_valuation": "MAX(date)",
 }
 
 
