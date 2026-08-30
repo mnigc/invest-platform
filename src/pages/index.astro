@@ -1,13 +1,7 @@
 ---
-// 首页跳转至信号板
-export const prerender = true;
-import Layout from '../layouts/Layout.astro';
----
+// 首页重定向到信号板。
+// 用服务端 302 代替原来的 meta refresh —— 更快，且不会先闪一帧空白页。
+export const prerender = false
 
-<Layout title="MACRO EDGE">
-  <meta http-equiv="refresh" content="0; url=/signal-board" />
-  <link rel="canonical" href="/signal-board" />
-  <div style="padding: 80px 40px; text-align: center;">
-    <p style="color: var(--text-muted); font-size: 14px;">正在跳转至<a href="/signal-board" style="color: var(--accent-cyan);">组合信号板</a>…</p>
-  </div>
-</Layout>
+return Astro.redirect('/signal-board', 302)
+---

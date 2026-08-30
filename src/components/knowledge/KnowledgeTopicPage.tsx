@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { KnowledgeCanvas, type KnowledgeNode, type KnowledgeEdge } from './KnowledgeCanvas'
 import { NodeDetail } from './NodeDetail'
+import { PageHeader } from '../ui/PageHeader'
+import { MacroCard } from '../ui/MacroCard'
 
 export interface KnowledgeTopic {
   title: string
@@ -14,47 +16,56 @@ export interface KnowledgeTopic {
 
 interface Props {
   topic: KnowledgeTopic
+  breadcrumb?: { label: string; href?: string }[]
 }
 
-export function KnowledgeTopicPage({ topic }: Props) {
+export function KnowledgeTopicPage({ topic, breadcrumb }: Props) {
   const [selected, setSelected] = useState<KnowledgeNode | null>(null)
 
   return (
-    <div>
-      <section style={{
-        background: 'linear-gradient(135deg, rgba(59,130,246,0.10), rgba(6,182,212,0.06))',
-        border: '1px solid var(--border-light)', borderRadius: 12, padding: '18px 20px', marginBottom: 14,
-      }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{topic.title}</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{topic.subtitle}</p>
-        <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.8, color: 'var(--text-secondary)' }}>{topic.intro}</p>
-      </section>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={topic.title}
+        subtitle={topic.subtitle}
+        breadcrumb={breadcrumb}
+      />
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 14, alignItems: 'start' }}>
+      {topic.intro && (
+        <MacroCard padding="md">
+          <p className="text-sm leading-relaxed text-ink-2">{topic.intro}</p>
+        </MacroCard>
+      )}
+
+      {/* 移动端单列；lg 起画布 + 右栏详情并排 */}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         <KnowledgeCanvas
           nodes={topic.nodes}
           edges={topic.edges}
           selected={selected?.id ?? null}
           onSelect={setSelected}
         />
-        <aside style={{
-          background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 12, minHeight: 200,
-        }}>
+        <aside className="min-w-0 rounded-lg border border-line bg-surface">
           <NodeDetail node={selected} />
         </aside>
-      </section>
+      </div>
 
-      <section style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16, marginTop: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-blue)', letterSpacing: '0.06em', marginBottom: 8 }}>核心结论</div>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.9, color: 'var(--text-secondary)' }}>{topic.conclusion}</p>
-      </section>
+      <MacroCard padding="lg">
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-accent">
+          核心结论
+        </h2>
+        <p className="text-sm leading-loose text-ink-2">{topic.conclusion}</p>
+      </MacroCard>
 
-      <section style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16, marginTop: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-cyan)', letterSpacing: '0.06em', marginBottom: 8 }}>投研应用</div>
-        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, lineHeight: 2, color: 'var(--text-secondary)' }}>
-          {topic.strategy.map((s, i) => <li key={i}>{s}</li>)}
+      <MacroCard padding="lg">
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-info">
+          投研应用
+        </h2>
+        <ul className="list-disc space-y-1 pl-5 text-xs leading-loose text-ink-2">
+          {topic.strategy.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
         </ul>
-      </section>
+      </MacroCard>
     </div>
   )
 }

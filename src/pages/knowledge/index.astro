@@ -1,31 +1,34 @@
 ---
-export const prerender = true;
+export const prerender = true
 
-import Layout from '../../layouts/Layout.astro';
-import { PageHeader } from '../../components/ui/PageHeader';
-import type { KnowledgeTopic } from '../../components/knowledge/KnowledgeTopicPage';
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import type { KnowledgeTopic } from '../../components/knowledge/KnowledgeTopicPage'
 
 const TOPICS = await Promise.all([
   import('../../content/knowledge/inflation.json' as any),
   import('../../content/knowledge/deflation.json' as any),
   import('../../content/knowledge/stagflation.json' as any),
   import('../../content/knowledge/interest-rate.json' as any),
-]);
+])
 
 const topics: { slug: string; topic: KnowledgeTopic }[] = [
   { slug: 'inflation', topic: TOPICS[0].default as KnowledgeTopic },
   { slug: 'deflation', topic: TOPICS[1].default as KnowledgeTopic },
   { slug: 'stagflation', topic: TOPICS[2].default as KnowledgeTopic },
   { slug: 'interest-rate', topic: TOPICS[3].default as KnowledgeTopic },
-];
+]
 
-const EMOJI: Record<string, string> = {
-  inflation: '📈', deflation: '📉', stagflation: '🪨', 'interest-rate': '🏦',
-};
+const ICONS: Record<string, string> = {
+  inflation: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20L10 12L14 16L22 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 6H22V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  deflation: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6L10 14L14 10L22 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 20H22V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  stagflation: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="14" width="5" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="10.5" y="8" width="5" height="15" rx="1" stroke="currentColor" stroke-width="2"/><rect x="18" y="3" width="5" height="20" rx="1" stroke="currentColor" stroke-width="2"/></svg>`,
+  'interest-rate': `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="13" cy="13" r="9" stroke="currentColor" stroke-width="2"/><path d="M13 8V13L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+}
 ---
 
 <Layout title="知识图谱 - MACRO EDGE">
-  <div class="page-animate">
+  <div class="animate-enter">
     <PageHeader
       title="知识图谱"
       subtitle="宏观机制可视化：通胀 · 通缩 · 滞胀 · 利率——节点驱动关系，点击查看详解"
@@ -35,30 +38,24 @@ const EMOJI: Record<string, string> = {
       ]}
     />
 
-    <div class="topic-grid">
-      {topics.map(t => (
-        <a class="topic-card" href={`/knowledge/${t.slug}`}>
-          <div class="topic-icon">{EMOJI[t.slug] || '🧩'}</div>
-          <div class="topic-title">{t.topic.title}</div>
-          <div class="topic-sub">{t.topic.subtitle}</div>
-          <div class="topic-meta">{t.topic.nodes.length} 个概念 · {t.topic.edges.length} 条关系</div>
-        </a>
-      ))}
+    <div class="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {
+        topics.map((t) => (
+          <a
+            href={`/knowledge/${t.slug}`}
+            class="group flex flex-col rounded-lg border border-line bg-surface p-4 transition-colors duration-1 ease-terminal hover:border-accent hover:bg-surface-2"
+          >
+            <span class="mb-2 text-accent transition-transform duration-2 ease-terminal group-hover:scale-105">
+              <Fragment set:html={ICONS[t.slug] || ''} />
+            </span>
+            <span class="text-md font-semibold text-ink">{t.topic.title}</span>
+            <span class="mt-1 text-xs leading-relaxed text-ink-3">{t.topic.subtitle}</span>
+            <span class="num mt-2.5 text-2xs text-info">
+              {t.topic.nodes.length} 个概念 · {t.topic.edges.length} 条关系
+            </span>
+          </a>
+        ))
+      }
     </div>
   </div>
 </Layout>
-
-<style>
-  .page-animate { animation: fadeIn 0.3s ease; }
-  .topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-  .topic-card {
-    display: block; padding: 18px; border-radius: var(--radius-lg); text-decoration: none;
-    background: var(--bg-card); border: 1px solid var(--border-subtle);
-    transition: transform var(--transition-fast), border-color var(--transition-fast);
-  }
-  .topic-card:hover { transform: translateY(-2px); border-color: var(--accent-blue); }
-  .topic-icon { font-size: 26px; margin-bottom: 8px; }
-  .topic-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-  .topic-sub { font-size: var(--font-size-sm); color: var(--text-muted); margin-top: 4px; line-height: 1.6; }
-  .topic-meta { font-size: var(--font-size-sm); color: var(--accent-cyan); margin-top: 10px; }
-</style>

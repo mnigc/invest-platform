@@ -1,13 +1,13 @@
 ---
-export const prerender = false;
+export const prerender = false
 
-import Layout from '../layouts/Layout.astro';
-import { PageHeader } from '../components/ui/PageHeader';
-import { SignalBoardDashboard } from '../components/signals/SignalBoardDashboard';
+import Layout from '../layouts/Layout.astro'
+import { PageHeader } from '../components/ui/PageHeader'
+import { SignalBoardDashboard } from '../components/signals/SignalBoardDashboard'
 ---
 
 <Layout title="组合信号板 - MACRO EDGE">
-  <div class="page-animate">
+  <div class="animate-enter">
     <PageHeader
       title="组合信号板"
       subtitle="黄金 / 宏观体制 / 风险异常 · 多信号加权 · 研究参考"
@@ -17,11 +17,6 @@ import { SignalBoardDashboard } from '../components/signals/SignalBoardDashboard
         { label: '组合信号板' },
       ]}
     />
-
     <SignalBoardDashboard client:load />
   </div>
 </Layout>
-
-<style>
-  .page-animate { animation: fadeIn 0.3s ease; }
-</style>

@@ -2,207 +2,153 @@
 const navItems = [
   { label: '组合信号板', href: '/signal-board' },
   { label: '黄金决策', href: '/signals/gold' },
-      { label: '全球流动性', href: '/indicators/global-liquidity' },
+  { label: '全球流动性', href: '/indicators/global-liquidity' },
   { label: '知识图谱', href: '/knowledge' },
-];
+]
 
-const currentPath = Astro.url.pathname;
+const currentPath = Astro.url.pathname
 
 function isActive(href: string) {
-  if (href === '/') return currentPath === '/';
-  return currentPath.startsWith(href);
+  if (href === '/') return currentPath === '/'
+  return currentPath === href || currentPath.startsWith(href + '/')
 }
 ---
 
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
-    <div class="brand-icon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <div class="brand-icon" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M2 20 L8 12 L12 16 L22 4" />
         <path d="M16 4 L22 4 L22 10" />
       </svg>
     </div>
-    <div class="brand-text">
-      <div class="brand-title font-orbitron">MACRO EDGE</div>
+    <div class="min-w-0 flex-1">
+      <div class="brand-title">MACRO EDGE</div>
       <div class="brand-sub">宏观投资研究终端</div>
     </div>
     <button class="sidebar-close" id="sidebarCloseBtn" aria-label="关闭导航">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <line x1="18" y1="6" x2="6" y2="18" />
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>
     </button>
   </div>
 
-  <nav class="nav">
-    {navItems.map(item => (
-      <a
-        href={item.href}
-        class={`nav-link ${isActive(item.href) ? 'active' : ''}`}
-        data-sidebar-link
-      >
-        <span class="nav-indicator"></span>
-        <span class="label">{item.label}</span>
-      </a>
-    ))}
+  <nav class="sidebar-nav" aria-label="主导航">
+    {
+      navItems.map((item) => {
+        const active = isActive(item.href)
+        return (
+          <a
+            href={item.href}
+            class:list={[
+              'group relative flex items-center rounded-md px-3 py-2 text-base transition-colors duration-1 ease-terminal',
+              active ? 'bg-accent/10 text-accent' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+            ]}
+            aria-current={active ? 'page' : undefined}
+            data-sidebar-link
+          >
+            <span
+              class:list={[
+                'absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-accent transition-transform duration-1 ease-terminal',
+                active ? 'scale-y-100' : 'scale-y-0',
+              ]}
+              aria-hidden="true"
+            />
+            <span class="relative">{item.label}</span>
+          </a>
+        )
+      })
+    }
   </nav>
 
-  <div class="sidebar-footer">
-    <div class="sidebar-footer-left">
-      <div class="data-freshness">
-        <span class="freshness-dot freshness-dot--online"></span>
-        <span class="sync-label">FRED · Yahoo · akshare</span>
-      </div>
-      <div class="sync-time" id="syncTime">同步: --:--</div>
-    </div>
-    <button id="themeToggleBtn" class="theme-toggle" title="切换主题" aria-label="切换主题" aria-pressed="false">
-      <span id="themeToggleIcon">🖥️</span>
-    </button>
+  <div class="sidebar-foot">
+    数据源 FRED · Yahoo · akshare
   </div>
 </aside>
 
 <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
 <script>
-  (function() {
-    var btn = document.getElementById('themeToggleBtn');
-    var icon = document.getElementById('themeToggleIcon');
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebarOverlay');
-    var closeBtn = document.getElementById('sidebarCloseBtn');
-    if (!btn || !icon) return;
+  ;(function () {
+    var sidebar = document.getElementById('sidebar')
+    var overlay = document.getElementById('sidebarOverlay')
+    var closeBtn = document.getElementById('sidebarCloseBtn')
+    if (!sidebar) return
 
-     var THEME_COLORS = { dark: '#0A0E14', light: '#f5f7fa' };
-    var PREF_ICONS = { dark: '🌙', light: '☀️', auto: '🖥️' };
-    var PREF_LABELS = { dark: '深色模式', light: '浅色模式', auto: '跟随系统' };
+    var lastFocused: HTMLElement | null = null
 
-    function getPref() {
-      var pref = document.documentElement.dataset.themePref;
-      if (pref !== 'dark' && pref !== 'light' && pref !== 'auto') {
-        pref = 'auto';
-      }
-      return pref;
-    }
-
-    function resolveTheme(pref) {
-      if (pref === 'dark' || pref === 'light') return pref;
-      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
-
-    function updateUI() {
-      var pref = getPref();
-      var theme = document.documentElement.dataset.theme;
-      icon.textContent = PREF_ICONS[pref];
-      var themeLabel = theme === 'dark' ? '深色' : '浅色';
-      btn.title = PREF_LABELS[pref] + '（当前: ' + themeLabel + '）';
-      btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
-      var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', THEME_COLORS[theme]);
-    }
-
-    function applyAndSync(pref) {
-      var doc = document.documentElement;
-      var theme = resolveTheme(pref);
-      doc.dataset.theme = theme;
-      doc.dataset.themePref = pref;
-      var bg = theme === 'light' ? '#f5f7fa' : '#0A0E14';
-      var text = theme === 'light' ? '#1a1a2e' : '#FFFFFF';
-      doc.style.backgroundColor = bg;
-      doc.style.color = text;
-      doc.style.setProperty('--bg-primary', bg);
-      doc.style.setProperty('--text-primary', text);
-      doc.style.colorScheme = theme;
-      doc.classList.add('theme-transitioning');
-      setTimeout(function() { doc.classList.remove('theme-transitioning'); }, 400);
-      try { localStorage.setItem('theme', pref); } catch(e) {}
-      updateUI();
-    }
-
-    function openSidebar() {
-      if (!sidebar) return;
-      sidebar.classList.add('sidebar-open');
+    function openSidebar(trigger?: HTMLElement | null) {
+      lastFocused = trigger || null
+      sidebar!.classList.add('is-open')
       if (overlay) {
-        overlay.classList.add('sidebar-overlay-open');
-        overlay.setAttribute('aria-hidden', 'false');
+        overlay.classList.add('is-open')
+        overlay.setAttribute('aria-hidden', 'false')
       }
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden'
+      closeBtn?.focus()
     }
+
     function closeSidebar() {
-      if (!sidebar) return;
-      sidebar.classList.remove('sidebar-open');
+      sidebar!.classList.remove('is-open')
       if (overlay) {
-        overlay.classList.remove('sidebar-overlay-open');
-        overlay.setAttribute('aria-hidden', 'true');
+        overlay.classList.remove('is-open')
+        overlay.setAttribute('aria-hidden', 'true')
       }
-      document.body.style.overflow = '';
+      document.body.style.overflow = ''
+      if (lastFocused && document.contains(lastFocused)) lastFocused.focus()
+      lastFocused = null
     }
 
-    // 汉堡按钮由 Layout.astro 提供，事件委托到 document
-    document.addEventListener('click', function(e) {
-      var target = e.target;
-      if (!target) return;
-      var hamburger = target.closest('[data-sidebar-toggle]');
+    // 事件委托：汉堡按钮在 Layout.astro，链接在侧栏内部
+    document.addEventListener('click', function (e) {
+      var target = e.target as HTMLElement | null
+      if (!target) return
+
+      var hamburger = target.closest('[data-sidebar-toggle]') as HTMLElement | null
       if (hamburger) {
-        if (sidebar && sidebar.classList.contains('sidebar-open')) {
-          closeSidebar();
-        } else {
-          openSidebar();
+        if (sidebar!.classList.contains('is-open')) closeSidebar()
+        else openSidebar(hamburger)
+        return
+      }
+      if (target.closest('#sidebarCloseBtn') || target.closest('#sidebarOverlay')) {
+        closeSidebar()
+        return
+      }
+      if (target.closest('[data-sidebar-link]')) closeSidebar()
+    })
+
+    // Esc 关闭 + 抽屉内焦点循环
+    document.addEventListener('keydown', function (e) {
+      if (!sidebar!.classList.contains('is-open')) return
+
+      if (e.key === 'Escape') {
+        closeSidebar()
+        return
+      }
+
+      if (e.key === 'Tab') {
+        var focusables = sidebar!.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )
+        if (!focusables.length) return
+        var first = focusables[0]
+        var last = focusables[focusables.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
         }
-        return;
       }
-      if (closeBtn && target.closest('#sidebarCloseBtn')) {
-        closeSidebar();
-        return;
-      }
-      if (target.closest('#sidebarOverlay')) {
-        closeSidebar();
-        return;
-      }
-      var link = target.closest('[data-sidebar-link]');
-      if (link) {
-        closeSidebar();
-      }
-    });
+    })
 
-    // Esc 关闭
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeSidebar();
-    });
-
-    // 切到桌面尺寸时自动关闭抽屉
-    var mqWidth = window.matchMedia('(min-width: 768px)');
-    mqWidth.addEventListener('change', function(e) {
-      if (e.matches) closeSidebar();
-    });
-
-    updateUI();
-
-    // 同步时间显示
-    function updateSyncTime() {
-      var el = document.getElementById('syncTime');
-      if (el) {
-        var now = new Date();
-        var h = String(now.getHours()).padStart(2, '0');
-        var m = String(now.getMinutes()).padStart(2, '0');
-        el.textContent = '同步: ' + h + ':' + m;
-      }
-    }
-    updateSyncTime();
-    setInterval(updateSyncTime, 60000);
-
-    btn.addEventListener('click', function() {
-      var pref = getPref();
-      var next = pref === 'dark' ? 'light' : pref === 'light' ? 'auto' : 'dark';
-      applyAndSync(next);
-    });
-
-    var mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener('change', function() {
-      if (getPref() === 'auto') {
-        applyAndSync('auto');
-      }
-    });
-  })();
+    // 切到桌面尺寸时收起抽屉
+    window.matchMedia('(min-width: 768px)').addEventListener('change', function (e) {
+      if (e.matches) closeSidebar()
+    })
+  })()
 </script>
 
 <style>
@@ -210,287 +156,142 @@ function isActive(href: string) {
     position: fixed;
     top: 0;
     left: 0;
-    width: var(--sidebar-width);
+    width: min(86vw, 320px);
     height: 100vh;
-    background: var(--bg-primary);
-    border-right: 1px solid var(--border-subtle);
+    height: 100dvh;
+    z-index: var(--z-sidebar);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    z-index: 200;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    background-color: rgb(var(--c-bg));
+    border-right: 1px solid rgb(var(--c-border));
+    transform: translateX(-100%);
+    transition: transform var(--dur-3) var(--ease);
+    padding-left: env(safe-area-inset-left);
+  }
+
+  /* 桌面端常驻，不做位移 */
+  @media (min-width: 768px) {
+    .sidebar {
+      width: var(--sidebar-width);
+      transform: none;
+      transition: none;
+    }
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   }
 
   .sidebar-brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 16px 12px;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-subtle);
+    height: var(--topbar-height);
     flex-shrink: 0;
+    padding: 0 12px;
+    border-bottom: 1px solid rgb(var(--c-border));
   }
 
   .brand-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
-    background: var(--gradient-brand);
-    color: #fff;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
-    box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
-    transition: box-shadow var(--transition-base);
-  }
-
-  .sidebar-brand:hover .brand-icon {
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.25);
+    border-radius: 5px;
+    background-color: rgb(var(--c-accent));
+    color: #fff;
   }
 
   .brand-title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
-    font-family: var(--font-display);
-    letter-spacing: 0.06em;
-    background: var(--gradient-brand);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    letter-spacing: 0.12em;
+    color: rgb(var(--c-text));
   }
 
   .brand-sub {
     font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 1px;
+    color: rgb(var(--c-text-3));
     letter-spacing: 0.04em;
+    margin-top: 1px;
   }
 
   .sidebar-close {
-    display: none;
-    margin-left: auto;
-    background: transparent;
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    width: 32px;
-    height: 32px;
-    color: var(--text-muted);
-    cursor: pointer;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
-    transition: all var(--transition-fast);
+    border: 1px solid rgb(var(--c-border));
+    border-radius: 5px;
+    background: transparent;
+    color: rgb(var(--c-text-3));
+    cursor: pointer;
+    transition:
+      background-color var(--dur-1) var(--ease),
+      color var(--dur-1) var(--ease);
   }
 
   .sidebar-close:hover {
-    background: var(--bg-card-hover);
-    border-color: var(--text-muted);
-    color: var(--text-primary);
+    background-color: rgb(var(--c-surface-2));
+    color: rgb(var(--c-text));
   }
 
-  .nav {
-    padding: 8px;
+  @media (min-width: 768px) {
+    .sidebar-close {
+      display: none;
+    }
+  }
+
+  .sidebar-nav {
     flex: 1 1 auto;
-    overflow-y: auto;
     min-height: 0;
-  }
-
-  .nav::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .nav::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .nav::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 2px;
-  }
-
-  .nav::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-  }
-
-  .nav-link {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 12px;
-    border-radius: var(--radius-md);
-    color: var(--text-secondary);
-    font-size: var(--font-size-base);
-    transition: all var(--transition-fast);
-    margin-bottom: 1px;
-    overflow: hidden;
-  }
-
-  .nav-link::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%) scaleY(0);
-    width: 3px;
-    height: 16px;
-    background: var(--gradient-brand);
-    transition: transform var(--transition-fast);
-    border-radius: 0 2px 2px 0;
-  }
-
-  .nav-link::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, var(--accent-blue-dim) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-    border-radius: var(--radius-md);
-  }
-
-  .nav-link:hover {
-    color: var(--text-primary);
-    background: var(--bg-card-hover);
-    padding-left: 14px;
-  }
-
-  .nav-link:hover::after {
-    opacity: 1;
-  }
-
-  .nav-link.active {
-    color: var(--accent-blue);
-    background: var(--accent-blue-dim);
-  }
-
-  .nav-link.active::before {
-    transform: translateY(-50%) scaleY(1);
-  }
-
-  .nav-link.active::after {
-    opacity: 1;
-  }
-
-  .nav-indicator {
-    width: 3px;
-    height: 14px;
-    border-radius: 2px;
-    background: transparent;
-    transition: all var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .label {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .sidebar-footer {
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    border-top: 1px solid var(--border-subtle);
-    background: var(--bg-primary);
-  }
-
-  .sidebar-footer-left {
+    overflow-y: auto;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-width: 0;
   }
 
-  .data-freshness {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  .sync-label {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
+  .sidebar-foot {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-top: 1px solid rgb(var(--c-border));
     font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: rgb(var(--c-text-3));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .sync-time {
-    font-size: 10px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    opacity: 0.7;
-  }
-
-  .theme-toggle {
-    background: transparent;
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    transition: all var(--transition-fast);
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .theme-toggle:hover {
-    background: var(--bg-card-hover);
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.15);
-  }
-
-  .theme-toggle:active {
-    transform: scale(0.95);
-  }
-
-  /* 遮罩层 — 仅在移动端抽屉状态显示 */
   .sidebar-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    z-index: var(--z-overlay);
+    background-color: rgba(0, 0, 0, 0.55);
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 150;
     pointer-events: none;
+    transition:
+      opacity var(--dur-2) var(--ease),
+      visibility var(--dur-2) var(--ease);
   }
 
-  /* 移动端响应式 */
-  @media (max-width: 767px) {
-    .sidebar {
-      transform: translateX(-100%);
-      width: 86vw;
-      max-width: 320px;
-      box-shadow: var(--shadow-lg);
-      border-right: none;
-    }
+  .sidebar-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
 
-    .sidebar.sidebar-open {
-      transform: translateX(0);
-    }
-
-    .sidebar-overlay.sidebar-overlay-open {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-
-    .sidebar-close {
-      display: flex;
+  @media (min-width: 768px) {
+    .sidebar-overlay {
+      display: none;
     }
   }
 </style>
-
-

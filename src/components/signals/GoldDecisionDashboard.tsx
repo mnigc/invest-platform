@@ -1,8 +1,24 @@
-import { useEffect, useState } from 'react'
-import echarts from '../../lib/echarts'
-import { useChart } from '../charts/useChart'
+import { useEffect, useMemo, useState } from 'react'
+import type { EChartsOption } from 'echarts'
+import { ResponsiveChartBox } from '../charts/ChartBox'
 import { useChartTheme } from '../ui/theme'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
+import { ErrorState } from '../ui/States'
+import { MacroCard } from '../ui/MacroCard'
+import { StatTile } from '../ui/StatTile'
+import { DataTable, type Column } from '../ui/DataTable'
+import {
+  categoryAxis,
+  chartAnimation,
+  chartLegend,
+  chartTooltip,
+  chartGrid,
+  lineSeries,
+  markLine,
+  rightValueAxis,
+  thresholdLine,
+  valueAxis,
+} from '../../lib/chartOptions'
 
 type Direction = 'bullish' | 'bearish' | 'neutral'
 type Strength = 'strong' | 'moderate' | 'weak'
@@ -39,7 +55,11 @@ interface Data {
     residPercentile: number
   }
   priceChart: { date: string; gold: number; dxy: number | null }[]
-  corrChart: { s20: { date: string; value: number }[]; s60: { date: string; value: number }[]; s120: { date: string; value: number }[] }
+  corrChart: {
+    s20: { date: string; value: number }[]
+    s60: { date: string; value: number }[]
+    s120: { date: string; value: number }[]
+  }
   bandSwitches: { date: string; from: string; to: string }[]
   residSeries: { date: string; z: number | null }[]
   extremes: { date: string; dir: string }[]
@@ -61,252 +81,393 @@ interface Data {
   updatedAt: string
 }
 
-const DIR_LABEL: Record<Direction, string> = { bullish: '看多', bearish: '看空', neutral: '中性' }
-const STRENGTH_LABEL: Record<Strength, string> = { strong: '强', moderate: '中', weak: '弱' }
-
-function fmtPct(v: number): string {
-  return `${(v * 100).toFixed(1)}%`
+const DIR_LABEL: Record<Direction, string> = {
+  bullish: '看多',
+  bearish: '看空',
+  neutral: '中性',
+}
+const STRENGTH_LABEL: Record<Strength, string> = {
+  strong: '强',
+  moderate: '中',
+  weak: '弱',
 }
 
-function Chart({ option, height = 320 }: { option: any | null; height?: number }) {
-  const { ref } = useChart(option, [option])
-  return (
-    <div style={{ width: '100%', height, position: 'relative' }}>
-      <div ref={ref} style={{ width: '100%', height: '100%' }} />
-    </div>
-  )
-}
+const fmtPct = (v: number) => `${(v * 100).toFixed(1)}%`
+const signed = (v: number | null, digits = 2) =>
+  v == null ? '--' : `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16, marginTop: 14 }}>
-      <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>{title}</h3>
-      {children}
-    </section>
-  )
-}
+/* --------------------------------------------------------------------------- */
 
-function StudyTable({ title, study }: { title: string; study: Study }) {
-  if (!study || study.nEvents === 0) return null
-  const horizons = Object.entries(study.horizons)
-  return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>{title}（{study.nEvents} 次事件）</div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>窗口</th>
-            <th style={thStyle}>样本</th>
-            <th style={thStyle}>胜率</th>
-            <th style={thStyle}>中位数</th>
-            <th style={thStyle}>均值</th>
-            <th style={thStyle}>P25</th>
-            <th style={thStyle}>P75</th>
-          </tr>
-        </thead>
-        <tbody>
-          {horizons.map(([h, s]) => (
-            <tr key={h}>
-              <td style={tdStyle}>{h} 日</td>
-              <td style={tdStyle}>{s.n}</td>
-              <td style={{ ...tdStyle, color: s.winRate >= 0.5 ? 'var(--green)' : 'var(--red)' }}>{fmtPct(s.winRate)}</td>
-              <td style={{ ...tdStyle, color: s.median >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmtPct(s.median)}</td>
-              <td style={tdStyle}>{fmtPct(s.mean)}</td>
-              <td style={tdStyle}>{fmtPct(s.p25)}</td>
-              <td style={tdStyle}>{fmtPct(s.p75)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+function SignalPanel({ signal }: { signal: Data['signal'] }) {
+  const tone =
+    signal.direction === 'bullish'
+      ? 'text-up'
+      : signal.direction === 'bearish'
+        ? 'text-down'
+        : 'text-ink-3'
+  const accent =
+    signal.direction === 'bullish'
+      ? 'green'
+      : signal.direction === 'bearish'
+        ? 'red'
+        : ('none' as const)
 
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', color: 'var(--text-muted)', fontWeight: 600, borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }
-const tdStyle: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-light)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }
-
-function SignalCard({ signal }: { signal: NonNullable<Data['signal']> }) {
-  const dirColor = signal.direction === 'bullish' ? 'var(--green)' : signal.direction === 'bearish' ? 'var(--red)' : 'var(--text-muted)'
   return (
-    <section style={{ background: 'var(--bg-card)', border: `1px solid ${signal.direction === 'neutral' ? 'var(--border-light)' : dirColor}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{signal.title}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>更新 {signal.updatedAt} · 研究参考，非投资建议</div>
+    <MacroCard accent={accent} padding="lg">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-ink">{signal.title}</h2>
+          <p className="mt-0.5 text-2xs text-ink-3">
+            更新 {signal.updatedAt} · 研究参考，非投资建议
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: dirColor }}>{DIR_LABEL[signal.direction]}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>信号强度 {STRENGTH_LABEL[signal.strength]} · 置信度 {signal.confidence}%</span>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <span className={`num text-2xl font-bold ${tone}`}>
+            {DIR_LABEL[signal.direction]}
+          </span>
+          <span className="text-xs text-ink-3">
+            信号强度 {STRENGTH_LABEL[signal.strength]} · 置信度{' '}
+            <span className="num">{signal.confidence}%</span>
+          </span>
         </div>
       </div>
-      <div style={{ marginTop: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>证据链</div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-            {signal.evidence.map((e, i) => <li key={i}>{e}</li>)}
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <h3 className="mb-1 text-xs font-semibold text-ink-3">证据链</h3>
+          <ul className="list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-ink-2">
+            {signal.evidence.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
           </ul>
         </div>
         {signal.counterEvidence.length > 0 && (
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>反向证据</div>
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--red)', lineHeight: 1.8 }}>
-              {signal.counterEvidence.map((e, i) => <li key={i}>{e}</li>)}
+          <div>
+            <h3 className="mb-1 text-xs font-semibold text-ink-3">反向证据</h3>
+            <ul className="list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-down">
+              {signal.counterEvidence.map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
             </ul>
           </div>
         )}
       </div>
+
       {signal.historical.length > 0 && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        <div className="mt-4 flex flex-wrap gap-2">
           {signal.historical.map((h, i) => (
-            <div key={i} style={{ background: 'var(--bg-card-hover, rgba(255,255,255,0.04))', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
-              <span style={{ color: 'var(--text-muted)' }}>{h.label}：</span>
-              <strong style={{ color: h.median >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmtPct(h.median)}</strong>
-              <span style={{ color: 'var(--text-muted)' }}> · 胜率 {fmtPct(h.winRate)} · {h.n} 次</span>
+            <div
+              key={i}
+              className="rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-xs"
+            >
+              <span className="text-ink-3">{h.label}：</span>
+              <strong
+                className={`num ${
+                  h.median >= 0 ? 'text-up' : 'text-down'
+                }`}
+              >
+                {fmtPct(h.median)}
+              </strong>
+              <span className="text-ink-3">
+                {' '}
+                · 胜率 <span className="num">{fmtPct(h.winRate)}</span> ·{' '}
+                <span className="num">{h.n}</span> 次
+              </span>
             </div>
           ))}
         </div>
       )}
-    </section>
+    </MacroCard>
   )
 }
+
+function StudyTable({ title, study }: { title: string; study: Study }) {
+  const rows = useMemo(() => Object.entries(study?.horizons ?? {}), [study])
+  if (!study || study.nEvents === 0 || rows.length === 0) return null
+
+  const columns: Column<[string, HorizonStat]>[] = [
+    { key: 'h', header: '窗口', render: ([h]) => `${h} 日` },
+    { key: 'n', header: '样本', numeric: true, render: ([, s]) => s.n },
+    {
+      key: 'win',
+      header: '胜率',
+      numeric: true,
+      render: ([, s]) => (
+        <span className={s.winRate >= 0.5 ? 'text-up' : 'text-down'}>
+          {fmtPct(s.winRate)}
+        </span>
+      ),
+    },
+    {
+      key: 'median',
+      header: '中位数',
+      numeric: true,
+      render: ([, s]) => (
+        <span className={s.median >= 0 ? 'text-up' : 'text-down'}>
+          {fmtPct(s.median)}
+        </span>
+      ),
+    },
+    { key: 'mean', header: '均值', numeric: true, render: ([, s]) => fmtPct(s.mean) },
+    { key: 'p25', header: 'P25', numeric: true, render: ([, s]) => fmtPct(s.p25) },
+    { key: 'p75', header: 'P75', numeric: true, render: ([, s]) => fmtPct(s.p75) },
+  ]
+
+  return (
+    <div className="mt-4 first:mt-0">
+      <h3 className="mb-1.5 text-xs font-semibold text-ink-2">
+        {title}
+        <span className="num ml-1 text-ink-3">（{study.nEvents} 次事件）</span>
+      </h3>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={([h]) => h}
+        stickyFirst
+      />
+    </div>
+  )
+}
+
+/* --------------------------------------------------------------------------- */
 
 export function GoldDecisionDashboard() {
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
   const t = useChartTheme()
 
   useEffect(() => {
     let alive = true
+    setLoading(true)
+    setError('')
     fetch('/api/v1/gold/correlation.json')
-      .then(r => r.json())
-      .then(j => {
+      .then((r) => r.json())
+      .then((j) => {
         if (!alive) return
         if (j.success) setData(j.data)
         else setError(j.error || '加载失败')
       })
       .catch((e: any) => alive && setError(e.message || '加载失败'))
       .finally(() => alive && setLoading(false))
-    return () => { alive = false }
-  }, [])
+    return () => {
+      alive = false
+    }
+  }, [reloadKey])
 
-  if (loading) return <LoadingSkeleton type="chart" height={480} />
-  if (error || !data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>{error || '暂无数据'}</div>
-
-  const priceChart = {
-    tooltip: { trigger: 'axis', backgroundColor: t.bgCard, borderColor: t.borderLight, textStyle: { color: t.textPrimary } },
-    legend: { data: ['金价 (USD/oz)', 'DXY'], textStyle: { color: t.textMuted, fontSize: 11 }, top: 0 },
-    grid: { left: 56, right: 56, top: 28, bottom: 26 },
-    xAxis: { type: 'category', data: data.priceChart.map(p => p.date), axisLabel: { color: t.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: t.borderColor } } },
-    yAxis: [
-      { type: 'value', scale: true, name: 'Gold', nameTextStyle: { color: t.textMuted }, axisLabel: { color: t.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: t.borderColor, type: 'dashed' } } },
-      { type: 'value', scale: true, name: 'DXY', nameTextStyle: { color: t.textMuted }, axisLabel: { color: t.textMuted, fontSize: 10 }, splitLine: { show: false } },
-    ],
-    series: [
-      { name: '金价 (USD/oz)', type: 'line', data: data.priceChart.map(p => p.gold), smooth: true, showSymbol: false, lineStyle: { width: 2, color: t.gold } },
-      { name: 'DXY', type: 'line', yAxisIndex: 1, data: data.priceChart.map(p => p.dxy), smooth: true, showSymbol: false, lineStyle: { width: 1.5, color: t.cyan } },
-    ],
-  }
-
-  const corrOption = {
-    tooltip: { trigger: 'axis', backgroundColor: t.bgCard, borderColor: t.borderLight, textStyle: { color: t.textPrimary }, valueFormatter: (v: any) => Number(v).toFixed(3) },
-    legend: { data: ['20 日', '60 日', '120 日'], textStyle: { color: t.textMuted, fontSize: 11 }, top: 0 },
-    grid: { left: 46, right: 20, top: 28, bottom: 26 },
-    xAxis: { type: 'category', data: data.corrChart.s60.map(p => p.date), axisLabel: { color: t.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: t.borderColor } } },
-    yAxis: { type: 'value', min: -1, max: 1, axisLabel: { color: t.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: t.borderColor, type: 'dashed' } } },
-    series: [
-      { name: '20 日', type: 'line', data: data.corrChart.s20.map(p => p.value), smooth: true, showSymbol: false, lineStyle: { width: 1.5, color: t.gold } },
-      { name: '60 日', type: 'line', data: data.corrChart.s60.map(p => p.value), smooth: true, showSymbol: false, lineStyle: { width: 2, color: t.cyan } },
-      { name: '120 日', type: 'line', data: data.corrChart.s120.map(p => p.value), smooth: true, showSymbol: false, lineStyle: { width: 1.5, color: t.blue } },
-    ],
-  }
-
-  const residDates = data.residSeries.map(p => p.date)
-  const residOption = {
-    tooltip: { trigger: 'axis', backgroundColor: t.bgCard, borderColor: t.borderLight, textStyle: { color: t.textPrimary }, valueFormatter: (v: any) => Number(v).toFixed(2) },
-    grid: { left: 46, right: 20, top: 16, bottom: 26 },
-    xAxis: { type: 'category', data: residDates, axisLabel: { color: t.textMuted, fontSize: 10 }, axisLine: { lineStyle: { color: t.borderColor } } },
-    yAxis: { type: 'value', axisLabel: { color: t.textMuted, fontSize: 10 }, splitLine: { lineStyle: { color: t.borderColor, type: 'dashed' } } },
-    series: [
-      {
-        name: '残差 z', type: 'bar',
-        data: data.residSeries.map(p => {
-          const v = p.z
-          if (v == null) return null
-          return {
-            value: v,
-            itemStyle: { color: v >= 2 ? t.red : v <= -2 ? '#7bc47f' : v >= 0 ? 'rgba(242,139,130,0.55)' : 'rgba(123,196,127,0.55)' },
-          }
+  const priceOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.priceChart?.length) return null
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t),
+      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY']),
+      grid: chartGrid({ top: 32, bottom: 8 }),
+      xAxis: categoryAxis(t, data.priceChart.map((p) => p.date)),
+      yAxis: [
+        valueAxis(t, {
+          name: 'Gold',
+          nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
         }),
-        markLine: {
-          symbol: ['none', 'none'], animation: false,
-          data: [
-            { yAxis: 2, lineStyle: { color: t.red, width: 1.2, type: 'dashed' }, label: { show: true, position: 'insideEndTop', formatter: '+2σ', color: t.red, fontSize: 10 } },
-            { yAxis: -2, lineStyle: { color: '#7bc47f', width: 1.2, type: 'dashed' }, label: { show: true, position: 'insideEndBottom', formatter: '-2σ', color: '#7bc47f', fontSize: 10 } },
-          ],
+        rightValueAxis(t, {
+          name: 'DXY',
+          nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
+        }),
+      ],
+      series: [
+        lineSeries(
+          '金价 (USD/oz)',
+          data.priceChart.map((p) => p.gold),
+          t.series[2],
+          { lineStyle: { width: 2, color: t.series[2] } },
+        ),
+        lineSeries(
+          'DXY',
+          data.priceChart.map((p) => p.dxy),
+          t.series[1],
+          { yAxisIndex: 1, lineStyle: { width: 1.5, color: t.series[1] } },
+        ),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
+  const corrOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.corrChart?.s60?.length) return null
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(3)),
+      }),
+      legend: chartLegend(t, ['20 日', '60 日', '120 日']),
+      grid: chartGrid({ top: 32, bottom: 8 }),
+      xAxis: categoryAxis(t, data.corrChart.s60.map((p) => p.date)),
+      yAxis: valueAxis(t, { min: -1, max: 1, scale: false }),
+      series: [
+        lineSeries(
+          '20 日',
+          data.corrChart.s20.map((p) => p.value),
+          t.series[2],
+          { lineStyle: { width: 1.4, color: t.series[2] } },
+        ),
+        lineSeries(
+          '60 日',
+          data.corrChart.s60.map((p) => p.value),
+          t.series[1],
+          { lineStyle: { width: 2, color: t.series[1] } },
+        ),
+        lineSeries(
+          '120 日',
+          data.corrChart.s120.map((p) => p.value),
+          t.series[0],
+          { lineStyle: { width: 1.4, color: t.series[0] } },
+        ),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
+  const residOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.residSeries?.length) return null
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(2)),
+      }),
+      grid: chartGrid({ top: 14, bottom: 8 }),
+      xAxis: categoryAxis(t, data.residSeries.map((p) => p.date)),
+      yAxis: valueAxis(t),
+      series: [
+        {
+          name: '残差 z',
+          type: 'bar',
+          data: data.residSeries.map((p) => {
+            const v = p.z
+            if (v == null) return null
+            // 高估（z≥2）看空 → 跌色；低估（z≤-2）看多 → 涨色
+            const color =
+              v >= 2 ? t.down : v <= -2 ? t.up : v >= 0 ? t.downSoft : t.upSoft
+            return { value: v, itemStyle: { color } }
+          }),
+          markLine: markLine([
+            thresholdLine(2, t.down, '+2σ'),
+            thresholdLine(-2, t.up, '-2σ'),
+          ]),
         },
-      },
-    ],
-  }
+      ],
+    } as EChartsOption
+  }, [data, t])
+
+  if (loading) return <LoadingSkeleton type="card" rows={4} height={300} />
+  if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
+  if (!data) return <ErrorState message="暂无数据" />
 
   const latest = data.latest
+  const residTone =
+    latest.residZ == null ? 'neutral' : latest.residZ >= 0 ? ('down' as const) : ('up' as const)
 
   return (
-    <div>
-      <SignalCard signal={data.signal} />
-
-      <section style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-          {[
-            { label: '金价', value: latest.gold != null ? latest.gold.toFixed(2) : '--', sub: 'USD / oz' },
-            { label: '美元指数 DXY', value: latest.dxy != null ? latest.dxy.toFixed(2) : '--', sub: '' },
-            { label: '相关 20/60/120', value: `${latest.corr20.toFixed(2)} / ${latest.corr60.toFixed(2)} / ${latest.corr120.toFixed(2)}`, sub: '收益率口径' },
-            { label: '关联状态', value: latest.bandLabel, sub: latest.bandDesc, accent: true },
-            { label: '实际利率 DFII10', value: latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--', sub: '10Y TIPS' },
-            { label: '盈亏平衡 T10YIE', value: latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--', sub: '' },
-            { label: '定价残差 z', value: latest.residZ != null ? (latest.residZ >= 0 ? '+' : '') + latest.residZ.toFixed(2) : '--', sub: `5Y 分位 ${latest.residPercentile.toFixed(0)}` },
-          ].map(k => (
-            <div key={k.label} style={{ background: k.accent ? 'var(--accent-blue-dim, rgba(59,130,246,0.1))' : 'var(--bg-card-hover, rgba(255,255,255,0.04))', borderRadius: 8, padding: '10px 12px' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{k.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{k.value}</div>
-              {k.sub && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{k.sub}</div>}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <Card title="金价 vs 美元指数（近 2 年）">
-        <Chart option={priceChart} height={300} />
-      </Card>
-
-      <Card title="黄金-美元收益率滚动相关（20 / 60 / 120 日）">
-        <Chart option={corrOption} height={300} />
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-          说明：越向下越负相关（经典范式）；高于 -0.15 即「失效区间」。
-        </div>
-      </Card>
-
-      <Card title="定价残差 z（双因子模型：实际利率 DFII10 + DXY 20 日动量）">
-        <Chart option={residOption} height={280} />
-        {data.extremes.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-            历史极端点({data.extremes.length})：{data.extremes.slice(-8).map(e => `${e.date}(${e.dir === 'overvalued' ? '高估' : '低估'})`).join(' · ')}
+    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+      {/* 关键指标 — 顶部全宽 */}
+      <div className="lg:col-span-2">
+        <MacroCard padding="sm">
+          <div className="stagger grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
+            <StatTile
+              label="金价"
+              value={latest.gold != null ? latest.gold.toFixed(2) : '--'}
+              sub="USD / oz"
+              tone="warn"
+            />
+            <StatTile
+              label="美元指数 DXY"
+              value={latest.dxy != null ? latest.dxy.toFixed(2) : '--'}
+              tone="info"
+            />
+            <StatTile
+              label="相关 20/60/120"
+              value={`${latest.corr20.toFixed(2)} / ${latest.corr60.toFixed(2)} / ${latest.corr120.toFixed(2)}`}
+              sub="收益率口径"
+            />
+            <StatTile
+              label="关联状态"
+              value={latest.bandLabel}
+              sub={latest.bandDesc}
+              tone="info"
+            />
+            <StatTile
+              label="实际利率 DFII10"
+              value={latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--'}
+              sub="10Y TIPS"
+              tone="warn"
+            />
+            <StatTile
+              label="盈亏平衡 T10YIE"
+              value={latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--'}
+              sub="10Y Breakeven"
+              tone="warn"
+            />
+            <StatTile
+              label="定价残差 z"
+              value={signed(latest.residZ)}
+              sub={`5Y 分位 ${latest.residPercentile.toFixed(0)}`}
+              tone={residTone}
+            />
           </div>
-        )}
-      </Card>
-
-      <Card title="事件研究：信号出现后的黄金后市收益">
-        <StudyTable title="① 相关性失效/正相关切换后" study={data.eventStudies.broken} />
-        <StudyTable title="② 残差高估（z ≥ 2）后" study={data.eventStudies.overvalued} />
-        <StudyTable title="③ 残差低估（z ≤ -2）后" study={data.eventStudies.undervalued} />
-        {data.eventStudies.broken.nEvents === 0 && data.eventStudies.overvalued.nEvents === 0 && data.eventStudies.undervalued.nEvents === 0 && (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '12px 0' }}>历史事件不足，样本积累后自动生成验证统计。</div>
-        )}
-      </Card>
-
-      <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.8 }}>
-        数据来源：Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）。所有信号为统计研究结果，不构成投资建议。
+        </MacroCard>
       </div>
+
+      {/* 主列：图表与事件研究 */}
+      <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
+        <MacroCard title="金价 vs 美元指数（近 2 年）">
+          <ResponsiveChartBox option={priceOption} deps={[priceOption]} />
+        </MacroCard>
+
+        <MacroCard title="黄金-美元收益率滚动相关（20 / 60 / 120 日）">
+          <ResponsiveChartBox option={corrOption} deps={[corrOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            说明：越向下越负相关（经典范式）；高于 -0.15 即「失效区间」。
+          </p>
+        </MacroCard>
+
+        <MacroCard title="定价残差 z（双因子模型：实际利率 DFII10 + DXY 20 日动量）">
+          <ResponsiveChartBox option={residOption} deps={[residOption]} />
+          {data.extremes.length > 0 && (
+            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+              历史极端点（<span className="num">{data.extremes.length}</span>）：
+              {data.extremes
+                .slice(-8)
+                .map((e) => `${e.date}(${e.dir === 'overvalued' ? '高估' : '低估'})`)
+                .join(' · ')}
+            </p>
+          )}
+        </MacroCard>
+
+        <MacroCard title="事件研究：信号出现后的黄金后市收益">
+          <StudyTable title="① 相关性失效/正相关切换后" study={data.eventStudies.broken} />
+          <StudyTable title="② 残差高估（z ≥ 2）后" study={data.eventStudies.overvalued} />
+          <StudyTable title="③ 残差低估（z ≤ -2）后" study={data.eventStudies.undervalued} />
+          {data.eventStudies.broken.nEvents === 0 &&
+            data.eventStudies.overvalued.nEvents === 0 &&
+            data.eventStudies.undervalued.nEvents === 0 && (
+              <p className="py-3 text-xs text-ink-3">
+                历史事件不足，样本积累后自动生成验证统计。
+              </p>
+            )}
+        </MacroCard>
+      </div>
+
+      {/* 右栏：信号 · 数据来源 */}
+      <aside className="flex flex-col gap-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:sticky lg:top-[calc(var(--topbar-height)+16px)]">
+        <SignalPanel signal={data.signal} />
+
+        <MacroCard title="数据来源" padding="sm">
+          <p className="text-2xs leading-relaxed text-ink-3">
+            Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）。
+          </p>
+          <p className="num mt-1.5 text-2xs text-ink-3">更新 {data.updatedAt}</p>
+          <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
+            所有信号为统计研究结果，不构成投资建议。
+          </p>
+        </MacroCard>
+      </aside>
     </div>
   )
 }

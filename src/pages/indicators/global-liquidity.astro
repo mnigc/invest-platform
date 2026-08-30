@@ -1,13 +1,13 @@
 ---
-export const prerender = false;
+export const prerender = false
 
-import Layout from '../../layouts/Layout.astro';
-import { PageHeader } from '../../components/ui/PageHeader';
-import GlobalLiquidityDashboard from '../../components/GlobalLiquidityDashboard';
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import GlobalLiquidityDashboard from '../../components/GlobalLiquidityDashboard'
 ---
 
 <Layout title="全球流动性 - MACRO EDGE">
-  <div class="page-animate">
+  <div class="animate-enter">
     <PageHeader
       title="全球流动性监测"
       subtitle="美联储资产负债表 · RRP · TGA · 主要央行对比 · SOFR"
@@ -18,51 +18,33 @@ import GlobalLiquidityDashboard from '../../components/GlobalLiquidityDashboard'
       ]}
     />
 
-    <div class="guide">
-      <div class="guide-title">📖 指标解读</div>
-      <div class="guide-body">
-        <p><strong>全球流动性</strong>就是全世界"钱的总量"。钱越多，资产价格（股票、房子、黄金）越容易涨；钱越少，市场容易跌。这里跟踪几个最关键的指标：</p>
-        <ul>
-          <li><strong>美联储总资产</strong> — 美国印了多少钱。2008 年金融危机和 2020 年疫情后大幅扩张，2022 年开始缩表（逐步回收）。总资产涨 → 市场有钱 → 利好资产。</li>
-          <li><strong>RRP（隔夜逆回购）</strong> — 银行/基金"暂时借给美联储"的钱。RRP 越高说明市场里闲钱多但不敢投，是流动性淤积的信号。RRP 从 2023 年的 2.5 万亿降到接近 0，说明流动性正在从"淤积"变为"紧张"。</li>
-          <li><strong>TGA（财政部账户）</strong> — 美国政府存在美联储的活期存款。TGA 增加 = 政府收税/发债把钱从市场中抽走（紧缩）；TGA 减少 = 政府花钱把钱注入市场（宽松）。</li>
-          <li><strong>SOFR（担保隔夜融资利率）</strong> — 银行之间借钱的利率。SOFR 越高说明市场缺钱，越低说明流动性充裕。类似"市场缺钱程度的体温计"。</li>
-          <li><strong>主要央行资产负债表对比</strong> — 把美联储、欧央行、日央行的总资产放在一起比较（以 100 为基准），看哪家在放水、哪家在紧缩。</li>
-        </ul>
-        <p class="guide-tldr"><strong>一句话：</strong>总资产↑ RRP↓ TGA↓ = 市场钱多，利好风险资产；反过来总资产↓ RRP↑ TGA↑ = 钱少，要小心。</p>
-      </div>
-    </div>
+    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
+      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+      <p class="my-1.5">
+        <strong class="text-ink">全球流动性</strong>即市场资金总量。资金充裕时资产价格上行，紧缩时承压。本节跟踪五个核心指标：
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">美联储总资产</strong> — 量化宽松与缩表的直接体现。扩表期（2008、2020）显著推高资产价格；缩表期（2022 至今）回收流动性。
+        </li>
+        <li>
+          <strong class="text-ink">RRP（隔夜逆回购）</strong> — 金融体系闲置资金的蓄水池。RRP 高位表明流动性淤积，降至低位则预示市场资金趋紧。
+        </li>
+        <li>
+          <strong class="text-ink">TGA（财政部一般账户）</strong> — 政府存款变动方向即流动性方向：TGA 增加 = 抽走市场资金（紧缩），TGA 减少 = 注入资金（宽松）。
+        </li>
+        <li>
+          <strong class="text-ink">SOFR</strong> — 担保隔夜融资利率，反映银行间资金紧张程度。利率上行即流动性收紧信号。
+        </li>
+        <li>
+          <strong class="text-ink">主要央行资产负债表对比</strong> — 以 100 为基准，横向比较美联储、欧央行、日央行的相对宽松/紧缩节奏。
+        </li>
+      </ul>
+      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
+        <strong class="text-ink">综合判断：</strong>总资产↑ + RRP↓ + TGA↓ + SOFR↓ = 流动性充裕，利好风险资产；反之则需警惕。
+      </p>
+    </section>
 
     <GlobalLiquidityDashboard client:load />
   </div>
 </Layout>
-
-<style>
-  .page-animate { animation: fadeIn 0.3s ease; }
-  .guide {
-    margin-bottom: 20px;
-    padding: 14px 18px;
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    font-size: var(--font-size-base);
-    line-height: 1.6;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-subtle);
-  }
-  .guide-title {
-    font-size: var(--font-size-md);
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-  }
-  .guide-body p { margin: 6px 0; }
-  .guide-body ul { margin: 6px 0; padding-left: 18px; }
-  .guide-body li { margin: 4px 0; }
-  .guide-tldr {
-    margin-top: 8px;
-    padding: 8px 12px;
-    background: var(--accent-blue-dim);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-  }
-</style>

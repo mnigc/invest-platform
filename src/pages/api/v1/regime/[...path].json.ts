@@ -309,7 +309,7 @@ function monthEnds(start: string, end: string): string[] {
   return dates
 }
 
-export const GET = async ({ request }) => {
+export const GET = async ({ request }: { request: Request }) => {
   const url = new URL(request.url)
   const path = url.pathname
   const subPath = path.split('/').pop()

@@ -1,13 +1,13 @@
 ---
-export const prerender = false;
+export const prerender = false
 
-import Layout from '../../layouts/Layout.astro';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDashboard';
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDashboard'
 ---
 
 <Layout title="黄金决策 - MACRO EDGE">
-  <div class="page-animate">
+  <div class="animate-enter">
     <PageHeader
       title="黄金决策"
       subtitle="黄金-美元收益率滚动相关 · 定价残差 · 脱锚事件研究 · 央行购金"
@@ -17,11 +17,6 @@ import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDash
         { label: '黄金决策' },
       ]}
     />
-
     <GoldDecisionDashboard client:load />
   </div>
 </Layout>
-
-<style>
-  .page-animate { animation: fadeIn 0.3s ease; }
-</style>

@@ -8,27 +8,25 @@ interface Props {
 export function NodeDetail({ node }: Props) {
   if (!node) {
     return (
-      <div style={{
-        height: '100%', minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--text-muted)', fontSize: 12, padding: 16, textAlign: 'center',
-      }}>
-        点击图谱节点查看详情<br />拖拽节点可调整布局
+      <div className="flex min-h-[120px] flex-col items-center justify-center gap-1 p-4 text-center text-xs text-ink-3">
+        <span>点击图谱节点查看详情</span>
+        <span className="text-ink-3/80">拖拽节点可调整布局</span>
       </div>
     )
   }
+
   const meta = nodeTypeMeta[node.type] || nodeTypeMeta.driver
+
   return (
-    <div style={{ padding: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
-          color: meta.color, background: meta.bg, letterSpacing: '0.04em' as any,
-        }}>
-          {meta.label}
-        </span>
-      </div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{node.label}</div>
-      <div style={{ fontSize: 12, lineHeight: 1.8, color: 'var(--text-secondary)' }}>{node.desc}</div>
+    <div className="p-3.5">
+      <span
+        className="inline-flex items-center rounded px-1.5 py-0.5 text-2xs font-semibold tracking-wide"
+        style={{ color: meta.color, backgroundColor: meta.bg }}
+      >
+        {meta.label}
+      </span>
+      <h3 className="mt-1.5 text-md font-semibold text-ink">{node.label}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-ink-2">{node.desc}</p>
     </div>
   )
 }
