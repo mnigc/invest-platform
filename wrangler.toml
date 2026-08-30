@@ -1,3 +1,7 @@
 name = "invest-platform"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"

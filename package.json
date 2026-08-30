@@ -8,6 +8,7 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "deploy": "npx wrangler pages deploy dist",
     "check": "astro check",
     "typecheck": "tsc --noEmit",
     "astro": "astro"
