@@ -1,9 +1,7 @@
 name = "invest-platform"
-compatibility_date = "2026-08-01"
+compatibility_date = "2026-08-30"
 compatibility_flags = ["nodejs_compat"]
+main = "./dist/_worker.js"
 
-# Cloudflare Pages build output
-pages_build_output_dir = "./dist"
-
-# Environment variables (secrets set via `wrangler secret put`)
-# DATABASE_URL = "postgresql://..."  (set as secret)
+[observability]
+enabled = true
