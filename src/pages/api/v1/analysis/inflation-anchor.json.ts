@@ -67,10 +67,9 @@ export const GET = withCache(async () => {
     const dfii10Map = new Map(dfii10Rows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const dfii20Map = new Map(dfii20Rows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
 
-    const dates = [...new Set([
-      ...t5yieRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...t10yieRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-    ])].sort()
+    const t5yDates = new Set(t5yieRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const t10yDates = new Set(t10yieRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const dates = [...t5yDates].filter(d => t10yDates.has(d)).sort()
 
     const latestDate = dates[dates.length - 1]
 

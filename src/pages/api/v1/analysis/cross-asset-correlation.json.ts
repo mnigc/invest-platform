@@ -46,12 +46,9 @@ export const GET = withCache(async () => {
     const hyMap = new Map(hyRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const vixMap = new Map(vixRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
 
-    const allDates = [...new Set([
-      ...dgs10Rows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...t10yieRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...bbbRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...vixRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-    ])].sort()
+    const dgs10Dates = new Set(dgs10Rows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const bbbDates = new Set(bbbRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const allDates = [...dgs10Dates].filter(d => bbbDates.has(d)).sort()
 
     const seriesNames = ['10Y国债', '通胀预期', '实际利率', 'BBB利差', 'HY利差', 'VIX']
     const seriesMaps = [dgs10Map, t10yieMap, dfii10Map, bbbMap, hyMap, vixMap]

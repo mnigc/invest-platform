@@ -47,10 +47,9 @@ export const GET = withCache(async () => {
     const t10yMap = new Map(t10yRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const t2yMap = new Map(t2yRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
 
-    const allDates = [...new Set([
-      ...bbbRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...t10yRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-    ])].sort()
+    const bbbDates = new Set(bbbRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const t10yDates = new Set(t10yRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const allDates = [...bbbDates].filter(d => t10yDates.has(d)).sort()
 
     const latestDate = allDates[allDates.length - 1]
 

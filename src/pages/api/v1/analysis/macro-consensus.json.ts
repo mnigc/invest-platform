@@ -64,11 +64,9 @@ export const GET = withCache(async () => {
     const bbbMap = new Map(bbbRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const hyMap = new Map(hyRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
 
-    const allDates = [...new Set([
-      ...fedRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...vixRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-      ...t10yRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
-    ])].sort()
+    const vixDates = new Set(vixRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const t10yDates = new Set(t10yRows.map((r: Record<string, any>) => toDateStr(r.period_date)))
+    const allDates = [...vixDates].filter(d => t10yDates.has(d)).sort()
 
     function getValueFromMap(m: Map<string, number>, dates: string[]): (number | null)[] {
       return dates.map(d => m.get(d) ?? null)
