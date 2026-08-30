@@ -45,11 +45,11 @@ jobs:
           echo "== FRED 直连测试 =="
           curl -sS -m 15 -o /dev/null -w "fred http_code=%{http_code}\n" https://api.stlouisfed.org || echo "FRED 直连失败"
 
-      - name: Run gold_decision sync (国际源: gold-api + Yahoo + FRED)
+      - name: "Run gold_decision sync (国际源: gold-api + Yahoo + FRED)"
         working-directory: sync
         run: python run_sync.py gold_decision
-      # 说明：金价历史 + DXY 走 Yahoo，需境外网络，故在 GitHub Actions(海外) 跑。
-      # 依赖 akshare 的模块(etf_flow / cn_us_spread) 在海外 runner 易超时，另行在境内跑或后续再迁。
+        # 说明：金价历史 + DXY 走 Yahoo，需境外网络，故在 GitHub Actions(海外) 跑。
+        # 依赖 akshare 的模块(etf_flow / cn_us_spread) 在海外 runner 易超时，另行在境内跑或后续再迁。
 
       - name: Upload sync logs
         if: always()
