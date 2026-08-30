@@ -8,7 +8,7 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "npx wrangler pages deploy dist",
+    "deploy": "npx wrangler pages deploy dist --project-name invest-platform",
     "check": "astro check",
     "typecheck": "tsc --noEmit",
     "astro": "astro"
