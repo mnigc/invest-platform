@@ -16,19 +16,14 @@ export interface KnowledgeTopic {
 
 interface Props {
   topic: KnowledgeTopic
-  breadcrumb?: { label: string; href?: string }[]
 }
 
-export function KnowledgeTopicPage({ topic, breadcrumb }: Props) {
+export function KnowledgeTopicPage({ topic }: Props) {
   const [selected, setSelected] = useState<KnowledgeNode | null>(null)
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={topic.title}
-        subtitle={topic.subtitle}
-        breadcrumb={breadcrumb}
-      />
+      <PageHeader title={topic.title} subtitle={topic.subtitle} />
 
       {topic.intro && (
         <MacroCard padding="md">
