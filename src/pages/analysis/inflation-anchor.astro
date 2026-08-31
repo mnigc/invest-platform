@@ -25,13 +25,22 @@ import InflationAnchorDashboard from '../../components/analysis/InflationAnchorD
           <strong class="text-ink">5Y / 10Y 盈亏平衡通胀率（TIPS）</strong> — 市场隐含的年均通胀预期。10Y 稳定在 2% 附近=锚定良好，持续高于 2.5%=通胀预期脱锚。
         </li>
         <li>
-          <strong class="text-ink">实际利率（TIPS Yield）</strong> — 名义利率减通胀预期。负实际利率=货币宽松，高实际利率=货币紧缩。
+          <strong class="text-ink">实际利率（TIPS Yield）</strong> — 名义利率减通胀预期。负实际利率=货币宽松，高实际利率=货币紧缩（页面右上"实际利率期限结构"图同步展示 5/10/20/30Y 曲线）。
         </li>
         <li>
-          <strong class="text-ink">偏离度（盈亏平衡 - 联储目标）</strong> — 正偏离=通胀预期过高，负偏离=通缩担忧。偏离越大政策转向概率越高。
+          <strong class="text-ink">偏离度（盈亏平衡 - 联储目标）</strong> — 正偏离=通胀预期过高，负偏离=通缩担忧。偏离越大政策转向概率越高；±0.5% 为政策响应阈值、±0.8% 为脱锚边界。
         </li>
         <li>
-          <strong class="text-ink">5Y vs 10Y 期限结构</strong> — 短端通胀预期反映近期政策，长端反映长期信心。5Y&gt;10Y=短期通胀压力更大。
+          <strong class="text-ink">5Y5Y 远期通胀预期</strong> — 由 2×10Y−5Y 换算，衡量"5 年后 5 年期"的长期通胀预期，比同期盈亏平衡更纯净（消除流动性溢价）。>2.5% 视为长期脱锚信号。
+        </li>
+        <li>
+          <strong class="text-ink">5Y vs 10Y 期限结构</strong> — 短端反映近期政策，长端反映长期信心。5Y&gt;10Y=短期通胀压力更大。
+        </li>
+        <li>
+          <strong class="text-ink">预期 vs 已实现（CPI YoY 缺口）</strong> — 盈亏平衡相对已实现 CPI 的溢价=市场要求的通胀补偿。溢价持续走阔通常伴随商品/周期压力；缺口转负=通胀预期偏低，需警惕通缩风险。
+        </li>
+        <li>
+          <strong class="text-ink">滚动 Z-Score</strong> — 偏差的 1 年滚动标准化值。|Z|&gt;1 偏离常态边缘，|Z|&gt;2 视为偏差脱轨。
         </li>
       </ul>
     </IndicatorGuide>
