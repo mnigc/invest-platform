@@ -1,15 +1,40 @@
 ---
-const navItems = [
-  { label: '组合信号板', href: '/signal-board' },
-  { label: '宏观体制', href: '/signals/regime' },
-  { label: '黄金决策', href: '/signals/gold' },
-  { label: '全球流动性', href: '/indicators/global-liquidity' },
-  { label: '收益率曲线', href: '/analysis/yield-curve' },
-  { label: '通胀预期', href: '/analysis/inflation-anchor' },
-  { label: '信用压力', href: '/analysis/credit-stress' },
-  { label: '跨资产联动', href: '/analysis/cross-asset' },
-  { label: '宏观一致性', href: '/analysis/macro-consensus' },
-  { label: '知识图谱', href: '/knowledge' },
+interface NavItem {
+  label: string
+  href: string
+}
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    title: '信号',
+    items: [
+      { label: '组合信号板', href: '/signal-board' },
+      { label: '宏观体制', href: '/signals/regime' },
+      { label: '黄金决策', href: '/signals/gold' },
+    ],
+  },
+  {
+    title: '指标',
+    items: [{ label: '全球流动性', href: '/indicators/global-liquidity' }],
+  },
+  {
+    title: '分析',
+    items: [
+      { label: '收益率曲线', href: '/analysis/yield-curve' },
+      { label: '通胀预期', href: '/analysis/inflation-anchor' },
+      { label: '信用压力', href: '/analysis/credit-stress' },
+      { label: '跨资产联动', href: '/analysis/cross-asset' },
+      { label: '宏观一致性', href: '/analysis/macro-consensus' },
+    ],
+  },
+  {
+    title: '知识',
+    items: [{ label: '知识图谱', href: '/knowledge' }],
+  },
 ]
 
 const currentPath = Astro.url.pathname
@@ -42,29 +67,34 @@ function isActive(href: string) {
 
   <nav class="sidebar-nav" aria-label="主导航">
     {
-      navItems.map((item) => {
-        const active = isActive(item.href)
-        return (
-          <a
-            href={item.href}
-            class:list={[
-              'group relative flex items-center rounded-md px-3 py-2 text-base transition-colors duration-1 ease-terminal',
-              active ? 'bg-accent/10 text-accent' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-            ]}
-            aria-current={active ? 'page' : undefined}
-            data-sidebar-link
-          >
-            <span
-              class:list={[
-                'absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-accent transition-transform duration-1 ease-terminal',
-                active ? 'scale-y-100' : 'scale-y-0',
-              ]}
-              aria-hidden="true"
-            />
-            <span class="relative">{item.label}</span>
-          </a>
-        )
-      })
+      navGroups.map((group) => (
+        <div class="nav-group">
+          <div class="nav-section-label">{group.title}</div>
+          {group.items.map((item) => {
+            const active = isActive(item.href)
+            return (
+              <a
+                href={item.href}
+                class:list={[
+                  'group relative flex items-center rounded-md px-3 py-2 text-base transition-colors duration-1 ease-terminal',
+                  active ? 'bg-accent/10 text-accent' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+                ]}
+                aria-current={active ? 'page' : undefined}
+                data-sidebar-link
+              >
+                <span
+                  class:list={[
+                    'absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-accent transition-transform duration-1 ease-terminal',
+                    active ? 'scale-y-100' : 'scale-y-0',
+                  ]}
+                  aria-hidden="true"
+                />
+                <span class="relative">{item.label}</span>
+              </a>
+            )
+          })}
+        </div>
+      ))
     }
   </nav>
 
@@ -261,6 +291,26 @@ function isActive(href: string) {
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+
+  .nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-group + .nav-group {
+    margin-top: 8px;
+  }
+
+  .nav-section-label {
+    padding: 10px 12px 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgb(var(--c-text-3));
   }
 
   .sidebar-foot {
