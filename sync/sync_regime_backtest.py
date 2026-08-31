@@ -303,7 +303,7 @@ def sync_backtest(years: int = 10):
         # 6. 按指数 × 体制写入 regime_index_summaries（多指数对比）
         _compute_and_upsert_index_summaries(conn, snapshots, start_date, end_date)
 
-        write_sync_log(conn, "regime_backtest", "regime_snapshots", "ok", len(snapshots))
+        write_sync_log("regime_backtest", "ok", len(snapshots), "", "regime_snapshots")
 
 
 def _upsert_snapshots(conn, snapshots: list):
@@ -427,8 +427,9 @@ def _compute_and_upsert_index_summaries(conn, snapshots: list, start_date: str, 
     from psycopg2.extras import execute_values
 
     with conn.cursor() as cur:
-        cur.execute("SELECT to_regclass('public.regime_index_summaries')")
-        if cur.fetchone()[0] is None:
+        cur.execute("SELECT to_regclass('public.regime_index_summaries') AS t")
+        row = cur.fetchone()
+        if row is None or row.get("t") is None:
             log.warning("regime_index_summaries 表不存在（请先在数据库执行 supabase_schema.sql 建表），跳过指数回测汇总")
             return
 
