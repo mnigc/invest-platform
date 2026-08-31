@@ -7,14 +7,13 @@ import { StatTile } from '../ui/StatTile'
 import { DataTable } from '../ui/DataTable'
 import { Sparkline } from '../ui/Sparkline'
 import { ResponsiveChartBox } from '../charts/ChartBox'
+import { RegimeLegend } from './RegimeLegend'
 import { useChartTheme } from '../ui/theme'
+import type { BacktestSnapshot, Anomaly } from '../../lib/core'
 import {
-  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, markLine, valueAxis,
-} from '../../lib/chartOptions'
-import type { BacktestSnapshot } from '../../lib/core'
-
-type Dir = -1 | 0 | 1
+  REGIME_LABELS, REGIME_DIR, REGIME_DESC, type Dir,
+} from '../../lib/regimeMeta'
+import { regimeSegments, buildSp500RegimeOption } from '../../lib/regimeChart'
 
 interface RegimeSignal {
   name: string
@@ -47,44 +46,11 @@ interface BacktestSummary {
   winRate12m: number
 }
 
-const REGIME_LABELS: Record<string, string> = {
-  GOLDILOCKS: '金发女孩',
-  RISK_ON: '风险偏好',
-  OVERHEAT: '过热',
-  STAGFLATION: '滞胀',
-  RISK_OFF: '风险规避',
-  RECOVERY: '复苏',
-  UNKNOWN: '不确定',
-}
-
-const REGIME_DIR: Record<string, Dir> = {
-  GOLDILOCKS: 1,
-  RISK_ON: 1,
-  RECOVERY: 1,
-  OVERHEAT: 0,
-  STAGFLATION: -1,
-  RISK_OFF: -1,
-  UNKNOWN: 0,
-}
-
-const REGIME_DESC: Record<string, string> = {
-  GOLDILOCKS: '经济增长稳健、通胀受控、无系统性压力、收益率曲线正常。风险资产（股票/商品）占优，是理想的投资环境。',
-  RISK_ON: '经济增长稳健、通胀受控，但存在一定市场压力。风险资产仍可持有，但需关注压力来源。',
-  OVERHEAT: '经济增长强劲但通胀偏高，央行可能收紧政策。关注利率敏感板块，适度防御。',
-  STAGFLATION: '增长放缓叠加通胀高企，最棘手的宏观组合。现金和实物资产相对占优，股票承压。',
-  RISK_OFF: '经济收缩、市场恐慌，典型的避险环境。国债、黄金、现金为王，远离风险资产。',
-  RECOVERY: '经济从底部回升，政策仍偏宽松。关注周期股和新兴市场，逐步增加风险敞口。',
-  UNKNOWN: '当前信号不够明确，无法判定单一体制。建议保持均衡配置，等待更多数据确认。',
-}
-
-const REGIME_BG: Record<string, string> = {
-  GOLDILOCKS: 'rgba(34,197,94,0.22)',
-  RISK_ON: 'rgba(59,130,246,0.22)',
-  OVERHEAT: 'rgba(245,158,11,0.25)',
-  STAGFLATION: 'rgba(239,68,68,0.28)',
-  RISK_OFF: 'rgba(239,68,68,0.28)',
-  RECOVERY: 'rgba(6,182,212,0.22)',
-  UNKNOWN: 'rgba(156,163,175,0.15)',
+const SEVERITY_LABELS: Record<string, string> = {
+  critical: '严重',
+  high: '高',
+  medium: '中',
+  low: '低',
 }
 
 function scoreFor(dir: Dir): string {
@@ -196,6 +162,7 @@ export function RegimeDetailDashboard() {
   const [regime, setRegime] = useState<RegimeData | null>(null)
   const [backtest, setBacktest] = useState<BacktestSummary[] | null>(null)
   const [snapshots, setSnapshots] = useState<BacktestSnapshot[] | null>(null)
+  const [anomalies, setAnomalies] = useState<Anomaly[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const t = useChartTheme()
@@ -235,6 +202,17 @@ export function RegimeDetailDashboard() {
         setSnapshots(null)
       })
 
+    fetch('/api/v1/regime/anomalies.json')
+      .then(r => r.json())
+      .then((anomalyResult) => {
+        if (!alive || !anomalyResult?.success || !anomalyResult.data) return
+        setAnomalies(anomalyResult.data.anomalies ?? null)
+      })
+      .catch(() => {
+        if (!alive) return
+        setAnomalies(null)
+      })
+
     return () => { alive = false }
   }
 
@@ -243,77 +221,12 @@ export function RegimeDetailDashboard() {
   const signals = (regime?.signals ?? []) as RegimeSignal[]
   const signalsCount = signals.filter((s) => s.score !== 0).length
 
-  const regimeSegments = useMemo(() => {
-    if (!snapshots || snapshots.length < 2) return [] as { from: string; to: string; regime: string; label: string }[]
-    const segments: { from: string; to: string; regime: string; label: string }[] = []
-    let segStart = snapshots[0].date
-    let segRegime = snapshots[0].regime
-    let segLabel = snapshots[0].label
-    for (let i = 1; i < snapshots.length; i++) {
-      if (snapshots[i].regime !== segRegime) {
-        segments.push({ from: segStart, to: snapshots[i].date, regime: segRegime, label: segLabel })
-        segStart = snapshots[i].date
-        segRegime = snapshots[i].regime
-        segLabel = snapshots[i].label
-      }
-    }
-    const last = snapshots[snapshots.length - 1]
-    segments.push({ from: segStart, to: last.date, regime: segRegime, label: segLabel })
-    return segments
-  }, [snapshots])
+  const segments = useMemo(() => regimeSegments(snapshots), [snapshots])
 
-  const sp500Option = useMemo<EChartsOption | null>(() => {
-    if (!snapshots || snapshots.length < 2) return null
-    const valid = snapshots.filter((s) => s.sp500Price > 0)
-    if (valid.length < 2) return null
-    const dates = valid.map((s) => s.date)
-    const prices = valid.map((s) => s.sp500Price)
-    const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
-    return {
-      ...chartAnimation,
-      tooltip: chartTooltip(t, {
-        valueFormatter: (v: any) => (v == null ? '--' : `$${Number(v).toFixed(2)}`),
-      }),
-      grid: chartGrid({ top: 14, bottom: 32 }),
-      xAxis: categoryAxis(t, dates),
-      yAxis: valueAxis(t, { name: 'S&P500', nameTextStyle: { color: t.text3, fontSize: 10 } }),
-      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: [
-        {
-          name: 'S&P500',
-          type: 'line',
-          data: prices,
-          smooth: 0.25,
-          lineStyle: { width: 2, color: t.series[2] },
-          itemStyle: { color: t.series[2] },
-          showSymbol: false,
-          emphasis: { focus: 'series', lineStyle: { width: 2.6 } },
-          markArea: {
-            silent: true,
-            data: regimeSegments.map((seg) => [
-              {
-                xAxis: seg.from,
-                itemStyle: { color: REGIME_BG[seg.regime] || 'transparent' },
-                label: { show: false },
-              },
-              { xAxis: seg.to },
-            ]),
-          },
-          markLine: {
-            silent: true,
-            symbol: ['none', 'none'],
-            animation: false,
-            data: regimeSegments.slice(1).map((seg) => ({
-              xAxis: seg.from,
-              lineStyle: { color: t.border, type: 'dashed', width: 1 },
-              label: { show: false },
-            })),
-          },
-        },
-      ],
-    } as EChartsOption
-  }, [snapshots, regimeSegments, t])
+  const sp500Option = useMemo<EChartsOption | null>(
+    () => buildSp500RegimeOption(t, snapshots, segments),
+    [snapshots, segments, t],
+  )
 
   if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
   if (error) return <ErrorState message={error} onRetry={load} />
@@ -336,16 +249,47 @@ export function RegimeDetailDashboard() {
       {sp500Option && (
         <MacroCard title="S&P500 走势与宏观体制" padding="sm">
           <ResponsiveChartBox option={sp500Option} deps={[sp500Option]} />
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-2xs text-ink-3">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.GOLDILOCKS }} /> 金发女孩</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.RISK_ON }} /> 风险偏好</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.OVERHEAT }} /> 过热</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.STAGFLATION }} /> 滞胀</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.RISK_OFF }} /> 风险规避</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.RECOVERY }} /> 复苏</span>
-            <span className="inline-flex items-center gap-1.5 text-ink-3">背景色 = 当时判定宏观体制；虚线 = 体制切换点</span>
-          </div>
+          <RegimeLegend />
         </MacroCard>
+      )}
+
+      {anomalies && (
+        <div id="anomalies" className="scroll-mt-20">
+          <MacroCard
+            title={`风险异常告警${anomalies.length > 0 ? `（${anomalies.length} 项）` : ''}`}
+            accent={anomalies.filter((a) => a.severity === 'high' || a.severity === 'critical').length > 0 ? 'red' : 'none'}
+            padding="md"
+          >
+            {anomalies.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {anomalies.map((a, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2.5 rounded-md border border-line bg-surface-2 p-2.5 text-xs leading-relaxed"
+                  >
+                    <span
+                      className={`mt-px shrink-0 rounded-sm px-1.5 py-0.5 text-2xs font-medium ${
+                        a.severity === 'critical' || a.severity === 'high'
+                          ? 'bg-down/10 text-down'
+                          : a.severity === 'medium'
+                            ? 'bg-warn/10 text-warn'
+                            : 'bg-surface-3 text-ink-3'
+                      }`}
+                    >
+                      {SEVERITY_LABELS[a.severity] || a.severity}
+                    </span>
+                    <div className="min-w-0">
+                      <div className={`font-semibold ${severityTone(a.severity)}`}>{a.title}</div>
+                      <div className="mt-0.5 text-ink-3">{a.description}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-1 text-xs text-ink-3">当前无风险异常告警，宏观体系压力信号平稳。</p>
+            )}
+          </MacroCard>
+        </div>
       )}
 
       <MacroCard title="各指标信号详解" padding="md">

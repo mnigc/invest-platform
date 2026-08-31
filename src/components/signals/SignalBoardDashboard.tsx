@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { EChartsOption } from 'echarts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ErrorState, EmptyState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
+import { StatTile } from '../ui/StatTile'
 import { Tooltip } from '../ui/Tooltip'
-import { DataTable, type Column } from '../ui/DataTable'
+import { ResponsiveChartBox } from '../charts/ChartBox'
+import { RegimeLegend } from './RegimeLegend'
+import { useChartTheme } from '../ui/theme'
+import { REGIME_DIR, type Dir } from '../../lib/regimeMeta'
+import { regimeSegments, buildSp500RegimeOption } from '../../lib/regimeChart'
+import { fmt, fmtTrillions } from '../../lib/core'
+import type { BacktestSnapshot } from '../../lib/core'
 
-type Dir = -1 | 0 | 1
-
-interface SignalInput {
+type SignalInput = {
   id: string
   module: string
   title: string
@@ -24,19 +30,40 @@ interface Aggregate {
   count: number
 }
 
-interface BacktestSummary {
-  regime: string
-  label: string
-  count: number
-  avgConfidence: number
-  avgReturn1m: number
-  avgReturn3m: number
-  avgReturn6m: number
-  avgReturn12m: number
-  winRate1m: number
-  winRate3m: number
-  winRate6m: number
-  winRate12m: number
+interface Tiles {
+  sp500: number | null
+  regimeLabel: string | null
+  regimeMonths: number | null
+  regimeConf: number | null
+  gold: number | null
+  dxy: number | null
+  netLiq: number | null
+  netLiqDelta: number | null
+  totalAnom: number
+  highAnom: number
+}
+
+type AnalysisTarget = {
+  id: string
+  module: string
+  title: string
+  url: string
+  link: string
+}
+
+const ANALYSIS_MODULES: AnalysisTarget[] = [
+  { id: 'macro-consensus', module: '宏观共识', title: '宏观共识', url: '/api/v1/analysis/macro-consensus.json', link: '/analysis/macro-consensus' },
+  { id: 'yield-curve', module: '收益率曲线', title: '收益率曲线体制', url: '/api/v1/analysis/yield-curve-regime.json', link: '/analysis/yield-curve' },
+  { id: 'inflation-anchor', module: '通胀锚定', title: '通胀预期锚定', url: '/api/v1/analysis/inflation-anchor.json', link: '/analysis/inflation-anchor' },
+  { id: 'cross-asset', module: '跨资产相关', title: '跨资产相关性', url: '/api/v1/analysis/cross-asset-correlation.json', link: '/analysis/cross-asset' },
+  { id: 'credit-stress', module: '信用压力', title: '信用压力监测', url: '/api/v1/analysis/credit-stress.json', link: '/analysis/credit-stress' },
+  { id: 'liquidity', module: '全球流动性', title: '全球净流动性', url: '/api/v1/global-liquidity.json', link: '/indicators/global-liquidity' },
+]
+
+function dirFromSignal(direction: string | undefined): Dir {
+  if (direction === 'bullish' || direction === 'risk_on' || direction === 'expansion' || direction === 'positive') return 1
+  if (direction === 'bearish' || direction === 'risk_off' || direction === 'contraction' || direction === 'negative') return -1
+  return 0
 }
 
 function safeJson<T = any>(
@@ -166,7 +193,19 @@ export function SignalBoardDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [agg, setAgg] = useState<Aggregate | null>(null)
-  const [backtest, setBacktest] = useState<BacktestSummary[] | null>(null)
+  const [snapshots, setSnapshots] = useState<BacktestSnapshot[] | null>(null)
+  const [tiles, setTiles] = useState<Tiles>({
+    sp500: null,
+    regimeLabel: null,
+    regimeMonths: null,
+    regimeConf: null,
+    gold: null,
+    dxy: null,
+    netLiq: null,
+    netLiqDelta: null,
+    totalAnom: 0,
+    highAnom: 0,
+  })
 
   const load = () => {
     let alive = true
@@ -177,24 +216,31 @@ export function SignalBoardDashboard() {
       safeJson<any>('/api/v1/regime/anomalies.json'),
       safeJson<any>('/api/v1/gold/correlation.json'),
       safeJson<any>('/api/v1/regime/backtest.json'),
+      safeJson<any>('/api/v1/global-liquidity.json'),
+      ...ANALYSIS_MODULES.slice(0, 5).map((c) => safeJson<any>(c.url)),
     ])
       .then((results) => {
         if (!alive) return
         const rows: SignalInput[] = []
+        const tls: Tiles = {
+          sp500: null,
+          regimeLabel: null,
+          regimeMonths: null,
+          regimeConf: null,
+          gold: null,
+          dxy: null,
+          netLiq: null,
+          netLiqDelta: null,
+          totalAnom: 0,
+          highAnom: 0,
+        }
 
         const regime =
           results[0].status === 'fulfilled' ? results[0].value : EMPTY_RESULT
         if (regime.ok && regime.data) {
           const r = regime.data
-          const REGIME_DIR: Record<string, Dir> = {
-            GOLDILOCKS: 1,
-            RISK_ON: 1,
-            RECOVERY: 1,
-            OVERHEAT: 0,
-            STAGFLATION: -1,
-            RISK_OFF: -1,
-            UNKNOWN: 0,
-          }
+          tls.regimeLabel = r.label ?? null
+          tls.regimeConf = r.confidence ?? null
           rows.push({
             id: 'regime',
             module: '宏观体制',
@@ -216,6 +262,8 @@ export function SignalBoardDashboard() {
         if (anom.ok && anom.data) {
           const a = anom.data
           const high = a.highCount ?? 0
+          tls.totalAnom = a.totalCount ?? 0
+          tls.highAnom = high
           rows.push({
             id: 'anomalies',
             module: '风险异常',
@@ -233,6 +281,8 @@ export function SignalBoardDashboard() {
           results[2].status === 'fulfilled' ? results[2].value : EMPTY_RESULT
         if (gold.ok && gold.data) {
           const s = gold.data.signal
+          tls.gold = gold.data.latest?.gold ?? null
+          tls.dxy = gold.data.latest?.dxy ?? null
           rows.push({
             id: 'gold',
             module: '黄金',
@@ -247,9 +297,60 @@ export function SignalBoardDashboard() {
 
         const backtestResult =
           results[3].status === 'fulfilled' ? results[3].value : EMPTY_RESULT
-        if (backtestResult.ok && backtestResult.data?.summaries) {
-          setBacktest(backtestResult.data.summaries)
+        if (backtestResult.ok && backtestResult.data) {
+          const snaps: BacktestSnapshot[] = backtestResult.data.snapshots ?? []
+          setSnapshots(snaps)
+          const lastValid = [...snaps].reverse().find((s) => s.sp500Price > 0)
+          tls.sp500 = lastValid ? lastValid.sp500Price : null
+          const segs = regimeSegments(snaps)
+          const lastSeg = segs[segs.length - 1]
+          if (lastSeg) {
+            tls.regimeMonths = snaps.filter(
+              (s) => s.date >= lastSeg.from && s.date <= lastSeg.to,
+            ).length
+          }
         }
+
+        const liq =
+          results[4].status === 'fulfilled' ? results[4].value : EMPTY_RESULT
+        if (liq.ok && liq.data) {
+          const nl: { date: string; value: number }[] = liq.data.netLiquidity ?? []
+          if (nl.length >= 2) {
+            const last = nl[nl.length - 1].value
+            const prev = nl[Math.max(0, nl.length - 7)].value
+            tls.netLiq = +(last / 1e6).toFixed(4)
+            tls.netLiqDelta = +((last - prev) / 1e6).toFixed(4)
+            const delta = tls.netLiqDelta
+            rows.push({
+              id: 'liquidity',
+              module: '全球流动性',
+              title: ANALYSIS_MODULES[5].title,
+              direction: delta > 0 ? 1 : delta < 0 ? -1 : 0,
+              confidence: 55,
+              evidence: [
+                `美联储净流动性 ${fmtTrillions(tls.netLiq)}`,
+                `较 6 个月前 ${delta >= 0 ? '+' : ''}${delta.toFixed(2)}T`,
+              ],
+              link: ANALYSIS_MODULES[5].link,
+            })
+          }
+        }
+
+        ANALYSIS_MODULES.slice(0, 5).forEach((cfg, i) => {
+          const r = results[5 + i]
+          const res = r.status === 'fulfilled' ? r.value : EMPTY_RESULT
+          if (!res.ok || !res.data?.signal) return
+          const sig = res.data.signal
+          rows.push({
+            id: cfg.id,
+            module: cfg.module,
+            title: cfg.title,
+            direction: dirFromSignal(sig.direction),
+            confidence: Math.round(sig.confidence ?? 50),
+            evidence: Array.isArray(sig.evidence) ? sig.evidence.slice(0, 3).map(String) : [],
+            link: cfg.link,
+          })
+        })
 
         const active = rows.filter((r) => r.direction !== 0)
         const totalW = active.reduce((s, r) => s + r.confidence, 0)
@@ -279,6 +380,7 @@ export function SignalBoardDashboard() {
             '风险信号占据主导（异常告警 / 体制偏弱 / 金价高估等），优先控制回撤，保留现金与避险资产。'
 
         setSignals(rows)
+        setTiles(tls)
         setAgg({ score: sN, label, stance, count: active.length })
       })
       .catch((e: any) => alive && setError(e.message || '加载失败'))
@@ -289,6 +391,13 @@ export function SignalBoardDashboard() {
   }
 
   useEffect(load, [])
+
+  const t = useChartTheme()
+  const segments = useMemo(() => regimeSegments(snapshots), [snapshots])
+  const sp500Option = useMemo<EChartsOption | null>(
+    () => buildSp500RegimeOption(t, snapshots, segments),
+    [snapshots, segments, t],
+  )
 
   if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
   if (error) return <ErrorState message={error} onRetry={load} />
@@ -330,6 +439,45 @@ export function SignalBoardDashboard() {
         </div>
       </MacroCard>
 
+      {/* 今日市场速览 */}
+      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <StatTile
+          label="S&P500 最新"
+          value={tiles.sp500 != null ? `$${tiles.sp500.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '--'}
+          sub={tiles.regimeLabel && tiles.regimeMonths != null ? `${tiles.regimeLabel} · ${tiles.regimeMonths} 月` : tiles.regimeLabel ?? undefined}
+          accent="blue"
+        />
+        <StatTile label="金价" value={fmt(tiles.gold)} sub="美元 / 盎司" accent="gold" />
+        <StatTile label="美元指数" value={fmt(tiles.dxy)} sub="DXY" accent="none" />
+        <StatTile
+          label="净流动性"
+          value={fmtTrillions(tiles.netLiq)}
+          sub={tiles.netLiqDelta != null ? `${tiles.netLiqDelta >= 0 ? '+' : ''}${tiles.netLiqDelta.toFixed(2)}T / 6月` : undefined}
+          accent="cyan"
+          tone={tiles.netLiqDelta != null && tiles.netLiqDelta < 0 ? 'down' : 'neutral'}
+        />
+        <StatTile
+          label="风险异常"
+          value={`${tiles.highAnom} / ${tiles.totalAnom}`}
+          sub="高/严重 / 总数"
+          accent={tiles.highAnom > 0 ? 'red' : 'green'}
+        />
+        <StatTile
+          label="体制置信度"
+          value={tiles.regimeConf != null ? `${tiles.regimeConf}%` : '--'}
+          sub={tiles.regimeLabel ?? undefined}
+          accent={tiles.regimeConf != null && tiles.regimeConf > 60 ? 'green' : 'gold'}
+        />
+      </div>
+
+      {/* S&P500 × 宏观体制 */}
+      {sp500Option && (
+        <MacroCard title="S&P500 走势与宏观体制" padding="sm">
+          <ResponsiveChartBox option={sp500Option} deps={[sp500Option]} />
+          <RegimeLegend />
+        </MacroCard>
+      )}
+
       {/* 各模块信号 */}
       <div className="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {signals.map((s) => (
@@ -337,81 +485,8 @@ export function SignalBoardDashboard() {
         ))}
       </div>
 
-      {/* 宏观体制回测结果 */}
-      <MacroCard title="宏观体制回测：各体制下 S&P500 前瞻表现">
-        {backtest && backtest.length > 0 ? (
-          <>
-            <p className="mb-3 text-2xs leading-relaxed text-ink-3">
-              历史上各宏观体制出现后，S&P500 在 1/3/6/12 个月后的平均收益率和胜率。
-            </p>
-            <DataTable
-              columns={[
-                { key: 'label', header: '宏观体制', render: (r) => r.label },
-                { key: 'count', header: '样本数', numeric: true, render: (r) => `${r.count} 月` },
-                {
-                  key: 'avgReturn1m',
-                  header: '1M 收益',
-                  numeric: true,
-                  render: (r) => (
-                    <span className={r.avgReturn1m >= 0 ? 'text-up' : 'text-down'}>
-                      {(r.avgReturn1m * 100).toFixed(2)}%
-                    </span>
-                  ),
-                },
-                {
-                  key: 'avgReturn3m',
-                  header: '3M 收益',
-                  numeric: true,
-                  render: (r) => (
-                    <span className={r.avgReturn3m >= 0 ? 'text-up' : 'text-down'}>
-                      {(r.avgReturn3m * 100).toFixed(2)}%
-                    </span>
-                  ),
-                },
-                {
-                  key: 'avgReturn6m',
-                  header: '6M 收益',
-                  numeric: true,
-                  render: (r) => (
-                    <span className={r.avgReturn6m >= 0 ? 'text-up' : 'text-down'}>
-                      {(r.avgReturn6m * 100).toFixed(2)}%
-                    </span>
-                  ),
-                },
-                {
-                  key: 'avgReturn12m',
-                  header: '12M 收益',
-                  numeric: true,
-                  render: (r) => (
-                    <span className={r.avgReturn12m >= 0 ? 'text-up' : 'text-down'}>
-                      {(r.avgReturn12m * 100).toFixed(2)}%
-                    </span>
-                  ),
-                },
-                {
-                  key: 'winRate3m',
-                  header: '3M 胜率',
-                  numeric: true,
-                  render: (r) => (
-                    <span className={r.winRate3m >= 0.5 ? 'text-up' : 'text-down'}>
-                      {(r.winRate3m * 100).toFixed(1)}%
-                    </span>
-                  ),
-                },
-              ]}
-              rows={backtest}
-              rowKey={(r) => r.regime}
-            />
-          </>
-        ) : (
-          <p className="py-3 text-xs text-ink-3">
-            需要同步 S&P500 数据后自动生成回测统计。回测展示各宏观体制下 S&P500 的 1/3/6/12 个月前瞻收益。
-          </p>
-        )}
-      </MacroCard>
-
       <p className="text-xs leading-relaxed text-ink-3">
-        组合信号板为多模块信号加权研究工具：权重 = 各信号置信度（黄金定价残差、宏观体制、风险异常）。所有结论均附证据链与历史验证，仅供研究参考，不构成投资建议。
+        组合信号板为多模块信号加权研究工具：权重 = 各信号置信度（黄金定价残差、宏观体制、风险异常、宏观共识、收益率曲线、通胀锚定、跨资产相关性、信用压力、全球流动性）。所有结论均附证据链，仅供研究参考，不构成投资建议。
       </p>
     </div>
   )
