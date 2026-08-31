@@ -16,7 +16,7 @@ interface Props {
  * 这里渲染到 document.body，不受任何祖先裁剪，并同时支持悬停 / 键盘 / 点击。
  */
 export function Tooltip({ content, children, side = 'top', className }: Props) {
-  const triggerRef = useRef<HTMLSpanElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -55,7 +55,7 @@ export function Tooltip({ content, children, side = 'top', className }: Props) {
 
   return (
     <>
-      <span
+      <div
         ref={triggerRef}
         className={`inline-flex ${className ?? ''}`}
         tabIndex={0}
@@ -66,7 +66,7 @@ export function Tooltip({ content, children, side = 'top', className }: Props) {
         onClick={() => (coords ? hide() : show())}
       >
         {children}
-      </span>
+      </div>
 
       {mounted &&
         coords &&

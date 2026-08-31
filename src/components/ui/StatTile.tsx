@@ -1,3 +1,5 @@
+import { Tooltip } from './Tooltip'
+
 export type TileTone = 'neutral' | 'up' | 'down' | 'warn' | 'info'
 export type TileAccent = 'blue' | 'cyan' | 'gold' | 'red' | 'green' | 'none'
 
@@ -5,13 +7,11 @@ interface Props {
   label: string
   value: string
   sub?: string
-  /** 数值颜色语义 */
   tone?: TileTone
-  /** 左侧色条 */
   accent?: TileAccent
-  /** 值变化时闪一下（终端惯用提示），传入会变化的值即可 */
   flashKey?: string | number
   className?: string
+  tooltip?: React.ReactNode
 }
 
 const TONE_VALUE: Record<TileTone, string> = {
@@ -42,8 +42,9 @@ export function StatTile({
   accent = 'none',
   flashKey,
   className,
+  tooltip,
 }: Props) {
-  return (
+  const content = (
     <div
       className={[
         'min-w-0 rounded-md border border-line bg-surface px-3 py-2.5',
@@ -65,4 +66,6 @@ export function StatTile({
       {sub && <div className="mt-0.5 truncate text-2xs text-ink-3">{sub}</div>}
     </div>
   )
+
+  return tooltip ? <Tooltip content={tooltip}>{content}</Tooltip> : content
 }

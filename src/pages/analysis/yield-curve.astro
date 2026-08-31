@@ -3,6 +3,7 @@ export const prerender = false
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import YieldCurveRegimeDashboard from '../../components/analysis/YieldCurveRegimeDashboard'
 ---
 
@@ -12,8 +13,11 @@ import YieldCurveRegimeDashboard from '../../components/analysis/YieldCurveRegim
       title="收益率曲线 × 宏观体制联动"
       subtitle="曲线形态与经济周期的交叉分析"
     />
-    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
-      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">投资指引：</strong>曲线倒挂→防御配置（国债+黄金）；曲线陡峭化→风险资产（股票+信用债）；曲线平坦化→减仓长端利率敏感资产，关注短端机会。
+        <span class="text-up">绿色竖线</span>=转向风险偏好，<span class="text-down">红色竖线</span>=转向风险规避，信号点处可观察利差后续演化。
+      </p>
       <p class="my-1.5">
         <strong class="text-ink">收益率曲线</strong>反映市场对未来经济增长和通胀的预期。曲线形态变化领先经济周期6-18个月，是最可靠的衰退前瞻指标之一。
       </p>
@@ -31,10 +35,7 @@ import YieldCurveRegimeDashboard from '../../components/analysis/YieldCurveRegim
           <strong class="text-ink">3M / 2Y / 10Y / 30Y 各期限利率</strong> — 短端受联储政策驱动，长端反映增长通胀预期。长端下行快于短端=衰退定价。
         </li>
       </ul>
-      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
-        <strong class="text-ink">投资指引：</strong>曲线倒挂→防御配置（国债+黄金）；曲线陡峭化→风险资产（股票+信用债）；曲线平坦化→减仓长端利率敏感资产，关注短端机会。
-      </p>
-    </section>
+    </IndicatorGuide>
 
     <YieldCurveRegimeDashboard client:load />
   </div>

@@ -3,6 +3,7 @@ export const prerender = false
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import MacroConsensusDashboard from '../../components/analysis/MacroConsensusDashboard'
 ---
 
@@ -12,8 +13,10 @@ import MacroConsensusDashboard from '../../components/analysis/MacroConsensusDas
       title="宏观信号一致性评分"
       subtitle="多维度信号的一致性/分歧度分析"
     />
-    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
-      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">投资指引：</strong>综合得分 &gt; 70 → 积极配置风险资产（股票/信用债/商品）；综合得分 &lt; 30 → 防御配置（国债/黄金/现金）；30-70 之间 → 轻仓观望，等待信号收敛；关注各维度 Z-Score 极端值，单维度极端信号需警惕反转。
+      </p>
       <p class="my-1.5">
         <strong class="text-ink">宏观信号一致性</strong>综合评估多个维度的宏观信号是否同向。信号一致时趋势可靠性高，信号分歧时市场方向不明，需等待确认。
       </p>
@@ -22,25 +25,22 @@ import MacroConsensusDashboard from '../../components/analysis/MacroConsensusDas
           <strong class="text-ink">流动性信号（Fed 资产负债表）</strong> — 扩表=流动性注入（利好），缩表=流动性回收（利空）。Z-Score 衡量偏离历史均值程度。
         </li>
         <li>
-          <strong class="text-ink">恐慌信号（VIX）</strong> — 低于 15 极度贪婪，15-25 正常，高于 30 恐慌。Z-Score > 2 = 极端恐慌。
+          <strong class="text-ink">恐慌信号（VIX）</strong> — 低于 15 极度贪婪，15-25 正常，高于 30 恐慌。Z-Score &gt; 2 = 极端恐慌。
         </li>
         <li>
-          <strong class="text-ink">利率信号（10Y-2Y 利差）** — 利差收窄/倒挂=衰退预期，陡峭化=复苏预期。利差方向比绝对值更重要。
+          <strong class="text-ink">利率信号（10Y-2Y 利差）</strong> — 利差收窄/倒挂=衰退预期，陡峭化=复苏预期。利差方向比绝对值更重要。
         </li>
         <li>
-          <strong class="text-ink">通胀信号（盈亏平衡通胀率）** — 高于目标=通胀压力，低于目标=通缩风险。通胀预期变化驱动资产再配置。
+          <strong class="text-ink">通胀信号（盈亏平衡通胀率）</strong> — 高于目标=通胀压力，低于目标=通缩风险。通胀预期变化驱动资产再配置。
         </li>
         <li>
-          <strong class="text-ink">信用信号（BBB + HY 利差）** — 利差扩大=信用紧缩，收窄=信用宽松。信用市场领先实体经济 3-6 个月。
+          <strong class="text-ink">信用信号（BBB + HY 利差）</strong> — 利差扩大=信用紧缩，收窄=信用宽松。信用市场领先实体经济 3-6 个月。
         </li>
         <li>
-          <strong class="text-ink">综合得分（0-100）** — 各信号加权平均。高于 70 = 多数信号看涨，低于 30 = 多数信号看跌，30-70 = 信号分歧。
+          <strong class="text-ink">综合得分（0-100）</strong> — 各信号加权平均。高于 70 = 多数信号看涨，低于 30 = 多数信号看跌，30-70 = 信号分歧。
         </li>
       </ul>
-      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
-        <strong class="text-ink">投资指引：</strong>综合得分 > 70 → 积极配置风险资产（股票/信用债/商品）；综合得分 < 30 → 防御配置（国债/黄金/现金）；30-70 之间 → 轻仓观望，等待信号收敛；关注各维度 Z-Score 极端值，单维度极端信号需警惕反转。
-      </p>
-    </section>
+    </IndicatorGuide>
 
     <MacroConsensusDashboard client:load />
   </div>

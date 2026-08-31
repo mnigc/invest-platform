@@ -19,6 +19,7 @@ import {
   rightValueAxis,
   thresholdLine,
   valueAxis,
+  eventLine,
 } from '../../lib/chartOptions'
 
 type Direction = 'bullish' | 'bearish' | 'neutral'
@@ -97,6 +98,13 @@ const STRENGTH_LABEL: Record<Strength, string> = {
   strong: '强',
   moderate: '中',
   weak: '弱',
+}
+
+const BAND_LABEL_ZH: Record<string, string> = {
+  inverse: '正常负相关',
+  weakening: '相关性弱化',
+  broken: '相关性失效',
+  positive: '正相关区间',
 }
 
 const fmtPct = (v: number) => `${(v * 100).toFixed(1)}%`
@@ -289,7 +297,23 @@ export function GoldDecisionDashboard() {
           '金价 (USD/oz)',
           data.priceChart.map((p) => p.gold),
           t.series[2],
-          { lineStyle: { width: 2, color: t.series[2] } },
+          {
+            lineStyle: { width: 2, color: t.series[2] },
+            markLine: {
+              silent: true,
+              symbol: ['none', 'none'],
+              animation: false,
+              data: (data.extremes ?? [])
+                .slice(-12)
+                .map((e) =>
+                  eventLine(
+                    e.date,
+                    e.dir === 'overvalued' ? t.down : t.up,
+                    e.dir === 'overvalued' ? '高估' : '低估',
+                  ),
+                ),
+            },
+          },
         ),
         lineSeries(
           'DXY',
@@ -326,7 +350,18 @@ export function GoldDecisionDashboard() {
           '60 日',
           data.corrChart.s60.map((p) => p.value),
           t.series[1],
-          { lineStyle: { width: 2, color: t.series[1] } },
+          {
+            lineStyle: { width: 2, color: t.series[1] },
+            markLine: {
+              silent: true,
+              symbol: ['none', 'none'],
+              animation: false,
+              data: (data.bandSwitches ?? [])
+                .filter((s) => s.to === 'broken' || s.to === 'positive')
+                .slice(-10)
+                .map((s) => eventLine(s.date, t.warn, BAND_LABEL_ZH[s.to] ?? s.to)),
+            },
+          },
         ),
         lineSeries(
           '120 日',
@@ -438,6 +473,7 @@ export function GoldDecisionDashboard() {
               value={latest.bandLabel}
               sub={latest.bandDesc}
               tone="info"
+              tooltip={latest.bandDesc}
             />
             <StatTile
               label="实际利率 DFII10"
@@ -477,6 +513,12 @@ export function GoldDecisionDashboard() {
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
         <MacroCard title="金价 vs 美元指数">
           <ResponsiveChartBox option={priceOption} deps={[priceOption]} />
+          {data.extremes.length > 0 && (
+            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+              竖线：残差极端点（<span className="text-down">红色=高估 z≥2</span> /
+              <span className="text-up">绿色=低估 z≤-2</span>），信号触发后可观察金价后续走势。
+            </p>
+          )}
         </MacroCard>
 
         <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
@@ -490,6 +532,7 @@ export function GoldDecisionDashboard() {
           <ResponsiveChartBox option={corrOption} deps={[corrOption]} />
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
             说明：越向下越负相关（经典范式）；高于 -0.15 即「失效区间」。
+            <span className="text-warn">黄色竖线</span>：相关性失效/正相关切换事件。
           </p>
         </MacroCard>
 

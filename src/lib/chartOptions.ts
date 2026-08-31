@@ -202,6 +202,18 @@ export function markLine(lines: unknown[], opts: Plain = {}): any {
   }
 }
 
+/** 信号事件竖线（类目轴上画一条虚线），用于在图上标注信号发生时点 */
+export function eventLine(date: string, color: string, label?: string): any {
+  return {
+    xAxis: date,
+    lineStyle: { color, type: 'dashed', width: 1 },
+    symbol: ['none', 'none'],
+    label: label
+      ? { show: true, position: 'top', formatter: label, color, fontSize: 9, fontFamily: 'monospace' }
+      : { show: false },
+  }
+}
+
 /** 统一动画节奏：入场不要太慢，更新不要太跳 */
 export const chartAnimation = {
   animationDuration: 420,

@@ -8,7 +8,7 @@ import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
 import {
   categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, valueAxis,
+  chartTooltip, lineSeries, markLine, valueAxis, eventLine,
 } from '../../lib/chartOptions'
 
 interface Data {
@@ -58,7 +58,20 @@ export default function YieldCurveRegimeDashboard() {
         data: spreadData,
         smooth: true,
         lineStyle: { width: 2, color: t.series[2] },
-        markLine: { data: [{ yAxis: 0, lineStyle: { color: t.border, type: 'dashed' }, label: { show: false } }] },
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          animation: false,
+          data: [
+            { yAxis: 0, lineStyle: { color: t.border, type: 'dashed' }, label: { show: false } },
+            ...(data.regimeTransitions ?? [])
+              .slice(-8)
+              .map((r) => {
+                const isRiskOff = r.toRegime === 'RISK_OFF' || r.toRegime === 'STAGFLATION'
+                return eventLine(r.date, isRiskOff ? t.down : t.up, `${r.fromRegime}→${r.toRegime}`)
+              }),
+          ],
+        },
       }],
     } as EChartsOption
   }, [data, t])
@@ -105,6 +118,13 @@ export default function YieldCurveRegimeDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MacroCard title="10Y-2Y 利差走势" padding="sm">
           <ResponsiveChartBox option={spreadOption} deps={[spreadOption]} />
+          {data.regimeTransitions.length > 0 && (
+            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+              <span className="text-up">绿色竖线</span>：转向风险偏好体制；
+              <span className="text-down">红色竖线</span>：转向风险规避/滞胀；
+              观察信号后利差是否持续倒挂或回升。
+            </p>
+          )}
         </MacroCard>
         <MacroCard title="收益率曲线" padding="sm">
           <ResponsiveChartBox option={curveOption} deps={[curveOption]} />

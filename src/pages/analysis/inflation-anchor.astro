@@ -3,6 +3,7 @@ export const prerender = false
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import InflationAnchorDashboard from '../../components/analysis/InflationAnchorDashboard'
 ---
 
@@ -12,8 +13,10 @@ import InflationAnchorDashboard from '../../components/analysis/InflationAnchorD
       title="通胀预期锚定分析"
       subtitle="TIPS隐含通胀率 vs 联储2%目标的偏离分析"
     />
-    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
-      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">投资指引：</strong>偏离度 &gt; +0.5% → 配置抗通胀资产（TIPS/大宗商品/能源股）；偏离度 &lt; -0.5% → 通缩风险，增配长久期国债；锚定稳定时 → 正常配置，关注实际利率方向。
+      </p>
       <p class="my-1.5">
         <strong class="text-ink">通胀预期锚定</strong>衡量市场通胀预期是否稳定在联储 2% 目标附近。锚定松动时，联储可能被迫激进加息，引发资产重估。
       </p>
@@ -28,13 +31,10 @@ import InflationAnchorDashboard from '../../components/analysis/InflationAnchorD
           <strong class="text-ink">偏离度（盈亏平衡 - 联储目标）</strong> — 正偏离=通胀预期过高，负偏离=通缩担忧。偏离越大政策转向概率越高。
         </li>
         <li>
-          <strong class="text-ink">5Y vs 10Y 期限结构</strong> — 短端通胀预期反映近期政策，长端反映长期信心。5Y>10Y=短期通胀压力更大。
+          <strong class="text-ink">5Y vs 10Y 期限结构</strong> — 短端通胀预期反映近期政策，长端反映长期信心。5Y&gt;10Y=短期通胀压力更大。
         </li>
       </ul>
-      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
-        <strong class="text-ink">投资指引：</strong>偏离度 > +0.5% → 配置抗通胀资产（TIPS/大宗商品/能源股）；偏离度 < -0.5% → 通缩风险，增配长久期国债；锚定稳定时 → 正常配置，关注实际利率方向。
-      </p>
-    </section>
+    </IndicatorGuide>
 
     <InflationAnchorDashboard client:load />
   </div>

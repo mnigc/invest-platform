@@ -1,0 +1,102 @@
+---
+// 指标解读：默认折叠。常驻展示「投资指引/综合判断」摘要，点击按钮以浮层形式展开
+// 详细解读；浮层为 absolute 定位，不会把下方内容推下去。
+interface Props {
+  title?: string
+}
+const { title = '指标解读' } = Astro.props
+---
+
+<div class="indicator-guide relative mb-4">
+  {/* 常驻：摘要 + 展开按钮 */}
+  <div
+    class="flex items-start justify-between gap-3 rounded-lg border border-line bg-accent/10 p-3"
+  >
+    <div class="min-w-0 flex-1 text-xs leading-relaxed text-ink-2">
+      <slot name="summary" />
+    </div>
+    <button
+      type="button"
+      class="indicator-guide__btn inline-flex shrink-0 items-center gap-1 rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 transition-colors duration-1 hover:text-ink"
+      aria-expanded="false"
+      aria-haspopup="dialog"
+    >
+      <span>{title}</span>
+      <svg
+        class="indicator-guide__chevron h-3 w-3 transition-transform duration-1"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 4.5L6 7.5L9 4.5"></path>
+      </svg>
+    </button>
+  </div>
+
+  {/* 浮层：详细解读（不占文档流，不挤压下方内容） */}
+  <div
+    class="indicator-guide__panel absolute left-0 right-0 top-full z-overlay mt-1 max-h-[70vh] overflow-auto rounded-lg border border-line-strong bg-surface p-3.5 text-base leading-relaxed text-ink-2 shadow-2xl opacity-0 pointer-events-none transition-opacity duration-2 ease-terminal"
+    role="dialog"
+    aria-label={title}
+  >
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <h2 class="text-md font-bold text-ink">{title}</h2>
+      <button
+        type="button"
+        class="indicator-guide__close inline-flex h-6 w-6 items-center justify-center rounded border border-line text-ink-3 transition-colors duration-1 hover:text-ink"
+        aria-label="收起"
+      >
+        ×
+      </button>
+    </div>
+    <slot />
+  </div>
+</div>
+
+<style>
+  .indicator-guide__btn[aria-expanded='true'] .indicator-guide__chevron {
+    transform: rotate(180deg);
+  }
+</style>
+
+<script>
+  function initIndicatorGuides() {
+    document.querySelectorAll<HTMLElement>('.indicator-guide').forEach((el) => {
+      if (el.dataset.igInit === '1') return
+      el.dataset.igInit = '1'
+      const btn = el.querySelector<HTMLButtonElement>('.indicator-guide__btn')
+      const closeBtn = el.querySelector<HTMLButtonElement>('.indicator-guide__close')
+      const panel = el.querySelector<HTMLElement>('.indicator-guide__panel')
+      if (!btn || !panel) return
+      const setOpen = (open: boolean) => {
+        panel.classList.toggle('opacity-100', open)
+        panel.classList.toggle('pointer-events-auto', open)
+        panel.classList.toggle('opacity-0', !open)
+        panel.classList.toggle('pointer-events-none', !open)
+        btn.setAttribute('aria-expanded', String(open))
+      }
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        setOpen(panel.classList.contains('opacity-0'))
+      })
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => setOpen(false))
+      }
+      document.addEventListener('click', (e) => {
+        const target = e.target
+        if (!(target instanceof Node) || el.contains(target)) return
+        setOpen(false)
+      })
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setOpen(false)
+      })
+    })
+  }
+
+  initIndicatorGuides()
+  document.addEventListener('astro:after-swap', initIndicatorGuides)
+</script>

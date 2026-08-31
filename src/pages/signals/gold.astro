@@ -3,6 +3,7 @@ export const prerender = false
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDashboard'
 ---
 
@@ -12,6 +13,40 @@ import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDash
       title="黄金决策"
       subtitle="黄金-美元收益率滚动相关 · 定价残差 · 脱锚事件研究"
     />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">综合判定：</strong>残差 z 与关联状态为主要决策依据。残差严重为正且相关性失效 → 金价偏离基本面、高估风险，谨慎；残差严重为负 → 低估机会，关注。
+        <span class="text-warn">价格图竖线</span>=残差极端信号（高估/低估），<span class="text-warn">相关图竖线</span>=相关性失效/正相关切换，可直观看到信号后金价与相关性的后续演化。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">黄金决策</strong>以「黄金-美元负相关」经典范式为锚，叠加实际利率定价与残差检验，判断金价相对基本面是否高估或低估，并以历史事件回测验证信号有效性。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">黄金-美元收益率滚动相关（20 / 60 / 120 日）</strong> — 经典范式为负相关（美元涨则黄金跌）。20 日捕捉短期冲击，60 日为基准窗口，120 日反映结构性变化。
+        </li>
+        <li>
+          <strong class="text-ink">关联状态（基于 60 日相关）</strong> — 正常负相关（&lt;-0.4，范式生效）；相关性弱化（-0.4 ~ -0.15，范式松动）；相关性失效（-0.15 ~ 0.15，由地缘/避险等其他因素定价）；正相关区间（&gt;0.15，黄金与美元同涨同跌）。
+        </li>
+        <li>
+          <strong class="text-ink">实际利率 DFII10（10Y TIPS）</strong> — 持有黄金的机会成本。实际利率走高压制金价，走低利好黄金，是金价最稳定的长期驱动。
+        </li>
+        <li>
+          <strong class="text-ink">盈亏平衡通胀 T10YIE（10Y Breakeven）</strong> — 市场通胀预期。预期升温利好黄金抗通胀属性，预期回落则压制。
+        </li>
+        <li>
+          <strong class="text-ink">定价残差 z（双因子模型：实际利率 + DXY 20 日动量）</strong> — 残差经 1 年滚动标准化。z ≥ 2 为高估（看空信号），z ≤ -2 为低估（看多信号），并附 5 年分位辅助判断。
+        </li>
+        <li>
+          <strong class="text-ink">金价动量 20D / 60D</strong> — 对数收益率累加。正值表示上涨趋势，负值表示下跌趋势；20D 反映短期，60D 反映中期动量。
+        </li>
+        <li>
+          <strong class="text-ink">事件研究</strong> — 回测三类信号触发后金价 20/60/120 日后市收益（胜率、中位数、分位），样本不足时自动积累后生成。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
     <GoldDecisionDashboard client:load />
   </div>
 </Layout>

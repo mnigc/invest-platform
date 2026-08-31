@@ -3,6 +3,7 @@ export const prerender = false
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import { RegimeDetailDashboard } from '../../components/signals/RegimeDetailDashboard'
 ---
 
@@ -13,8 +14,10 @@ import { RegimeDetailDashboard } from '../../components/signals/RegimeDetailDash
       subtitle="CFNAI · CPI · 联邦利率 · VIX · 信用利差 · 收益率曲线 · 实时体制判定与历史回测"
     />
 
-    <section class="mb-4 rounded-lg border border-line bg-surface p-3.5 text-base leading-relaxed text-ink-2">
-      <h2 class="mb-2 text-md font-bold text-ink">指标解读</h2>
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">综合判定：</strong>各指标评分加权后，通过决策树映射到六大体制之一（金发女孩/风险偏好/过热/滞胀/风险规避/复苏）。
+      </p>
       <p class="my-1.5">
         <strong class="text-ink">宏观体制</strong>是经济所处周期阶段的综合判断。不同体制下资产表现截然不同：金发女孩环境利好股票，滞胀环境利好实物资产，风险规避环境利好国债和黄金。
       </p>
@@ -35,10 +38,7 @@ import { RegimeDetailDashboard } from '../../components/signals/RegimeDetailDash
           <strong class="text-ink">10Y-2Y 期限利差</strong> — 衰退前瞻指标。深度倒挂（小于 -0.5%）为历史衰退信号。
         </li>
       </ul>
-      <p class="mt-2 rounded-md bg-accent/10 p-2.5 text-xs text-ink-2">
-        <strong class="text-ink">综合判定：</strong>各指标评分加权后，通过决策树映射到六大体制之一（金发女孩/风险偏好/过热/滞胀/风险规避/复苏）。
-      </p>
-    </section>
+    </IndicatorGuide>
 
     <RegimeDetailDashboard client:load />
   </div>
