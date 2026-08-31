@@ -240,11 +240,7 @@ export function RegimeDetailDashboard() {
 
   useEffect(load, [])
 
-  if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
-  if (error) return <ErrorState message={error} onRetry={load} />
-  if (!regime) return <EmptyState title="暂无数据" description="宏观体制数据同步后将在此展示。" />
-
-  const signals = regime.signals || []
+  const signals = (regime?.signals ?? []) as RegimeSignal[]
   const signalsCount = signals.filter((s) => s.score !== 0).length
 
   const regimeSegments = useMemo(() => {
@@ -316,6 +312,10 @@ export function RegimeDetailDashboard() {
       ],
     } as EChartsOption
   }, [snapshots, regimeSegments, t])
+
+  if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
+  if (error) return <ErrorState message={error} onRetry={load} />
+  if (!regime) return <EmptyState title="暂无数据" description="宏观体制数据同步后将在此展示。" />
 
   return (
     <div className="flex flex-col gap-4">
