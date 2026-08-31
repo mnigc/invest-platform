@@ -291,12 +291,14 @@ export function RegimeDetailDashboard() {
           emphasis: { focus: 'series', lineStyle: { width: 2.6 } },
           markArea: {
             silent: true,
-            data: regimeSegments.map((seg) => ({
-              xAxis: seg.from,
-              xAxisEnd: seg.to,
-              itemStyle: { color: REGIME_BG[seg.regime] || 'transparent' },
-              label: { show: false },
-            })),
+            data: regimeSegments.map((seg) => [
+              {
+                xAxis: seg.from,
+                itemStyle: { color: REGIME_BG[seg.regime] || 'transparent' },
+                label: { show: false },
+              },
+              { xAxis: seg.to },
+            ]),
           },
           markLine: {
             silent: true,
