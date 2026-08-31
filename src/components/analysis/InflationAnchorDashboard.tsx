@@ -52,7 +52,7 @@ export default function InflationAnchorDashboard() {
       xAxis: categoryAxis(t, dates),
       yAxis: valueAxis(t, { name: '%', nameTextStyle: { color: t.text3, fontSize: 10 } }),
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: series.map((s, i) => lineSeries(s.name, s.data, t.series[i], { lineStyle: { width: 2 } })),
+      series: series.map((s, i) => lineSeries(s.name, s.data, t.series[i], { lineStyle: { width: 1.2 } })),
     } as EChartsOption
   }, [data, t])
 

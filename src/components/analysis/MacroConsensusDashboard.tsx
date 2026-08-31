@@ -53,10 +53,10 @@ export default function MacroConsensusDashboard() {
       yAxis: valueAxis(t, { name: '得分', nameTextStyle: { color: t.text3, fontSize: 10 } }),
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
       series: [
-        lineSeries('综合', overall, t.series[2], { lineStyle: { width: 2.5 } }),
-        lineSeries('流动性', liquidity, t.series[0], { lineStyle: { width: 1.5 } }),
-        lineSeries('通胀', inflation, t.series[1], { lineStyle: { width: 1.5 } }),
-        lineSeries('风险', risk, t.series[3] || t.series[0], { lineStyle: { width: 1.5 } }),
+        lineSeries('综合', overall, t.series[2], { lineStyle: { width: 1.4 } }),
+        lineSeries('流动性', liquidity, t.series[0], { lineStyle: { width: 1.2 } }),
+        lineSeries('通胀', inflation, t.series[1], { lineStyle: { width: 1.2 } }),
+        lineSeries('风险', risk, t.series[3] || t.series[0], { lineStyle: { width: 1.2 } }),
       ],
     } as EChartsOption
   }, [data, t])

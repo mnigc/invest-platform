@@ -298,7 +298,7 @@ export function GoldDecisionDashboard() {
           data.priceChart.map((p) => p.gold),
           t.series[2],
           {
-            lineStyle: { width: 2, color: t.series[2] },
+            lineStyle: { width: 1.3, color: t.series[2] },
             markLine: {
               silent: true,
               symbol: ['none', 'none'],
@@ -319,7 +319,7 @@ export function GoldDecisionDashboard() {
           'DXY',
           data.priceChart.map((p) => p.dxy),
           t.series[1],
-          { yAxisIndex: 1, lineStyle: { width: 1.5, color: t.series[1] } },
+          { yAxisIndex: 1, lineStyle: { width: 1.2, color: t.series[1] } },
         ),
       ],
     } as EChartsOption
@@ -344,14 +344,14 @@ export function GoldDecisionDashboard() {
           '20 日',
           data.corrChart.s20.map((p) => p.value),
           t.series[2],
-          { lineStyle: { width: 1.4, color: t.series[2] } },
+          { lineStyle: { width: 1.2, color: t.series[2] } },
         ),
         lineSeries(
           '60 日',
           data.corrChart.s60.map((p) => p.value),
           t.series[1],
           {
-            lineStyle: { width: 2, color: t.series[1] },
+            lineStyle: { width: 1.3, color: t.series[1] },
             markLine: {
               silent: true,
               symbol: ['none', 'none'],
@@ -367,7 +367,7 @@ export function GoldDecisionDashboard() {
           '120 日',
           data.corrChart.s120.map((p) => p.value),
           t.series[0],
-          { lineStyle: { width: 1.4, color: t.series[0] } },
+          { lineStyle: { width: 1.2, color: t.series[0] } },
         ),
       ],
     } as EChartsOption
@@ -426,13 +426,13 @@ export function GoldDecisionDashboard() {
           '20D 动量',
           data.momentumChart.m20.map((p) => p.value),
           t.series[2],
-          { lineStyle: { width: 1.5, color: t.series[2] } },
+          { lineStyle: { width: 1.2, color: t.series[2] } },
         ),
         lineSeries(
           '60D 动量',
           data.momentumChart.m60.map((p) => p.value),
           t.series[1],
-          { lineStyle: { width: 2, color: t.series[1] } },
+          { lineStyle: { width: 1.3, color: t.series[1] } },
         ),
       ],
     } as EChartsOption

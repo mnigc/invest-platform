@@ -72,6 +72,15 @@ export const GET = withCache(async () => {
       return dates.map(d => m.get(d) ?? null)
     }
 
+    /** 前向填充：慢频指标（如周频 FED）在相邻日之间继承上一次有效值 */
+    function ffill(arr: (number | null)[]): (number | null)[] {
+      let last: number | null = null
+      return arr.map(v => {
+        if (v != null && isFinite(v)) last = v
+        return last
+      })
+    }
+
     function getZScore(arr: number[]): number | null {
       const valid = arr.filter(v => v != null && isFinite(v)) as number[]
       if (valid.length < 63) return null
@@ -85,13 +94,13 @@ export const GET = withCache(async () => {
       return percentileRank(valid.slice(-252), valid[valid.length - 1])
     }
 
-    const liquidityArr = getValueFromMap(fedMap, allDates)
-    const vixArr = getValueFromMap(vixMap, allDates)
-    const t10yArr = getValueFromMap(t10yMap, allDates)
-    const t2Arr = getValueFromMap(t2Map, allDates)
-    const t10yieArr = getValueFromMap(t10yieMap, allDates)
-    const bbbArr = getValueFromMap(bbbMap, allDates)
-    const hyArr = getValueFromMap(hyMap, allDates)
+    const liquidityArr = ffill(getValueFromMap(fedMap, allDates))
+    const vixArr = ffill(getValueFromMap(vixMap, allDates))
+    const t10yArr = ffill(getValueFromMap(t10yMap, allDates))
+    const t2Arr = ffill(getValueFromMap(t2Map, allDates))
+    const t10yieArr = ffill(getValueFromMap(t10yieMap, allDates))
+    const bbbArr = ffill(getValueFromMap(bbbMap, allDates))
+    const hyArr = ffill(getValueFromMap(hyMap, allDates))
 
     const spread10y2y = t10yArr.map((v, i) => {
       const t2 = t2Arr[i]
@@ -124,13 +133,45 @@ export const GET = withCache(async () => {
     if (vixArr[vixArr.length - 1] != null && vixArr[vixArr.length - 1]! > 25) evidence.push('VIX偏高，市场恐慌情绪上升')
     if (t10yieArr[t10yieArr.length - 1] != null && t10yieArr[t10yieArr.length - 1]! > 2.5) evidence.push('通胀预期高于联储目标')
 
-    const historyDates = allDates.slice(-63)
+    const historyDates = allDates
+    const scoreOf = (z: number | null, sign: 1 | -1): number | null =>
+      z == null ? null : Math.round(Math.min(100, Math.max(0, 50 + sign * z * 15)))
+
+    /** 逐日滚动 z-score：每个日期点用截止当日的前 252 个有效值窗口计算 */
+    function rollingZ(arr: (number | null)[]): (number | null)[] {
+      const out: (number | null)[] = []
+      const window: number[] = []
+      for (let i = 0; i < arr.length; i++) {
+        const v = arr[i]
+        if (v != null && isFinite(v)) {
+          window.push(v)
+          if (window.length > 252) window.shift()
+        }
+        out.push(v != null && isFinite(v) && window.length >= 63 ? +zScore(window, v) : null)
+      }
+      return out
+    }
+
+    const liqZ = rollingZ(liquidityArr)
+    const riskZ = rollingZ(vixArr)
+    const growthZ = rollingZ(spread10y2y)
+    const infZ = rollingZ(t10yieArr)
+    const creditZ = rollingZ(bbbArr)
+
     const historicalConsensus = {
       dates: historyDates,
-      overall: historyDates.map(() => overallPct),
-      liquidity: historyDates.map(d => fedMap.get(d) != null ? Math.round(50 + liquidityScore * 15) : null),
-      inflation: historyDates.map(d => t10yieMap.get(d) != null ? Math.round(50 + inflationScore * 15) : null),
-      risk: historyDates.map(d => vixMap.get(d) != null ? Math.round(50 - riskScore * 15) : null),
+      overall: historyDates.map((_, i) => {
+        const parts: [number, number][] = [
+          [liqZ[i], 0.2], [riskZ[i], 0.2], [growthZ[i], 0.25], [infZ[i], 0.2], [creditZ[i], 0.15],
+        ].filter((p): p is [number, number] => p[0] != null)
+        const sumW = parts.reduce((s, p) => s + p[1], 0)
+        if (sumW === 0) return null
+        const raw = parts.reduce((s, p) => s + p[0] * p[1], 0) / sumW
+        return Math.round(Math.min(100, Math.max(0, 50 + raw * 15)))
+      }),
+      liquidity: historyDates.map((_, i) => scoreOf(liqZ[i], 1)),
+      inflation: historyDates.map((_, i) => scoreOf(infZ[i], 1)),
+      risk: historyDates.map((_, i) => scoreOf(riskZ[i], -1)),
     }
 
     const data: MacroConsensusResponse = {

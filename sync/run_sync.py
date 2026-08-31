@@ -53,9 +53,9 @@ TASKS = {
         "delay": 5,
         "args": [],
     },
-    "sp500": {
-        "name": "S&P500 指数（宏观体制回测）",
-        "script": "sync_sp500",
+    "indices": {
+        "name": "美股四大指数（宏观体制回测/指数对比）",
+        "script": "sync_indexes",
         "group": "daily",
         "delay": 15,
         "args": [],

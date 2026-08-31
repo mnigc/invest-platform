@@ -119,7 +119,7 @@ function FedChart({ series }: { series: SeriesData[] }) {
       dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
       series: [
         lineSeries('美联储总资产', fedVals, t.series[1], {
-          lineStyle: { width: 2.4, color: t.series[1] },
+          lineStyle: { width: 1.4, color: t.series[1] },
           areaStyle: { color: t.series[1], opacity: 0.06 },
         }),
         barSeries('RRP 逆回购', dates.map((d) => rrpMap.get(d) ?? null), t.series[2], {
@@ -129,7 +129,7 @@ function FedChart({ series }: { series: SeriesData[] }) {
           'TGA 账户',
           dates.map((d) => tgaMap.get(d) ?? null),
           t.series[5],
-          { lineStyle: { width: 1.6, color: t.series[5], type: 'dashed' } },
+          { lineStyle: { width: 1.1, color: t.series[5], type: 'dashed' } },
         ),
       ],
     }
@@ -169,7 +169,7 @@ function NetLiquidityChart({ netLiquidity }: { netLiquidity: { date: string; val
       dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
       series: [
         lineSeries('净流动性', vals, t.series[0], {
-          lineStyle: { width: 2, color: t.series[0] },
+          lineStyle: { width: 1.3, color: t.series[0] },
           areaStyle: { color: t.series[0], opacity: 0.08 },
         }),
       ],
@@ -252,7 +252,7 @@ function CbComparisonChart({ series }: { series: SeriesData[] }) {
       dataZoom: [chartDataZoom(t, { start: 0, end: 100 })],
       series: prepared.map((s) =>
         lineSeries(s.label, s.vals, s.color, {
-          lineStyle: { width: 2, color: s.color },
+          lineStyle: { width: 1.3, color: s.color },
         }),
       ),
     }

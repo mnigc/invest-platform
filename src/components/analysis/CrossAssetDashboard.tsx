@@ -13,6 +13,7 @@ import {
 
 interface Data {
   correlationMatrix: { dates: string[]; series: { name: string; data: (number | null)[] }[] }
+  correlationHistory: { dates: string[]; series: { name: string; data: (number | null)[] }[] }
   currentCorrelations: { pair: string; correlation: number; status: string }[]
   regimeDetection: { regime: string; regimeDesc: string; confidence: number }
   diversificationScore: number
@@ -40,19 +41,28 @@ export default function CrossAssetDashboard() {
   }, [])
 
   const matrixOption = useMemo<EChartsOption | null>(() => {
-    if (!data?.correlationMatrix) return null
-    const { dates, series } = data.correlationMatrix
+    if (!data?.correlationHistory) return null
+    const { dates, series } = data.correlationHistory
     const total = dates.length
     const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     return {
       ...chartAnimation,
-      tooltip: chartTooltip(t),
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(3)),
+      }),
       legend: chartLegend(t, series.map(s => s.name)),
       grid: chartGrid({ top: 32, bottom: 32 }),
       xAxis: categoryAxis(t, dates),
-      yAxis: valueAxis(t),
+      yAxis: valueAxis(t, { min: -1, max: 1 }),
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: series.map((s, i) => lineSeries(s.name, s.data, t.series[i % t.series.length], { lineStyle: { width: 1.5 } })),
+      series: series.map((s, i) =>
+        lineSeries(s.name, s.data, t.series[i % t.series.length], {
+          lineStyle: { width: 1.2 },
+          markLine: i === 0
+            ? { silent: true, symbol: ['none', 'none'], animation: false, label: { show: false }, data: [{ yAxis: 0 }], lineStyle: { color: t.border, type: 'dashed', width: 1 } }
+            : undefined,
+        }),
+      ),
     } as EChartsOption
   }, [data, t])
 
@@ -71,7 +81,7 @@ export default function CrossAssetDashboard() {
         <div className="mt-3 text-xs text-ink-3">{data.regimeDetection.regimeDesc}</div>
       </MacroCard>
 
-      <MacroCard title="资产/指标联动" padding="sm">
+      <MacroCard title="滚动相关系数走势（63日）" padding="sm">
         <ResponsiveChartBox option={matrixOption} deps={[matrixOption]} />
       </MacroCard>
 

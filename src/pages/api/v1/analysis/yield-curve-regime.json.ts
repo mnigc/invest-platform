@@ -180,7 +180,7 @@ export const GET = withCache(async () => {
   try {
     const horizon = 5 * 365
 
-    const [spreadRows, dgs2Rows, dgs10Rows, dgs3mRows, sp500Rows, regimeSnapRows] = await Promise.all([
+    const [spreadRows, dgs2Rows, dgs10Rows, dgs3mRows, dgs30Rows, sp500Rows, regimeSnapRows] = await Promise.all([
       safeQuery(`
         SELECT period_date, value FROM indicator_data d
         JOIN indicators i ON i.id = d.indicator_id
@@ -206,6 +206,13 @@ export const GET = withCache(async () => {
         SELECT period_date, value FROM indicator_data d
         JOIN indicators i ON i.id = d.indicator_id
         WHERE i.code = 'DGS3MO' AND i.region = 'US' AND d.value IS NOT NULL
+        ORDER BY period_date DESC
+        LIMIT $1
+      `, [horizon]).then(r => r.reverse()),
+      safeQuery(`
+        SELECT period_date, value FROM indicator_data d
+        JOIN indicators i ON i.id = d.indicator_id
+        WHERE i.code = 'DGS30' AND i.region = 'US' AND d.value IS NOT NULL
         ORDER BY period_date DESC
         LIMIT $1
       `, [horizon]).then(r => r.reverse()),
@@ -240,11 +247,13 @@ export const GET = withCache(async () => {
       ...dgs2Rows.map((r: Record<string, any>) => toDateStr(r.period_date)),
       ...dgs10Rows.map((r: Record<string, any>) => toDateStr(r.period_date)),
       ...dgs3mRows.map((r: Record<string, any>) => toDateStr(r.period_date)),
+      ...dgs30Rows.map((r: Record<string, any>) => toDateStr(r.period_date)),
     ])].sort()
 
     const dgs2Map = new Map(dgs2Rows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const dgs10Map = new Map(dgs10Rows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
     const dgs3mMap = new Map(dgs3mRows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
+    const dgs30Map = new Map(dgs30Rows.map((r: Record<string, any>) => [toDateStr(r.period_date), Number(r.value)]))
 
     const curveHistory = {
       dates,
@@ -252,7 +261,7 @@ export const GET = withCache(async () => {
         { name: '3M', data: dates.map(d => dgs3mMap.get(d) ?? null) },
         { name: '2Y', data: dates.map(d => dgs2Map.get(d) ?? null) },
         { name: '10Y', data: dates.map(d => dgs10Map.get(d) ?? null) },
-        { name: '30Y', data: dates.map(() => null) },
+        { name: '30Y', data: dates.map(d => dgs30Map.get(d) ?? null) },
       ],
     }
 

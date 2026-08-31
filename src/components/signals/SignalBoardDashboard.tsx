@@ -194,6 +194,8 @@ export function SignalBoardDashboard() {
   const [error, setError] = useState('')
   const [agg, setAgg] = useState<Aggregate | null>(null)
   const [snapshots, setSnapshots] = useState<BacktestSnapshot[] | null>(null)
+  const [indexSeries, setIndexSeries] = useState<{ symbol: string; nameZh: string; data: (number | null)[] }[]>([])
+  const [chartIndex, setChartIndex] = useState('^GSPC')
   const [tiles, setTiles] = useState<Tiles>({
     sp500: null,
     regimeLabel: null,
@@ -300,6 +302,7 @@ export function SignalBoardDashboard() {
         if (backtestResult.ok && backtestResult.data) {
           const snaps: BacktestSnapshot[] = backtestResult.data.snapshots ?? []
           setSnapshots(snaps)
+          setIndexSeries(backtestResult.data.indexSeries ?? [])
           const lastValid = [...snaps].reverse().find((s) => s.sp500Price > 0)
           tls.sp500 = lastValid ? lastValid.sp500Price : null
           const segs = regimeSegments(snaps)
@@ -394,10 +397,14 @@ export function SignalBoardDashboard() {
 
   const t = useChartTheme()
   const segments = useMemo(() => regimeSegments(snapshots), [snapshots])
-  const sp500Option = useMemo<EChartsOption | null>(
-    () => buildSp500RegimeOption(t, snapshots, segments),
-    [snapshots, segments, t],
-  )
+  const currentSeries = indexSeries.find((i) => i.symbol === chartIndex) ?? indexSeries[0] ?? null
+  const sp500Option = useMemo<EChartsOption | null>(() => {
+    const override = currentSeries
+      ? { name: currentSeries.nameZh, data: currentSeries.data }
+      : null
+    return buildSp500RegimeOption(t, snapshots, segments, override)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshots, segments, t, currentSeries])
 
   if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
   if (error) return <ErrorState message={error} onRetry={load} />
@@ -470,9 +477,32 @@ export function SignalBoardDashboard() {
         />
       </div>
 
-      {/* S&P500 × 宏观体制 */}
+      {/* 指数走势 × 宏观体制 */}
       {sp500Option && (
-        <MacroCard title="S&P500 走势与宏观体制" padding="sm">
+        <MacroCard
+          title={`${currentSeries?.nameZh ?? 'S&P500'}走势与宏观体制`}
+          padding="sm"
+          badge={
+            indexSeries.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {indexSeries.map((idx) => (
+                  <button
+                    key={idx.symbol}
+                    type="button"
+                    onClick={() => setChartIndex(idx.symbol)}
+                    className={`rounded-sm border px-2 py-0.5 text-2xs transition-colors duration-1 ease-terminal ${
+                      chartIndex === idx.symbol
+                        ? 'border-accent bg-accent/15 text-ink'
+                        : 'border-line bg-surface-2 text-ink-3 hover:text-ink-2'
+                    }`}
+                  >
+                    {idx.nameZh.replace('指数', '')}
+                  </button>
+                ))}
+              </div>
+            ) : undefined
+          }
+        >
           <ResponsiveChartBox option={sp500Option} deps={[sp500Option]} />
           <RegimeLegend />
         </MacroCard>

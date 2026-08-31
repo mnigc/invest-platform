@@ -52,12 +52,12 @@ export default function YieldCurveRegimeDashboard() {
       xAxis: categoryAxis(t, dates),
       yAxis: valueAxis(t, { name: '%', nameTextStyle: { color: t.text3, fontSize: 10 } }),
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: [{
-        name: '10Y-2Y',
-        type: 'line',
-        data: spreadData,
-        smooth: true,
-        lineStyle: { width: 2, color: t.series[2] },
+        series: [{
+          name: '10Y-2Y',
+          type: 'line',
+          data: spreadData,
+          smooth: true,
+          lineStyle: { width: 1.2, color: t.series[2] },
         markLine: {
           silent: true,
           symbol: ['none', 'none'],
@@ -89,7 +89,7 @@ export default function YieldCurveRegimeDashboard() {
       xAxis: categoryAxis(t, dates),
       yAxis: valueAxis(t, { name: '%', nameTextStyle: { color: t.text3, fontSize: 10 } }),
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: tenors.map((tn, i) => lineSeries(tn.name, tn.data, t.series[i % t.series.length], { lineStyle: { width: i === 0 ? 1 : 2 } })),
+      series: tenors.map((tn, i) => lineSeries(tn.name, tn.data, t.series[i % t.series.length], { lineStyle: { width: i === 0 ? 1 : 1.2 } })),
     } as EChartsOption
   }, [data, t])
 
@@ -134,7 +134,7 @@ export default function YieldCurveRegimeDashboard() {
       {data.regimeTransitions.length > 0 && (
         <MacroCard title="近期体制转换" padding="sm">
           <div className="space-y-1.5">
-            {data.regimeTransitions.slice(0, 5).map((r, i) => (
+            {[...data.regimeTransitions].slice(-5).reverse().map((r, i) => (
               <div key={i} className="flex justify-between items-center py-1.5 border-b border-line last:border-0 text-xs">
                 <span className="text-ink-2">{r.date}</span>
                 <span className="text-ink-3">{r.fromRegime} → {r.toRegime}</span>

@@ -249,6 +249,78 @@ async function handleBacktest(url: URL): Promise<Response> {
       },
     }))
 
+    // 多指数价格序列（与快照日期对齐：取 <= 快照日最近价，避免未来函数）
+    let indexSeries: { symbol: string; nameZh: string; dates: string[]; data: (number | null)[] }[] = []
+    try {
+      const INDEX_LIST = [
+        { symbol: '^GSPC', nameZh: '标普500指数' },
+        { symbol: '^IXIC', nameZh: '纳斯达克综合指数' },
+        { symbol: '^DJI', nameZh: '道琼斯工业平均' },
+        { symbol: '^RUT', nameZh: '罗素2000' },
+      ]
+      const snapshotDates = snapshotsFormatted.map((s) => s.date)
+      for (const idx of INDEX_LIST) {
+        const priceRows = await query<any>(
+          `SELECT ap.trade_date, ap.close_price
+           FROM asset_prices ap
+           JOIN assets a ON a.id = ap.asset_id
+           WHERE a.symbol = ? AND ap.close_price IS NOT NULL AND ap.close_price > 0
+           ORDER BY ap.trade_date ASC`,
+          [idx.symbol]
+        )
+        const sorted = priceRows.map((r: any) => ({
+          date: toDateStr(r.trade_date),
+          price: Number(r.close_price),
+        }))
+        const data: (number | null)[] = []
+        let j = -1
+        for (const d of snapshotDates) {
+          while (j + 1 < sorted.length && sorted[j + 1].date <= d) j++
+          data.push(j >= 0 ? sorted[j].price : null)
+        }
+        indexSeries.push({ symbol: idx.symbol, nameZh: idx.nameZh, dates: snapshotDates, data })
+      }
+    } catch (e: any) {
+      console.warn('[RegimeBacktest] 多指数价格不可用', e.message)
+    }
+
+    // 预计算的多指数汇总统计
+    let indexSummaries: { symbol: string; nameZh: string; rows: BacktestSummary[] }[] = []
+    try {
+      const idxSumRaw = await query<any>(
+        `SELECT index_symbol, index_name_zh, regime, label, count, avg_confidence,
+                avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
+                win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
+         FROM regime_index_summaries
+         WHERE period_start >= ? AND period_end <= ?
+         ORDER BY index_symbol ASC, count DESC`,
+        [startDate, endDate]
+      )
+      const byIndex = new Map<string, { nameZh: string; rows: BacktestSummary[] }>()
+      for (const s of idxSumRaw) {
+        const row: BacktestSummary = {
+          regime: s.regime,
+          label: s.label,
+          count: s.count,
+          avgConfidence: Number(s.avg_confidence) * 100,
+          avgReturn1m: Number(s.avg_return_1m),
+          avgReturn3m: Number(s.avg_return_3m),
+          avgReturn6m: Number(s.avg_return_6m),
+          avgReturn12m: Number(s.avg_return_12m),
+          winRate1m: Number(s.win_rate_1m),
+          winRate3m: Number(s.win_rate_3m),
+          winRate6m: Number(s.win_rate_6m),
+          winRate12m: Number(s.win_rate_12m),
+        }
+        const entry = byIndex.get(s.index_symbol) ?? { nameZh: s.index_name_zh, rows: [] as BacktestSummary[] }
+        entry.rows.push(row)
+        byIndex.set(s.index_symbol, entry)
+      }
+      indexSummaries = [...byIndex.entries()].map(([symbol, entry]) => ({ symbol, ...entry }))
+    } catch (e: any) {
+      console.warn('[RegimeBacktest] 多指数汇总不可用', e.message)
+    }
+
     // 直接读取预计算的汇总统计
     const summariesRaw = await query<any>(
       `SELECT regime, label, count, avg_confidence,
@@ -289,7 +361,7 @@ async function handleBacktest(url: URL): Promise<Response> {
     return new Response(
       JSON.stringify({
         success: true,
-        data: { snapshots: snapshotsFormatted, summaries, overall },
+        data: { snapshots: snapshotsFormatted, summaries, overall, indexSeries, indexSummaries },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )

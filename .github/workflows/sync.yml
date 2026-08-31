@@ -49,14 +49,14 @@ jobs:
         run: python run_sync.py gold_decision
         # 说明：金价历史 + DXY 走 Yahoo，需境外网络，故在 GitHub Actions(海外) 跑。
 
-      - name: "Run sp500 sync (Yahoo Finance)"
+      - name: "Run indices sync (美股四大指数: stooq/Yahoo)"
         working-directory: sync
-        run: python run_sync.py sp500
+        run: python run_sync.py indices
 
       - name: "Run regime_backtest sync (预计算回测)"
         working-directory: sync
         run: python run_sync.py regime_backtest
-        # 说明：基于指标数据预计算宏观体制回测，解决 backtest API 性能问题
+        # 说明：基于指标数据预计算宏观体制回测（含多指数×体制回测矩阵）
 
       - name: "Run macro_analysis sync (宏观分析交叉数据)"
         working-directory: sync

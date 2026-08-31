@@ -161,8 +161,12 @@ function SignalCard({ signal }: { signal: RegimeSignal }) {
 export function RegimeDetailDashboard() {
   const [regime, setRegime] = useState<RegimeData | null>(null)
   const [backtest, setBacktest] = useState<BacktestSummary[] | null>(null)
+  const [indexSummaries, setIndexSummaries] = useState<{ symbol: string; nameZh: string; rows: BacktestSummary[] }[]>([])
   const [snapshots, setSnapshots] = useState<BacktestSnapshot[] | null>(null)
+  const [indexSeries, setIndexSeries] = useState<{ symbol: string; nameZh: string; data: (number | null)[] }[]>([])
   const [anomalies, setAnomalies] = useState<Anomaly[] | null>(null)
+  const [chartIndex, setChartIndex] = useState('^GSPC')
+  const [summaryIndex, setSummaryIndex] = useState('^GSPC')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const t = useChartTheme()
@@ -196,6 +200,8 @@ export function RegimeDetailDashboard() {
         if (!alive || !backtestResult?.success || !backtestResult.data) return
         setBacktest(backtestResult.data.summaries)
         setSnapshots(backtestResult.data.snapshots ?? null)
+        setIndexSeries(backtestResult.data.indexSeries ?? [])
+        setIndexSummaries(backtestResult.data.indexSummaries ?? [])
       })
       .catch(() => {
         if (!alive) return
@@ -223,10 +229,17 @@ export function RegimeDetailDashboard() {
 
   const segments = useMemo(() => regimeSegments(snapshots), [snapshots])
 
-  const sp500Option = useMemo<EChartsOption | null>(
-    () => buildSp500RegimeOption(t, snapshots, segments),
-    [snapshots, segments, t],
-  )
+  const currentSeries = indexSeries.find((i) => i.symbol === chartIndex) ?? indexSeries[0] ?? null
+  const currentSummaryRows =
+    indexSummaries.find((i) => i.symbol === summaryIndex)?.rows ?? null
+
+  const sp500Option = useMemo<EChartsOption | null>(() => {
+    const override = currentSeries
+      ? { name: currentSeries.nameZh, data: currentSeries.data }
+      : null
+    return buildSp500RegimeOption(t, snapshots, segments, override)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshots, segments, t, currentSeries])
 
   if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
   if (error) return <ErrorState message={error} onRetry={load} />
@@ -247,7 +260,30 @@ export function RegimeDetailDashboard() {
       </div>
 
       {sp500Option && (
-        <MacroCard title="S&P500 走势与宏观体制" padding="sm">
+        <MacroCard
+          title={`${currentSeries?.nameZh ?? 'S&P500'}走势与宏观体制`}
+          padding="sm"
+          badge={
+            indexSeries.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {indexSeries.map((idx) => (
+                  <button
+                    key={idx.symbol}
+                    type="button"
+                    onClick={() => setChartIndex(idx.symbol)}
+                    className={`rounded-sm border px-2 py-0.5 text-2xs transition-colors duration-1 ease-terminal ${
+                      chartIndex === idx.symbol
+                        ? 'border-accent bg-accent/15 text-ink'
+                        : 'border-line bg-surface-2 text-ink-3 hover:text-ink-2'
+                    }`}
+                  >
+                    {idx.nameZh.replace('指数', '')}
+                  </button>
+                ))}
+              </div>
+            ) : undefined
+          }
+        >
           <ResponsiveChartBox option={sp500Option} deps={[sp500Option]} />
           <RegimeLegend />
         </MacroCard>
@@ -331,11 +367,33 @@ export function RegimeDetailDashboard() {
         </div>
       </MacroCard>
 
-      <MacroCard title="宏观体制回测：各体制下 S&P500 前瞻表现">
-        {backtest && backtest.length > 0 ? (
+      <MacroCard
+        title="宏观体制回测：各体制下股票指数前瞻表现"
+        badge={
+          indexSummaries.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {indexSummaries.map((idx) => (
+                <button
+                  key={idx.symbol}
+                  type="button"
+                  onClick={() => setSummaryIndex(idx.symbol)}
+                  className={`rounded-sm border px-2 py-0.5 text-2xs transition-colors duration-1 ease-terminal ${
+                    summaryIndex === idx.symbol
+                      ? 'border-accent bg-accent/15 text-ink'
+                      : 'border-line bg-surface-2 text-ink-3 hover:text-ink-2'
+                  }`}
+                >
+                  {idx.nameZh.replace('指数', '')}
+                </button>
+              ))}
+            </div>
+          ) : undefined
+        }
+      >
+        {(currentSummaryRows && currentSummaryRows.length > 0) || (backtest && backtest.length > 0) ? (
           <>
             <p className="mb-3 text-2xs leading-relaxed text-ink-3">
-              历史上各宏观体制出现后，S&P500 在 1/3/6/12 个月后的平均收益率和胜率。
+              历史上各宏观体制出现后，{currentSummaryRows ? indexSummaries.find((i) => i.symbol === summaryIndex)?.nameZh.replace('指数', '') : 'S&P500'} 在 1/3/6/12 个月后的平均收益率和胜率。
             </p>
             <DataTable
               columns={[
@@ -382,7 +440,7 @@ export function RegimeDetailDashboard() {
                   ),
                 },
               ]}
-              rows={backtest}
+              rows={currentSummaryRows ?? backtest ?? []}
               rowKey={(r) => r.regime}
             />
           </>

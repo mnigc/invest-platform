@@ -26,6 +26,14 @@ INDICATOR_CODES = [
 ]
 SP500_SYMBOL = "^GSPC"
 
+# 指数对比列表：符号 → 中文名
+INDEX_LIST = [
+    ("^GSPC", "标普500指数"),
+    ("^IXIC", "纳斯达克综合指数"),
+    ("^DJI", "道琼斯工业平均"),
+    ("^RUT", "罗素2000"),
+]
+
 LABELS = {
     "GOLDILOCKS": "金发女孩", "RISK_ON": "风险偏好", "OVERHEAT": "过热",
     "STAGFLATION": "滞胀", "RISK_OFF": "风险规避", "RECOVERY": "复苏", "UNKNOWN": "不确定",
@@ -53,6 +61,11 @@ def load_indicator_data(conn, start_date: str):
 
 def load_sp500_prices(conn, start_date: str):
     """加载 S&P500 价格，返回 {date_str: price}"""
+    return load_index_prices(conn, SP500_SYMBOL, start_date)
+
+
+def load_index_prices(conn, symbol: str, start_date: str):
+    """加载指定指数价格，返回 {date_str: price}"""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT ap.trade_date, ap.close_price
@@ -60,9 +73,9 @@ def load_sp500_prices(conn, start_date: str):
             JOIN assets a ON a.id = ap.asset_id
             WHERE a.symbol = %s AND ap.trade_date >= %s AND ap.close_price > 0
             ORDER BY ap.trade_date ASC
-        """, (SP500_SYMBOL, start_date))
+        """, (symbol, start_date))
         rows = cur.fetchall()
-        log.info(f"  加载 S&P500: {len(rows)} 条")
+        log.info(f"  加载 {symbol}: {len(rows)} 条")
         return {str(r["trade_date"])[:10]: float(r["close_price"]) for r in rows}
 
 
@@ -287,6 +300,9 @@ def sync_backtest(years: int = 10):
         # 5. 汇总统计写入 regime_backtest_summaries
         _compute_and_upsert_summaries(conn, snapshots, start_date, end_date)
 
+        # 6. 按指数 × 体制写入 regime_index_summaries（多指数对比）
+        _compute_and_upsert_index_summaries(conn, snapshots, start_date, end_date)
+
         write_sync_log(conn, "regime_backtest", "regime_snapshots", "ok", len(snapshots))
 
 
@@ -404,6 +420,89 @@ def _compute_and_upsert_summaries(conn, snapshots: list, start_date: str, end_da
         """, values)
     conn.commit()
     log.info(f"写入 regime_backtest_summaries: {len(summaries)} 条")
+
+
+def _compute_and_upsert_index_summaries(conn, snapshots: list, start_date: str, end_date: str):
+    """按指数 × 体制累计前瞻收益（指数间可对比）"""
+    from psycopg2.extras import execute_values
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('public.regime_index_summaries')")
+        if cur.fetchone()[0] is None:
+            log.warning("regime_index_summaries 表不存在（请先在数据库执行 supabase_schema.sql 建表），跳过指数回测汇总")
+            return
+
+    for symbol, name_zh in INDEX_LIST:
+        prices = load_index_prices(conn, symbol, start_date)
+        if not prices:
+            log.warning(f"  指数 {symbol} 无价格数据，跳过指数回测")
+            continue
+
+        by_regime = defaultdict(list)
+        for s in snapshots:
+            me = s["date"]
+            px = price_at(prices, me)
+            if not px or px <= 0:
+                continue
+            fwd = {}
+            for m in [1, 3, 6, 12]:
+                fd = add_months(me, m)
+                fp = price_at(prices, fd)
+                fwd[m] = round(fp / px - 1, 6) if fp and fp > 0 else None
+            item = {**s, "fwd": fwd}
+            by_regime[s["regime"]].append(item)
+
+        rows = []
+        for regime, snaps in by_regime.items():
+            n = len(snaps)
+            if n == 0:
+                continue
+
+            def avg(key):
+                vals = [x["fwd"][key] for x in snaps if x["fwd"][key] is not None]
+                return round(sum(vals) / len(vals), 6) if vals else 0
+
+            def win_rate(key):
+                vals = [x["fwd"][key] for x in snaps if x["fwd"][key] is not None]
+                return round(sum(1 for v in vals if v > 0) / len(vals), 3) if vals else 0
+
+            rows.append((
+                start_date, end_date, symbol, name_zh, regime,
+                LABELS.get(regime, regime), n,
+                round(sum(x["confidence"] for x in snaps) / n / 100, 3),
+                avg(1), avg(3), avg(6), avg(12),
+                win_rate(1), win_rate(3), win_rate(6), win_rate(12),
+                datetime.now(),
+            ))
+
+        if not rows:
+            continue
+
+        with conn.cursor() as cur:
+            execute_values(cur, """
+                INSERT INTO regime_index_summaries (
+                    period_start, period_end, index_symbol, index_name_zh,
+                    regime, label, count, avg_confidence,
+                    avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
+                    win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m,
+                    updated_at
+                ) VALUES %s
+                ON CONFLICT (index_symbol, period_start, period_end, regime) DO UPDATE SET
+                    index_name_zh = EXCLUDED.index_name_zh,
+                    label = EXCLUDED.label, count = EXCLUDED.count,
+                    avg_confidence = EXCLUDED.avg_confidence,
+                    avg_return_1m = EXCLUDED.avg_return_1m,
+                    avg_return_3m = EXCLUDED.avg_return_3m,
+                    avg_return_6m = EXCLUDED.avg_return_6m,
+                    avg_return_12m = EXCLUDED.avg_return_12m,
+                    win_rate_1m = EXCLUDED.win_rate_1m,
+                    win_rate_3m = EXCLUDED.win_rate_3m,
+                    win_rate_6m = EXCLUDED.win_rate_6m,
+                    win_rate_12m = EXCLUDED.win_rate_12m,
+                    updated_at = EXCLUDED.updated_at
+            """, rows)
+        conn.commit()
+        log.info(f"  写入 regime_index_summaries [{symbol}]: {len(rows)} 条")
 
 
 def main():

@@ -144,9 +144,9 @@ export function lineSeries(
     smooth: 0.25,
     showSymbol: false,
     connectNulls: false,
-    lineStyle: { width: 1.8, color },
+    lineStyle: { width: 1.2, color },
     itemStyle: { color },
-    emphasis: { focus: 'series', lineStyle: { width: 2.6 } },
+    emphasis: { focus: 'series', lineStyle: { width: 1.9 } },
     ...opts,
   }
 }

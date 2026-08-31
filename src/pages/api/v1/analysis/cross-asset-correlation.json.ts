@@ -3,10 +3,14 @@ export const prerender = false
 import { query } from '../../../../lib/db'
 import { withCache } from '../../../../lib/cache'
 import { toDateStr } from '../../../../lib/date'
-import { corr } from '../../../../lib/analysis'
+import { corr, alignByDate, rollingCorr, type SeriesPoint } from '../../../../lib/analysis'
 
 interface CrossAssetData {
   correlationMatrix: {
+    dates: string[]
+    series: { name: string; data: (number | null)[] }[]
+  }
+  correlationHistory: {
     dates: string[]
     series: { name: string; data: (number | null)[] }[]
   }
@@ -56,6 +60,19 @@ export const GET = withCache(async () => {
     const seriesData = seriesMaps.map(m =>
       allDates.map(d => m.get(d) ?? null)
     )
+    const seriesPoints: SeriesPoint[][] = seriesMaps.map(m =>
+      allDates.map(d => ({ date: d, value: m.get(d) ?? NaN }))
+    )
+
+    /** 日变动序列：相关系数基于每日变化而非水平值，避免趋势序列的水平相关落到 ±1 */
+    const diffSeriesPoints: SeriesPoint[][] = seriesPoints.map(pts =>
+      pts.map((p, i) => ({
+        date: p.date,
+        value: i > 0 && isFinite(p.value) && isFinite(pts[i - 1].value)
+          ? p.value - pts[i - 1].value
+          : NaN,
+      })),
+    )
 
     const windowSize = 63
     const pairs = [
@@ -68,15 +85,23 @@ export const GET = withCache(async () => {
     ]
 
     const currentCorrelations = pairs.map(p => {
-      const a = seriesData[p.i].slice(-windowSize).filter((v): v is number => v != null)
-      const b = seriesData[p.j].slice(-windowSize).filter((v): v is number => v != null)
-      const n = Math.min(a.length, b.length)
-      const corrVal = n > 21 ? corr(a.slice(-n), b.slice(-n)) : 0
+      const aligned = alignByDate(diffSeriesPoints[p.i], diffSeriesPoints[p.j]).slice(-windowSize)
+      const corrVal = aligned.length > 21 ? corr(aligned.map(pt => pt.a), aligned.map(pt => pt.b)) : 0
       let status = 'neutral'
       if (corrVal > 0.3) status = 'positive'
       else if (corrVal < -0.3) status = 'negative'
       return { pair: p.name, correlation: +corrVal.toFixed(3), status }
     })
+
+    /** 逐日滚动 63 日日变动相关系数曲线（按日期对齐，无共同日期为缺口） */
+    const correlationHistory = {
+      dates: allDates,
+      series: pairs.map(p => {
+        const rc = rollingCorr(diffSeriesPoints[p.i], diffSeriesPoints[p.j], windowSize)
+        const rcMap = new Map(rc.map(pt => [pt.date, pt.value]))
+        return { name: p.name, data: allDates.map(d => rcMap.get(d) ?? null) }
+      }),
+    }
 
     const avgAbsCorr = currentCorrelations.reduce((s, c) => s + Math.abs(c.correlation), 0) / currentCorrelations.length
     const diversificationScore = Math.round((1 - avgAbsCorr) * 100)
@@ -103,6 +128,7 @@ export const GET = withCache(async () => {
         dates: allDates,
         series: seriesNames.map((name, i) => ({ name, data: seriesData[i] })),
       },
+      correlationHistory,
       currentCorrelations,
       regimeDetection: { regime, regimeDesc, confidence: 70 },
       diversificationScore,

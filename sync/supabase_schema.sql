@@ -154,3 +154,26 @@ create table if not exists regime_backtest_summaries (
     updated_at      timestamptz not null default now(),
     constraint uk_backtest_summary unique (period_start, period_end, regime)
 );
+
+create table if not exists regime_index_summaries (
+    id              bigserial primary key,
+    period_start    date not null,
+    period_end      date not null,
+    index_symbol    varchar(30) not null,
+    index_name_zh   varchar(50) not null,
+    regime          varchar(30) not null,
+    label           varchar(50) not null,
+    count           int not null,
+    avg_confidence  numeric(5,3),
+    avg_return_1m   numeric(10,6),
+    avg_return_3m   numeric(10,6),
+    avg_return_6m   numeric(10,6),
+    avg_return_12m  numeric(10,6),
+    win_rate_1m     numeric(5,3),
+    win_rate_3m     numeric(5,3),
+    win_rate_6m     numeric(5,3),
+    win_rate_12m    numeric(5,3),
+    updated_at      timestamptz not null default now(),
+    constraint uk_index_summary unique (index_symbol, period_start, period_end, regime)
+);
+create index if not exists idx_index_summaries_symbol on regime_index_summaries (index_symbol);
