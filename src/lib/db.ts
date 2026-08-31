@@ -1,17 +1,26 @@
 import { Pool } from '@neondatabase/serverless'
 
-const env = import.meta.env
+// 运行时 env 注入点：由 src/middleware.ts 在每个请求开始时注入
+// （Cloudflare Workers 的 secret/vars 通过 Astro.locals.runtime.env 暴露）。
+// 本地 astro dev 不经过 Workers，回退到 Vite 注入的 import.meta.env（读 .env）。
+let _runtimeEnv: Record<string, string | undefined> | null = null
+let _pool: Pool | null = null
 
-if (!env.DATABASE_URL) {
-  console.warn('[DB] Missing DATABASE_URL env var. Set it in .env or via `wrangler secret put DATABASE_URL`')
+export function setRuntimeEnv(env: Record<string, string | undefined> | null): void {
+  _runtimeEnv = env
+  _pool = null
 }
 
-let _pool: Pool | null = null
+function resolveEnv(): Record<string, string | undefined> {
+  if (_runtimeEnv) return _runtimeEnv
+  return import.meta.env as unknown as Record<string, string | undefined>
+}
 
 function getPool(): Pool {
   if (!_pool) {
+    const env = resolveEnv()
     if (!env.DATABASE_URL) {
-      throw new Error('Database not configured: set DATABASE_URL env var')
+      throw new Error('Database not configured: set DATABASE_URL (local .env or Cloudflare secret)')
     }
     _pool = new Pool({ connectionString: env.DATABASE_URL })
   }
