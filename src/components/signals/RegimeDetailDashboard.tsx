@@ -78,13 +78,13 @@ const REGIME_DESC: Record<string, string> = {
 }
 
 const REGIME_BG: Record<string, string> = {
-  GOLDILOCKS: 'rgba(34,197,94,0.08)',
-  RISK_ON: 'rgba(59,130,246,0.08)',
-  OVERHEAT: 'rgba(245,158,11,0.08)',
-  STAGFLATION: 'rgba(239,68,68,0.10)',
-  RISK_OFF: 'rgba(239,68,68,0.10)',
-  RECOVERY: 'rgba(6,182,212,0.08)',
-  UNKNOWN: 'rgba(156,163,175,0.05)',
+  GOLDILOCKS: 'rgba(34,197,94,0.22)',
+  RISK_ON: 'rgba(59,130,246,0.22)',
+  OVERHEAT: 'rgba(245,158,11,0.25)',
+  STAGFLATION: 'rgba(239,68,68,0.28)',
+  RISK_OFF: 'rgba(239,68,68,0.28)',
+  RECOVERY: 'rgba(6,182,212,0.22)',
+  UNKNOWN: 'rgba(156,163,175,0.15)',
 }
 
 function scoreFor(dir: Dir): string {
@@ -335,12 +335,12 @@ export function RegimeDetailDashboard() {
         <MacroCard title="S&P500 走势与宏观体制" padding="sm">
           <ResponsiveChartBox option={sp500Option} deps={[sp500Option]} />
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-2xs text-ink-3">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(34,197,94,0.35)' }} /> 金发女孩</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(59,130,246,0.35)' }} /> 风险偏好</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(245,158,11,0.35)' }} /> 过热</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(239,68,68,0.35)' }} /> 滞胀</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(239,68,68,0.35)' }} /> 风险规避</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(6,182,212,0.35)' }} /> 复苏</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.GOLDILOCKS }} /> 金发女孩</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.RISK_ON }} /> 风险偏好</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.OVERHEAT }} /> 过热</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.STAGFLATION }} /> 滞胀</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.RISK_OFF }} /> 风险规避</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: REGIME_BG.RECOVERY }} /> 复苏</span>
             <span className="inline-flex items-center gap-1.5 text-ink-3">背景色 = 当时判定宏观体制；虚线 = 体制切换点</span>
           </div>
         </MacroCard>
