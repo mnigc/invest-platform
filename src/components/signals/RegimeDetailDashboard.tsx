@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { EChartsOption } from 'echarts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ErrorState, EmptyState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
 import { DataTable } from '../ui/DataTable'
 import { Sparkline } from '../ui/Sparkline'
+import { ResponsiveChartBox } from '../charts/ChartBox'
+import { useChartTheme } from '../ui/theme'
+import {
+  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
+  chartTooltip, lineSeries, markLine, valueAxis,
+} from '../../lib/chartOptions'
+import type { BacktestSnapshot } from '../../lib/core'
 
 type Dir = -1 | 0 | 1
 
@@ -67,6 +75,16 @@ const REGIME_DESC: Record<string, string> = {
   RISK_OFF: '经济收缩、市场恐慌，典型的避险环境。国债、黄金、现金为王，远离风险资产。',
   RECOVERY: '经济从底部回升，政策仍偏宽松。关注周期股和新兴市场，逐步增加风险敞口。',
   UNKNOWN: '当前信号不够明确，无法判定单一体制。建议保持均衡配置，等待更多数据确认。',
+}
+
+const REGIME_BG: Record<string, string> = {
+  GOLDILOCKS: 'rgba(34,197,94,0.08)',
+  RISK_ON: 'rgba(59,130,246,0.08)',
+  OVERHEAT: 'rgba(245,158,11,0.08)',
+  STAGFLATION: 'rgba(239,68,68,0.10)',
+  RISK_OFF: 'rgba(239,68,68,0.10)',
+  RECOVERY: 'rgba(6,182,212,0.08)',
+  UNKNOWN: 'rgba(156,163,175,0.05)',
 }
 
 function scoreFor(dir: Dir): string {
@@ -177,8 +195,10 @@ function SignalCard({ signal }: { signal: RegimeSignal }) {
 export function RegimeDetailDashboard() {
   const [regime, setRegime] = useState<RegimeData | null>(null)
   const [backtest, setBacktest] = useState<BacktestSummary[] | null>(null)
+  const [snapshots, setSnapshots] = useState<BacktestSnapshot[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const t = useChartTheme()
 
   const load = () => {
     let alive = true
@@ -199,8 +219,9 @@ export function RegimeDetailDashboard() {
         }
 
         const backtestResult = results[1].status === 'fulfilled' ? results[1].value : null
-        if (backtestResult?.success && backtestResult.data?.summaries) {
+        if (backtestResult?.success && backtestResult.data) {
           setBacktest(backtestResult.data.summaries)
+          setSnapshots(backtestResult.data.snapshots ?? null)
         }
       })
       .catch((e: any) => alive && setError(e.message || '加载失败'))
@@ -215,6 +236,77 @@ export function RegimeDetailDashboard() {
   if (!regime) return <EmptyState title="暂无数据" description="宏观体制数据同步后将在此展示。" />
 
   const signals = regime.signals || []
+  const signalsCount = signals.filter((s) => s.score !== 0).length
+
+  const regimeSegments = useMemo(() => {
+    if (!snapshots || snapshots.length < 2) return [] as { from: string; to: string; regime: string; label: string }[]
+    const segments: { from: string; to: string; regime: string; label: string }[] = []
+    let segStart = snapshots[0].date
+    let segRegime = snapshots[0].regime
+    let segLabel = snapshots[0].label
+    for (let i = 1; i < snapshots.length; i++) {
+      if (snapshots[i].regime !== segRegime) {
+        segments.push({ from: segStart, to: snapshots[i].date, regime: segRegime, label: segLabel })
+        segStart = snapshots[i].date
+        segRegime = snapshots[i].regime
+        segLabel = snapshots[i].label
+      }
+    }
+    const last = snapshots[snapshots.length - 1]
+    segments.push({ from: segStart, to: last.date, regime: segRegime, label: segLabel })
+    return segments
+  }, [snapshots])
+
+  const sp500Option = useMemo<EChartsOption | null>(() => {
+    if (!snapshots || snapshots.length < 2) return null
+    const valid = snapshots.filter((s) => s.sp500Price > 0)
+    if (valid.length < 2) return null
+    const dates = valid.map((s) => s.date)
+    const prices = valid.map((s) => s.sp500Price)
+    const total = dates.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : `$${Number(v).toFixed(2)}`),
+      }),
+      grid: chartGrid({ top: 14, bottom: 32 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, { name: 'S&P500', nameTextStyle: { color: t.text3, fontSize: 10 } }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [
+        {
+          name: 'S&P500',
+          type: 'line',
+          data: prices,
+          smooth: 0.25,
+          lineStyle: { width: 2, color: t.series[2] },
+          itemStyle: { color: t.series[2] },
+          showSymbol: false,
+          emphasis: { focus: 'series', lineStyle: { width: 2.6 } },
+          markArea: {
+            silent: true,
+            data: regimeSegments.map((seg) => ({
+              xAxis: seg.from,
+              xAxisEnd: seg.to,
+              itemStyle: { color: REGIME_BG[seg.regime] || 'transparent' },
+              label: { show: false },
+            })),
+          },
+          markLine: {
+            silent: true,
+            symbol: ['none', 'none'],
+            animation: false,
+            data: regimeSegments.slice(1).map((seg) => ({
+              xAxis: seg.from,
+              lineStyle: { color: t.border, type: 'dashed', width: 1 },
+              label: { show: false },
+            })),
+          },
+        },
+      ],
+    } as EChartsOption
+  }, [snapshots, regimeSegments, t])
 
   return (
     <div className="flex flex-col gap-4">
@@ -226,9 +318,24 @@ export function RegimeDetailDashboard() {
 
       <div className="flex flex-wrap gap-2">
         <StatTile label="更新日期" value={regime.updatedAt} accent="blue" />
-        <StatTile label="信号数" value={`${signals.filter(s => s.score !== 0).length} / ${signals.length}`} accent="cyan" />
+        <StatTile label="信号数" value={`${signalsCount} / ${signals.length}`} accent="cyan" />
         <StatTile label="置信度" value={`${regime.confidence}%`} accent={regime.confidence > 60 ? 'green' : 'gold'} />
       </div>
+
+      {sp500Option && (
+        <MacroCard title="S&P500 走势与宏观体制" padding="sm">
+          <ResponsiveChartBox option={sp500Option} deps={[sp500Option]} />
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-2xs text-ink-3">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(34,197,94,0.35)' }} /> 金发女孩</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(59,130,246,0.35)' }} /> 风险偏好</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(245,158,11,0.35)' }} /> 过热</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(239,68,68,0.35)' }} /> 滞胀</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(239,68,68,0.35)' }} /> 风险规避</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(6,182,212,0.35)' }} /> 复苏</span>
+            <span className="inline-flex items-center gap-1.5 text-ink-3">背景色 = 当时判定宏观体制；虚线 = 体制切换点</span>
+          </div>
+        </MacroCard>
+      )}
 
       <MacroCard title="各指标信号详解" padding="md">
         <p className="mb-3 text-xs leading-relaxed text-ink-3">
