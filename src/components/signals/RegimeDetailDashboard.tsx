@@ -204,28 +204,37 @@ export function RegimeDetailDashboard() {
     let alive = true
     setLoading(true)
     setError('')
-    Promise.allSettled([
-      fetch('/api/v1/regime.json').then(r => r.json()),
-      fetch('/api/v1/regime/backtest.json').then(r => r.json()),
-    ])
-      .then((results) => {
-        if (!alive) return
 
-        const regimeResult = results[0].status === 'fulfilled' ? results[0].value : null
+    fetch('/api/v1/regime.json')
+      .then(r => r.json())
+      .then((regimeResult) => {
+        if (!alive) return
         if (regimeResult?.success && regimeResult.data) {
           setRegime(regimeResult.data)
         } else {
           setError(regimeResult?.error || '加载体制数据失败')
         }
-
-        const backtestResult = results[1].status === 'fulfilled' ? results[1].value : null
-        if (backtestResult?.success && backtestResult.data) {
-          setBacktest(backtestResult.data.summaries)
-          setSnapshots(backtestResult.data.snapshots ?? null)
-        }
       })
-      .catch((e: any) => alive && setError(e.message || '加载失败'))
-      .finally(() => alive && setLoading(false))
+      .catch((e: any) => {
+        if (!alive) return
+        setError(e.message || '加载体制数据失败')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+
+    fetch('/api/v1/regime/backtest.json')
+      .then(r => r.json())
+      .then((backtestResult) => {
+        if (!alive || !backtestResult?.success || !backtestResult.data) return
+        setBacktest(backtestResult.data.summaries)
+        setSnapshots(backtestResult.data.snapshots ?? null)
+      })
+      .catch(() => {
+        if (!alive) return
+        setSnapshots(null)
+      })
+
     return () => { alive = false }
   }
 
