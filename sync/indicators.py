@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""展示指标注册表 + 通用同步引擎（FRED / akshare）。
+"""展示指标注册表 + 通用同步引擎（FRED）。
 
 同步脚本按「展示模块」组织（sync_regime / sync_gold_decision /
 sync_global_liquidity），每个脚本只声明自己
@@ -46,8 +46,6 @@ _SYNCED = set()
 # =====================================================================
 # 指标注册表：key = (code, region)
 #   source = "fred"    -> spec["series"] 为 FRED series id
-#   source = "akshare" -> spec["fn"] 为 akshare 函数名，
-#                         spec["value_col"] 指定取值列（省略则按日期列+首个数值列推断）
 # =====================================================================
 INDICATORS = {
     # ── 美国宏观 / 市场（FRED）──
@@ -192,7 +190,7 @@ def ensure_defs(keys):
     params = []
     for key in keys:
         spec = INDICATORS[key]
-        src = "FRED" if spec["source"] == "fred" else "akshare(%s)" % spec["fn"]
+        src = "FRED"
         params.append((
             key[0], key[1], spec["zh"], spec["en"], spec["cat"], spec["sub"],
             spec["unit"], spec["freq"], src, describe(spec), 1,
@@ -267,44 +265,6 @@ def fetch_fred(series_id, start_date=DEFAULT_START):
 
 
 # =====================================================================
-# 取数：akshare
-# =====================================================================
-def _rows_from_columns(df, date_col, value_col):
-    """宽表取数（指定日期列 + 取值列）。"""
-    out = []
-    for _, r in df.iterrows():
-        d = _to_period(r.get(date_col))
-        if not d:
-            continue
-        v = safe_dec(r.get(value_col), 6)
-        if v is not None:
-            out.append((d, float(v)))
-    return out
-
-
-def fetch_akshare(spec):
-    """调用 akshare 函数并解析成 [(period_date, value)]。
-
-    注册表里 akshare 类指标必须显式指定 date_col / value_col（宽表列不固定，
-    自动推断容易抓错列）。
-    """
-    import akshare as ak
-    value_col = spec.get("value_col")
-    date_col = spec.get("date_col", "日期")
-    if not value_col:
-        raise RuntimeError("akshare 指标 %s 未指定 value_col" % spec["fn"])
-
-    fn = getattr(ak, spec["fn"])
-    df = with_retry(fn, timeout=60, max_retry=3, **spec.get("kwargs", {}))
-    if df is None or getattr(df, "empty", True):
-        log.warning("akshare %s 返回空数据", spec["fn"])
-        return []
-    rows = _rows_from_columns(df, date_col, value_col)
-    log.info("akshare %s -> %d 条", spec["fn"], len(rows))
-    return rows
-
-
-# =====================================================================
 # 同步引擎
 # =====================================================================
 def _upsert(indicator_id, rows):
@@ -335,10 +295,9 @@ def _sync_one(key, full=False):
         else:
             start = (date.fromisoformat(last) - timedelta(days=OVERLAP_DAYS)).isoformat()
 
-    if spec["source"] == "fred":
-        rows = fetch_fred(spec["series"], start)
-    else:
-        rows = fetch_akshare(spec)
+    if spec["source"] != "fred":
+        raise RuntimeError("unsupported source: %s (only 'fred' supported)" % spec["source"])
+    rows = fetch_fred(spec["series"], start)
 
     rows = [(d, v) for d, v in rows if d >= start]
     if not rows:

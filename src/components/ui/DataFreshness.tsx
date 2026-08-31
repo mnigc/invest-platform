@@ -48,7 +48,7 @@ const HEALTH_TEXT: Record<Health, string> = {
   unknown: 'text-ink-3',
 }
 
-const SOURCES = 'FRED · Yahoo Finance · akshare'
+const SOURCES = 'FRED · Yahoo Finance'
 
 /**
  * 顶栏数据新鲜度指示。

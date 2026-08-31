@@ -41,7 +41,6 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          echo "== 海外 runner：akshare 国内数据源通常不可直连（预期降级）=="
           echo "== FRED 直连测试 =="
           curl -sS -m 15 -o /dev/null -w "fred http_code=%{http_code}\n" https://api.stlouisfed.org || echo "FRED 直连失败"
 

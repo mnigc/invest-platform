@@ -5,7 +5,7 @@
 
 ```
 sync/
-├── indicators.py           # 指标注册表 + 同步引擎（FRED / akshare）
+├── indicators.py           # 指标注册表 + 同步引擎（FRED）
 ├── sync_base.py            # 连接、日志、重试、MySQL→PostgreSQL SQL 适配、批量 UPSERT
 ├── run_sync.py             # 统一调度入口
 ├── sync_regime.py          # 宏观体制与风险异常 /signal-board
@@ -114,8 +114,6 @@ cd /opt/macro
 ```
 
 - `source="fred"` → `series` 为 FRED series id
-- `source="akshare"` → `fn` 为 akshare 函数名；宽表用 `date_col` / `value_col` 指定列，
-  省略则按「首个日期单元 + 首个正数数值单元」自动推断
 - 跨模块共用的指标（如 DGS10 同时被 regime / gold_decision 使用）在同一次 `run_sync`
   进程内只会真正拉取一次，日志里显示「本轮已同步过，跳过」
 
