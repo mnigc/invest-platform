@@ -28,6 +28,16 @@ async function loadSeries(code: string, limitDays = 1825): Promise<{ date: strin
     .reverse();
 }
 
+function ffillMap(points: { date: string; value: number }[]): Map<string, number> {
+  const out = new Map<string, number>();
+  let last: number | null = null;
+  for (const p of points) {
+    last = p.value;
+    out.set(p.date, last);
+  }
+  return out;
+}
+
 export const GET = withCache(async () => {
   try {
     const results = await Promise.all(CODES.map((c) => loadSeries(c.code)));
@@ -40,9 +50,11 @@ export const GET = withCache(async () => {
       data: results[i].map((p) => ({ date: p.date, value: p.value })),
     }));
 
-    // Fetch units/frequency from indicators table
     const meta = await query<any>(
-      `SELECT code, unit, frequency FROM indicators WHERE code IN (${CODES.map(() => '?').join(',')})`,
+      `SELECT code, unit, frequency, max(updated_at) AS last_update
+       FROM indicators
+       WHERE code IN (${CODES.map(() => '?').join(',')})
+       GROUP BY code, unit, frequency`,
       CODES.map((c) => c.code)
     );
     const metaMap = new Map(meta.map((r: any) => [r.code, { unit: r.unit, frequency: r.frequency }]));
@@ -53,28 +65,33 @@ export const GET = withCache(async () => {
         s.frequency = m.frequency;
       }
     }
+    const updatedAt = meta
+      .map((r: any) => (r.last_update ? String(r.last_update) : null))
+      .filter(Boolean)
+      .sort()
+      .pop();
 
-    // 计算净流动性：美联储总资产 - RRP - TGA
-    const fedData = results[0] // FED_BALANCE_SHEET
-    const rrpData = results[1] // FED_RRP
-    const tgaData = results[2] // FED_TGA
+    const fedData = results[0];
+    const rrpData = results[1];
+    const tgaData = results[2];
 
-    const rrpMap = new Map(rrpData.map(p => [p.date, p.value]))
-    const tgaMap = new Map(tgaData.map(p => [p.date, p.value]))
+    const rrpMap = ffillMap(rrpData);
+    const tgaMap = ffillMap(tgaData);
 
-    const netLiquidity: { date: string; value: number }[] = []
+    const netLiquidity: { date: string; value: number }[] = [];
     for (const p of fedData) {
-      const rrp = rrpMap.get(p.date) ?? 0
-      const tga = tgaMap.get(p.date) ?? 0
+      const rrp = rrpMap.get(p.date);
+      const tga = tgaMap.get(p.date);
+      if (rrp == null || tga == null) continue;
       netLiquidity.push({
         date: p.date,
         value: +(p.value - rrp - tga).toFixed(2),
-      })
+      });
     }
 
     const result: GlobalLiquidityResponse = {
       series,
-      updatedAt: new Date().toISOString(),
+      updatedAt: updatedAt || new Date().toISOString(),
       netLiquidity,
     };
 
@@ -88,4 +105,4 @@ export const GET = withCache(async () => {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
-}, 600);
+}, 1800);

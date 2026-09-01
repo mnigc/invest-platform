@@ -95,6 +95,13 @@ TASKS = {
         "delay": 0,
         "args": [],
     },
+    "analysis_liquidity": {
+        "name": "预计算：全球流动性分析（净流动性/分位/z-score/前瞻收益）",
+        "script": "sync_analysis_liquidity",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
     "analysis_inflation_anchor": {
         "name": "预计算：通胀预期锚定分析",
         "script": "sync_inflation_anchor",
@@ -134,6 +141,7 @@ TASK_ORDER = [
     "analysis_cross_asset",
     "analysis_macro_consensus",
     "analysis_credit_stress",
+    "analysis_liquidity",
     "analysis_inflation_anchor",
     "analysis_yield_curve",
     "analysis_gold_correlation",

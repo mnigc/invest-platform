@@ -139,7 +139,15 @@ function FedChart({ series }: { series: SeriesData[] }) {
   return <ResponsiveChartBox option={option} deps={[option]} />
 }
 
-function NetLiquidityChart({ netLiquidity }: { netLiquidity: { date: string; value: number }[] }) {
+function NetLiquidityChart({
+  netLiquidity,
+  thresholds,
+  events,
+}: {
+  netLiquidity: { date: string; value: number }[]
+  thresholds?: { median?: number | null; p10?: number | null; p90?: number | null } | null
+  events?: { date: string; label: string }[] | null
+}) {
   const t = useChartTheme()
 
   const option = useMemo(() => {
@@ -147,16 +155,44 @@ function NetLiquidityChart({ netLiquidity }: { netLiquidity: { date: string; val
     const dates = netLiquidity.map((p) => p.date)
     const vals = netLiquidity.map((p) => +(p.value / 1e6).toFixed(4))
 
+    const thLine = (v: number | null | undefined, color: string, label: string) =>
+      v == null
+        ? null
+        : {
+            yAxis: v,
+            lineStyle: { color, type: 'dashed', width: 1 },
+            symbol: ['none', 'none'],
+            animation: false,
+            label: { show: true, formatter: label, position: 'insideEndTop', fontSize: 9, color },
+          }
+
+    const eventMarks = (events || [])
+      .filter((e) => dates.includes(e.date))
+      .map((e) => ({
+        xAxis: e.date,
+        lineStyle: { color: t.warn, type: 'solid', width: 1, opacity: 0.8 },
+        label: {
+          show: true,
+          formatter: e.label,
+          position: 'insideEndTop',
+          rotate: 90,
+          fontSize: 8,
+          color: t.warn,
+          distance: 2,
+        },
+      }))
+
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         formatter: (params: any) => {
-          if (!params || !params.value) return ''
-          return `<div style="font-size:11px;color:${t.text3};margin-bottom:4px">${params.axisValue}</div>
+          const p = Array.isArray(params) ? params[0] : params
+          if (!p) return ''
+          return `<div style="font-size:11px;color:${t.text3};margin-bottom:4px">${p.axisValue}</div>
 <div style="display:flex;align-items:center;gap:6px">
   <span style="width:8px;height:8px;border-radius:50%;background:${t.series[0]};flex:none"></span>
   <span>净流动性</span>
-  <span style="margin-left:20px;font-weight:600;color:${t.series[0]}">${fmtTrillion(params.value * 1e6)}</span>
+  <span style="margin-left:20px;font-weight:600;color:${t.series[0]}">${fmtTrillion(p.value * 1e6)}</span>
 </div>`
         },
       }),
@@ -171,10 +207,21 @@ function NetLiquidityChart({ netLiquidity }: { netLiquidity: { date: string; val
         lineSeries('净流动性', vals, t.series[0], {
           lineStyle: { width: 1.3, color: t.series[0] },
           areaStyle: { color: t.series[0], opacity: 0.08 },
+          markLine: {
+            silent: true,
+            symbol: ['none', 'none'],
+            animation: false,
+            data: [
+              thLine(thresholds?.p10, t.down, '10% 分位'),
+              thLine(thresholds?.median, t.borderSoft, '5 年中位'),
+              thLine(thresholds?.p90, t.up, '90% 分位'),
+              ...eventMarks,
+            ].filter(Boolean),
+          },
         }),
       ],
     }
-  }, [netLiquidity, t])
+  }, [netLiquidity, thresholds, events, t])
 
   if (!option) return <EmptyState title="净流动性数据暂无" />
   return <ResponsiveChartBox option={option} deps={[option]} />
@@ -306,8 +353,50 @@ function SofrChart({ series }: { series: SeriesData[] }) {
 
 /* --------------------------------------------------------------------------- */
 
+interface Analysis {
+  current: {
+    netLiquidityTrn: number | null
+    weeklyChangeTrn: number | null
+    trendChangeTrn: number | null
+    zScore5y: number | null
+    percentile5y: number | null
+    asOf: string
+  }
+  thresholds: { median: number | null; p10: number | null; p90: number | null }
+  signal: {
+    direction: 'expansion' | 'contraction' | 'neutral'
+    strength: 'strong' | 'moderate' | 'weak'
+    confidence: number
+    status: string
+    statusDesc: string
+    evidence: string[]
+  }
+  history: { dates: string[]; netLiquidityTrn: number[]; zScore5y: (number | null)[] }
+  liquidityEvents: { date: string; label: string; desc: string }[]
+  forwardReturns: {
+    regime: string
+    n: number
+    avgReturn1m: number | null
+    avgReturn3m: number | null
+    avgReturn6m: number | null
+    avgReturn12m: number | null
+    winRate1m: number | null
+    winRate3m: number | null
+    winRate6m: number | null
+    winRate12m: number | null
+  }[]
+  updatedAt: string
+}
+
+const REGIME_LABEL: Record<string, string> = {
+  expansion: '扩张',
+  contraction: '收缩',
+  neutral: '中性',
+}
+
 export default function GlobalLiquidityDashboard() {
   const [data, setData] = useState<Payload | null>(null)
+  const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [reloadKey, setReloadKey] = useState(0)
@@ -318,11 +407,19 @@ export default function GlobalLiquidityDashboard() {
     setLoading(true)
     ;(async () => {
       try {
-        const res = await fetch('/api/v1/global-liquidity.json')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json = await res.json()
-        if (!json.success) throw new Error(json.error || '加载失败')
-        if (!cancelled) setData(json.data)
+        const [raw, ana] = await Promise.all([
+          fetch('/api/v1/global-liquidity.json').then(async (r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`)
+            return r.json()
+          }),
+          fetch('/api/v1/analysis/liquidity.json')
+            .then((r) => r.json())
+            .catch(() => null),
+        ])
+        if (!raw.success) throw new Error(raw.error || '加载失败')
+        if (cancelled) return
+        setData(raw.data)
+        if (ana && ana.success) setAnalysis(ana.data as Analysis)
       } catch (e: any) {
         if (!cancelled) setError(e.message || '网络错误')
       } finally {
@@ -338,55 +435,90 @@ export default function GlobalLiquidityDashboard() {
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const fedS = findSeries(data, CODE.fed)
   const rrpS = findSeries(data, CODE.rrp)
   const tgaS = findSeries(data, CODE.tga)
   const sofrS = findSeries(data, CODE.sofr)
 
   const last = (s?: SeriesData) => s?.data?.[s.data.length - 1]?.value ?? null
-  const fedLast = last(fedS)
-  const fedPrev = fedS?.data?.[fedS.data.length - 2]?.value ?? null
-  const fedChange =
-    fedLast != null && fedPrev != null
-      ? ((fedLast - fedPrev) / fedPrev) * 100
-      : null
   const rrpLast = last(rrpS)
+  const rrpPrev = rrpS?.data?.[rrpS.data.length - 2]?.value ?? null
+  const rrpChange = rrpLast != null && rrpPrev != null ? rrpLast - rrpPrev : null
   const tgaLast = last(tgaS)
+  const tgaPrev = tgaS?.data?.[tgaS.data.length - 2]?.value ?? null
+  const tgaChange = tgaLast != null && tgaPrev != null ? tgaLast - tgaPrev : null
   const sofrLast = last(sofrS)
+  const sofrPrev = sofrS?.data?.[sofrS.data.length - 2]?.value ?? null
+  const sofrChange = sofrLast != null && sofrPrev != null ? sofrLast - sofrPrev : null
+
+  const netLast = data.netLiquidity?.[data.netLiquidity.length - 1]?.value ?? null
+  const netPrev = data.netLiquidity?.[data.netLiquidity.length - 2]?.value ?? null
+  const netChange = netLast != null && netPrev != null ? netLast - netPrev : null
 
   const hasChartData = data.series.some((s) => s.data.length > 0)
-  const changeTone =
-    fedChange == null ? 'neutral' : fedChange >= 0 ? 'up' : ('down' as const)
+  const netChangeTone =
+    netChange == null ? 'neutral' : netChange >= 0 ? 'up' : ('down' as const)
+
+  const sig = analysis?.signal
+  const cur = analysis?.current
 
   return (
     <div className="flex flex-col gap-4">
       {/* 关键指标 */}
       <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-info/35 bg-info/10 p-3.5">
-          <div className="text-2xs uppercase tracking-wider text-ink-3">
-            美联储总资产
+        <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-accent/40 bg-accent/10 p-3.5">
+          <div className="flex items-center gap-2 text-2xs uppercase tracking-wider text-ink-3">
+            <span>净流动性</span>
+            {sig && (
+              <span
+                className={`rounded-sm border px-1.5 py-px text-2xs font-semibold uppercase ${
+                  sig.direction === 'expansion'
+                    ? 'border-up/40 text-up'
+                    : sig.direction === 'contraction'
+                      ? 'border-down/40 text-down'
+                      : 'border-line text-ink-3'
+                }`}
+              >
+                {REGIME_LABEL[sig.direction] || sig.direction}
+              </span>
+            )}
           </div>
-          <div className="num text-3xl font-bold leading-none text-info">
-            {fedLast == null ? '--' : fmtTrillion(fedLast / 1e6)}
+          <div className="num text-3xl font-bold leading-none text-accent">
+            {netLast == null ? '--' : fmtTrillion(netLast)}
           </div>
-          <div className={`num text-xs ${changeTone === 'up' ? 'text-up' : changeTone === 'down' ? 'text-down' : 'text-ink-3'}`}>
-            周变化 {fedChange == null ? '--' : `${fedChange >= 0 ? '+' : ''}${fedChange.toFixed(2)}%`}
+          <div className={`num text-xs ${netChangeTone === 'up' ? 'text-up' : netChangeTone === 'down' ? 'text-down' : 'text-ink-3'}`}>
+            周变化{' '}
+            {netChange == null
+              ? '--'
+              : `${netChange >= 0 ? '+' : ''}${(netChange / 1e6).toFixed(3)} 万亿`}
+            {cur?.zScore5y != null && (
+              <span className="ml-2 text-ink-3">
+                · z {cur.zScore5y.toFixed(2)}
+              </span>
+            )}
+            {cur?.percentile5y != null && (
+              <span className="ml-2 text-ink-3">
+                · 5Y 分位 {cur.percentile5y.toFixed(0)}%
+              </span>
+            )}
           </div>
         </div>
 
         <StatTile
           label="RRP 规模"
           value={rrpLast == null ? '--' : fmtTrillion(rrpLast / 1000)}
+          sub={rrpChange != null ? `周 ${rrpChange >= 0 ? '+' : ''}${(rrpChange / 1000).toFixed(3)}T` : undefined}
           tone="warn"
         />
         <StatTile
           label="TGA 余额"
           value={tgaLast == null ? '--' : fmtTrillion(tgaLast / 1e6)}
+          sub={tgaChange != null ? `周 ${tgaChange >= 0 ? '+' : ''}${(tgaChange / 1e6).toFixed(3)}T` : undefined}
           tone="down"
         />
         <StatTile
           label="SOFR"
           value={sofrLast == null ? '--' : `${sofrLast.toFixed(2)}%`}
+          sub={sofrChange != null ? `Δ ${sofrChange >= 0 ? '+' : ''}${sofrChange.toFixed(2)}pp` : undefined}
           tone="info"
         />
       </div>
@@ -405,10 +537,42 @@ export default function GlobalLiquidityDashboard() {
           </MacroCard>
 
           {data.netLiquidity && data.netLiquidity.length > 0 && (
-            <MacroCard title="净流动性 (美联储总资产 - RRP - TGA)">
-              <NetLiquidityChart netLiquidity={data.netLiquidity} />
+            <MacroCard
+              title="净流动性 (美联储总资产 - RRP - TGA)"
+              accent={
+                sig?.direction === 'expansion'
+                  ? 'green'
+                  : sig?.direction === 'contraction'
+                    ? 'red'
+                    : 'none'
+              }
+            >
+              <NetLiquidityChart
+                netLiquidity={data.netLiquidity}
+                thresholds={analysis?.thresholds}
+                events={analysis?.liquidityEvents}
+              />
               <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-                净流动性 = 美联储总资产 - RRP 逆回购 - TGA 账户余额。这是衡量市场真实流动性的更精确指标。
+                净流动性 = 美联储总资产 - RRP 逆回购 - TGA 账户余额。
+                {sig && (
+                  <>
+                    {' '}
+                    当前体制：
+                    <span
+                      className={`font-semibold ${
+                        sig.direction === 'expansion'
+                          ? 'text-up'
+                          : sig.direction === 'contraction'
+                            ? 'text-down'
+                            : 'text-ink-2'
+                      }`}
+                    >
+                      {REGIME_LABEL[sig.direction]}
+                    </span>
+                    （{sig.strength === 'strong' ? '强' : sig.strength === 'moderate' ? '中' : '弱'} ·
+                    置信度 {sig.confidence}%）— {sig.statusDesc}
+                  </>
+                )}
               </p>
             </MacroCard>
           )}
@@ -423,7 +587,7 @@ export default function GlobalLiquidityDashboard() {
               ]}
             />
             <p className="mt-1.5 text-2xs text-ink-3">
-              以最早共同日期为基准 100，展示相对扩张/收缩幅度
+              以最早共同日期为基准 100，展示相对扩张/收缩幅度（各央行本币计价，未做汇率调整）
             </p>
           </MacroCard>
 

@@ -57,7 +57,7 @@ const ANALYSIS_MODULES: AnalysisTarget[] = [
   { id: 'inflation-anchor', module: '通胀锚定', title: '通胀预期锚定', url: '/api/v1/analysis/inflation-anchor.json', link: '/analysis/inflation-anchor' },
   { id: 'cross-asset', module: '跨资产相关', title: '跨资产相关性', url: '/api/v1/analysis/cross-asset-correlation.json', link: '/analysis/cross-asset' },
   { id: 'credit-stress', module: '信用压力', title: '信用压力监测', url: '/api/v1/analysis/credit-stress.json', link: '/analysis/credit-stress' },
-  { id: 'liquidity', module: '全球流动性', title: '全球净流动性', url: '/api/v1/global-liquidity.json', link: '/indicators/global-liquidity' },
+  { id: 'liquidity', module: '全球流动性', title: '全球净流动性', url: '/api/v1/analysis/liquidity.json', link: '/indicators/global-liquidity' },
 ]
 
 /**
@@ -340,23 +340,23 @@ export function SignalBoardDashboard() {
         const liq =
           results[4].status === 'fulfilled' ? results[4].value : EMPTY_RESULT
         if (liq.ok && liq.data) {
-          const nl: { date: string; value: number }[] = liq.data.netLiquidity ?? []
-          if (nl.length >= 2) {
-            const last = nl[nl.length - 1].value
-            const prev = nl[Math.max(0, nl.length - 7)].value
-            tls.netLiq = +(last / 1e6).toFixed(4)
-            tls.netLiqDelta = +((last - prev) / 1e6).toFixed(4)
-            const delta = tls.netLiqDelta
+          const s = liq.data.signal
+          const c = liq.data.current
+          if (s && c) {
+            tls.netLiq = c.netLiquidityTrn ?? null
+            tls.netLiqDelta = c.weeklyChangeTrn ?? null
             rows.push({
               id: 'liquidity',
               module: '全球流动性',
-              title: ANALYSIS_MODULES[5].title,
-              direction: delta > 0 ? 1 : delta < 0 ? -1 : 0,
-              confidence: 55,
-              evidence: [
-                `美联储净流动性 ${fmtTrillions(tls.netLiq)}`,
-                `较 6 个月前 ${delta >= 0 ? '+' : ''}${delta.toFixed(2)}T`,
-              ],
+              title: `净流动性 ${c.netLiquidityTrn?.toFixed(2) ?? '--'}T · ${s.direction === 'expansion' ? '扩张' : s.direction === 'contraction' ? '收缩' : '中性'}`,
+              direction:
+                s.direction === 'expansion'
+                  ? 1
+                  : s.direction === 'contraction'
+                    ? -1
+                    : 0,
+              confidence: s.confidence ?? 50,
+              evidence: (s.evidence || []).slice(0, 3).map(String),
               link: ANALYSIS_MODULES[5].link,
             })
           }
