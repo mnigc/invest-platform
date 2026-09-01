@@ -51,10 +51,11 @@ export const GET = withCache(async () => {
     }));
 
     const meta = await query<any>(
-      `SELECT code, unit, frequency, max(updated_at) AS last_update
-       FROM indicators
-       WHERE code IN (${CODES.map(() => '?').join(',')})
-       GROUP BY code, unit, frequency`,
+      `SELECT i.code, i.unit, i.frequency, max(d.period_date) AS last_update
+       FROM indicators i
+       LEFT JOIN indicator_data d ON d.indicator_id = i.id
+       WHERE i.code IN (${CODES.map(() => '?').join(',')})
+       GROUP BY i.code, i.unit, i.frequency`,
       CODES.map((c) => c.code)
     );
     const metaMap = new Map(meta.map((r: any) => [r.code, { unit: r.unit, frequency: r.frequency }]));
