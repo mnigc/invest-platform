@@ -60,10 +60,29 @@ const ANALYSIS_MODULES: AnalysisTarget[] = [
   { id: 'liquidity', module: '全球流动性', title: '全球净流动性', url: '/api/v1/global-liquidity.json', link: '/indicators/global-liquidity' },
 ]
 
+/**
+ * 各分析模块 signal.direction 的取值不统一，这里统一映射到 -1/0/1。
+ * 取值来源：sync/sync_*.py 中 6 个预计算脚本产出的 signal.direction。
+ * 缺表的值返回 0，模块会被 active 过滤掉、不参与总分 —— 新增模块时务必在此登记。
+ */
+const DIRECTION_MAP: Record<string, Dir> = {
+  // 风险偏好 / 趋势类
+  bullish: 1,
+  risk_on: 1,
+  expansion: 1,
+  positive: 1,
+  bearish: -1,
+  risk_off: -1,
+  contraction: -1,
+  negative: -1,
+  // 政策立场类（通胀锚定模块）：鸽派利多风险资产，鹰派利空
+  dovish: 1,
+  hawkish: -1,
+}
+
 function dirFromSignal(direction: string | undefined): Dir {
-  if (direction === 'bullish' || direction === 'risk_on' || direction === 'expansion' || direction === 'positive') return 1
-  if (direction === 'bearish' || direction === 'risk_off' || direction === 'contraction' || direction === 'negative') return -1
-  return 0
+  if (!direction) return 0
+  return DIRECTION_MAP[direction] ?? 0
 }
 
 function safeJson<T = any>(

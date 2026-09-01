@@ -39,6 +39,7 @@ run_schema.py
 # Cloudflare
 .dev.vars/
 wrangler.toml.bak
+.wrangler/
 
 # tooling / session cache
 .kilo/

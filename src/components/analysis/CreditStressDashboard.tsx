@@ -162,7 +162,10 @@ export default function CreditStressDashboard() {
   if (!data) return <EmptyState title="暂无数据" />
 
   const statusTone = STATUS_COLORS[data.combinedStress.status] || 'text-ink-3'
-  const pct = (v: number) => (v * 100).toFixed(0)
+  // 量纲不同：percentile5y 是 0-100 分位值（与其余分析模块一致），
+  // winRate 是 0-1 比率。此前共用同一个 pct() 导致分位显示成 5000%。
+  const pctRank = (v: number) => v.toFixed(0)
+  const pctRate = (v: number) => (v * 100).toFixed(0)
 
   return (
     <div className="space-y-4">
@@ -171,7 +174,7 @@ export default function CreditStressDashboard() {
           <StatTile label="BBB 利差" value={data.currentSpread.bbbSpread != null ? `${data.currentSpread.bbbSpread.toFixed(2)}%` : '--'} />
           <StatTile label="HY OAS" value={data.currentSpread.hyOas != null ? `${data.currentSpread.hyOas.toFixed(2)}%` : '--'} />
           <StatTile label="BBB-HY 溢价" value={data.currentSpread.wedge != null ? `${data.currentSpread.wedge.toFixed(2)}%` : '--'} sub="HV - BBB" />
-          <StatTile label="历史分位" value={data.currentSpread.percentile5y != null ? `${pct(data.currentSpread.percentile5y)}%` : '--'} sub={data.currentSpread.spreadZScore != null ? `Z: ${data.currentSpread.spreadZScore.toFixed(2)}` : undefined} />
+          <StatTile label="历史分位" value={data.currentSpread.percentile5y != null ? `${pctRank(data.currentSpread.percentile5y)}%` : '--'} sub={data.currentSpread.spreadZScore != null ? `Z: ${data.currentSpread.spreadZScore.toFixed(2)}` : undefined} />
           <StatTile label="复合指数" value={data.combinedStress.combinedIndex != null ? data.combinedStress.combinedIndex.toFixed(3) : '--'} className={statusTone} />
           <StatTile label="状态" value={data.combinedStress.status.toUpperCase()} sub={data.updatedAt} />
         </div>
@@ -243,7 +246,7 @@ export default function CreditStressDashboard() {
                   key: 'winRate3m', header: '3M 胜率', numeric: true,
                   render: (r) => (
                     <span className={r.winRate3m >= 0.5 ? 'text-up' : 'text-down'}>
-                      {pct(r.winRate3m)}%
+                      {pctRate(r.winRate3m)}%
                     </span>
                   ),
                 },

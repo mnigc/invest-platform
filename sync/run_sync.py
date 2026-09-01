@@ -74,7 +74,77 @@ TASKS = {
         "delay": 25,
         "args": [],
     },
+    "analysis_cross_asset": {
+        "name": "预计算：跨资产相关性矩阵",
+        "script": "sync_cross_asset",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
+    "analysis_macro_consensus": {
+        "name": "预计算：宏观信号一致性评分",
+        "script": "sync_macro_consensus",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
+    "analysis_credit_stress": {
+        "name": "预计算：信用-利率交叉压力",
+        "script": "sync_credit_stress",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
+    "analysis_inflation_anchor": {
+        "name": "预计算：通胀预期锚定分析",
+        "script": "sync_inflation_anchor",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
+    "analysis_yield_curve": {
+        "name": "预计算：收益率曲线×宏观体制",
+        "script": "sync_yield_curve",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
+    "analysis_gold_correlation": {
+        "name": "预计算：黄金定价残差 + 美元关联信号",
+        "script": "sync_gold_correlation",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
 }
+
+# 执行顺序（重要）：analysis_* 是「预计算层」，必须跑在「取数层」之后。
+# 它们读的是 indicators / indicator_data / asset_prices / regime_snapshots，
+# 若提前执行会用到上一轮数据（恒定滞后一天），空库首次运行则必然全失败。
+# 注：此前用 sorted() 按 key 字母序执行，恰好把 6 个 analysis_* 全排到最前，属 bug。
+TASK_ORDER = [
+    # —— 取数层 ——
+    "indices",            # 美股指数 / 金价 / DXY（走网络源，耗时最长）
+    "gold_decision",
+    "global_liquidity",
+    "regime",
+    "macro_analysis",
+    "regime_backtest",    # 产出 regime_snapshots，analysis_yield_curve 依赖它
+    # —— 预计算层 ——
+    "analysis_cross_asset",
+    "analysis_macro_consensus",
+    "analysis_credit_stress",
+    "analysis_inflation_anchor",
+    "analysis_yield_curve",
+    "analysis_gold_correlation",
+]
+
+
+def _ordered(task_keys):
+    """按 TASK_ORDER 排序；未登记的任务排在末尾（字母序，便于发现遗漏）。"""
+    idx = {k: i for i, k in enumerate(TASK_ORDER)}
+    n = len(TASK_ORDER)
+    return sorted(task_keys, key=lambda k: (idx.get(k, n), k))
 
 
 def run_task(task_key):
@@ -115,7 +185,7 @@ def run_group(group_name):
     success_count = 0
     fail_count = 0
 
-    for task_key in sorted(group_tasks):
+    for task_key in _ordered(group_tasks):
         task = TASKS[task_key]
         if task["delay"] > 0:
             log.info("等待 %ds 后执行 %s", task["delay"], task_key)
@@ -140,6 +210,7 @@ def run_group(group_name):
         msg = f"任务组 {group_name} 全部失败: {fail_count}/{len(group_tasks)}"
     log.info(msg)
     write_sync_log("run_sync", status, success_count, msg)
+    return fail_count == 0
 
 
 def print_usage():
@@ -152,14 +223,15 @@ def print_usage():
     python run_sync.py --list               # 列出所有任务
 
 任务列表:""")
-    for key, task in sorted(TASKS.items()):
-        print(f"  {key:20} - {task['name']} (组: {task['group']})")
+    for key in _ordered(TASKS.keys()):
+        task = TASKS[key]
+        print(f"  {key:26} - {task['name']} (组: {task['group']})")
 
 
 def main():
     if len(sys.argv) < 2:
         print_usage()
-        return
+        sys.exit(1)
 
     arg = sys.argv[1]
 
@@ -169,23 +241,23 @@ def main():
 
     if arg == "--all":
         log.info("开始执行所有任务")
-        for group in GROUPS:
-            run_group(group)
-        return
+        # 逐个跑完再汇总，避免 all() 短路导致后续组被跳过
+        results = [run_group(group) for group in GROUPS]
+        sys.exit(0 if all(results) else 1)
 
     if arg == "--group":
         if len(sys.argv) < 3:
             print("请指定任务组: --group daily|weekly|monthly")
-            return
-        run_group(sys.argv[2])
-        return
+            sys.exit(1)
+        sys.exit(0 if run_group(sys.argv[2]) else 1)
 
     if arg in TASKS:
-        run_task(arg)
-        return
+        # 任务失败必须体现在退出码上，否则 CI 无法感知（此前恒为 0，失败被静默吞掉）
+        sys.exit(0 if run_task(arg) else 1)
 
     print(f"未知任务或参数: {arg}")
     print_usage()
+    sys.exit(1)
 
 
 if __name__ == "__main__":

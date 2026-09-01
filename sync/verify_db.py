@@ -11,13 +11,34 @@ import sys
 from sync_base import get_conn
 
 EXPECTED_TABLES = [
-    "indicators", "indicator_data", "assets", "asset_prices",
-    "gold_price_history", "data_sync_logs",
+    # 指标层
+    "indicators", "indicator_data",
+    # 资产层
+    "asset_categories", "assets", "asset_prices", "gold_price_history",
+    # 预计算回测层
+    "regime_snapshots", "regime_backtest_summaries", "regime_index_summaries",
+    # 预计算分析结果层（6 个重分析 API 的 JSON payload）
+    "analysis_results",
+    # 运维
+    "data_sync_logs",
+]
+
+# 6 个预计算端点。analysis_results 为空会让对应 API 返回 503，
+# 因此单独逐项检查，便于定位是「整表未建」还是「某个脚本没跑成功」。
+ANALYSIS_ENDPOINTS = [
+    "analysis/cross-asset-correlation",
+    "analysis/macro-consensus",
+    "analysis/credit-stress",
+    "analysis/inflation-anchor",
+    "analysis/yield-curve-regime",
+    "gold/correlation",
 ]
 
 DATE_COLUMNS = {
     "indicator_data": "MAX(period_date)",
     "gold_price_history": "MAX(price_date)",
+    "regime_snapshots": "MAX(snapshot_date)",
+    "analysis_results": "MAX(computed_at)",
 }
 
 
@@ -55,10 +76,31 @@ def main():
                 extra = "  最新: %s" % (str(d)[:10] if d else "--")
             print("  [%4s] %-24s %10s 条%s" % ("OK" if cnt else "EMPTY", table, "{:,}".format(cnt or 0), extra))
 
+    missing_endpoints = []
+    if "analysis_results" not in missing:
+        print("--- 预计算端点 (analysis_results) ---")
+        with conn.cursor() as cur:
+            for ep in ANALYSIS_ENDPOINTS:
+                cur.execute(
+                    "SELECT valid_from, computed_at FROM analysis_results WHERE endpoint = %s",
+                    (ep,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    missing_endpoints.append(ep)
+                    print("  [MISSING] %-36s 尚未生成" % ep)
+                else:
+                    print("  [  OK  ] %-36s valid_from=%s  computed_at=%s"
+                          % (ep, row["valid_from"], str(row["computed_at"])[:19]))
+
     conn.close()
-    print("=== %d/%d 表存在 ===" % (ok, len(EXPECTED_TABLES)))
+    print("=== %d/%d 表存在，%d/%d 端点就绪 ==="
+          % (ok, len(EXPECTED_TABLES), len(ANALYSIS_ENDPOINTS) - len(missing_endpoints), len(ANALYSIS_ENDPOINTS)))
     if missing:
         print("缺失表（请先在 supabase_schema.sql 建表）:", ", ".join(missing))
+    if missing_endpoints:
+        print("缺失端点（请执行对应同步脚本）:", ", ".join(missing_endpoints))
+    if missing or missing_endpoints:
         sys.exit(2)
     print("[verify_db] 数据表就绪，可以运行: python3 run_sync.py --list")
 

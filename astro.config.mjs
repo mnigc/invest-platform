@@ -5,7 +5,7 @@ import cloudflare from '@astrojs/cloudflare';
 
 export default defineConfig({
   integrations: [react(), tailwind({ applyBaseStyles: false })],
-  output: 'server',
+  output: 'static',
   adapter: cloudflare(),
   server: {
     host: process.env.HOST || '0.0.0.0',

@@ -14,7 +14,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -62,6 +62,35 @@ jobs:
         working-directory: sync
         run: python run_sync.py macro_analysis
         # 说明：收益率曲线/通胀预期/信用利差等FRED指标同步
+
+      # ===== 预计算层：必须在上面取数任务之后，读库计算后写 analysis_results =====
+      # 这些任务把原先在 Worker 里跑的重计算（滚动相关/事件研究/OLS 残差）离线化，
+      # 用于消除 Cloudflare "Worker exceeded CPU time limit"。顺序不可调整。
+
+      - name: "Run analysis_cross_asset sync (预计算: 跨资产相关性矩阵)"
+        working-directory: sync
+        run: python run_sync.py analysis_cross_asset
+
+      - name: "Run analysis_macro_consensus sync (预计算: 宏观信号一致性评分)"
+        working-directory: sync
+        run: python run_sync.py analysis_macro_consensus
+
+      - name: "Run analysis_credit_stress sync (预计算: 信用-利率交叉压力)"
+        working-directory: sync
+        run: python run_sync.py analysis_credit_stress
+
+      - name: "Run analysis_inflation_anchor sync (预计算: 通胀预期锚定分析)"
+        working-directory: sync
+        run: python run_sync.py analysis_inflation_anchor
+
+      - name: "Run analysis_yield_curve sync (预计算: 收益率曲线×宏观体制)"
+        working-directory: sync
+        run: python run_sync.py analysis_yield_curve
+        # 说明：依赖上一步 regime_backtest 产出的 regime_snapshots
+
+      - name: "Run analysis_gold_correlation sync (预计算: 黄金定价残差+美元关联)"
+        working-directory: sync
+        run: python run_sync.py analysis_gold_correlation
 
       - name: Upload sync logs
         if: always()

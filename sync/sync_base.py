@@ -10,12 +10,14 @@
 import os
 import sys
 import re
+import json
+import math
 import time
 import socket
 import logging
 import threading
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
 
 import psycopg2
@@ -420,6 +422,65 @@ def safe_int(v):
         return int(float(v))
     except Exception:
         return None
+
+
+# ============== 预计算结果写入（analysis_results）==============
+def json_sanitize(obj):
+    """递归把 payload 规整成 PG jsonb 能接受的纯 JSON 值。
+
+    关键点：PostgreSQL 的 jsonb **不接受** NaN / Infinity 字面量，
+    而 Python 的 json.dumps 默认会把它们原样输出成 NaN / Infinity。
+    这类值通常来自除零、空窗口滚动计算或首项哨兵（如 rolling_corr 的 NaN 占位），
+    一旦漏进 payload，写入时会抛 "invalid input syntax for type json"，
+    导致整行 upsert 失败。语义上它们等价于「无数据」，统一转成 null。
+    """
+    if obj is None or isinstance(obj, bool):
+        return obj
+    if isinstance(obj, dict):
+        return {k: json_sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [json_sanitize(v) for v in obj]
+    if isinstance(obj, Decimal):
+        try:
+            obj = float(obj)
+        except Exception:
+            return None
+    if isinstance(obj, (int, float)):
+        try:
+            return obj if math.isfinite(obj) else None
+        except (TypeError, ValueError):
+            return None
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    return obj
+
+
+def dumps_json(payload):
+    """序列化 payload。allow_nan=False 是双保险：万一 sanitize 有遗漏，
+    让它在 Python 侧就抛出明确错误，而不是等 PG 抛难定位的 syntax error。"""
+    return json.dumps(json_sanitize(payload), ensure_ascii=False, allow_nan=False)
+
+
+def upsert_analysis_result(conn, endpoint, valid_from, payload, version=1):
+    """把某个端点的预计算结果整包写入 analysis_results（endpoint 为主键）。
+
+    6 个预计算脚本共用：analysis/cross-asset-correlation、macro-consensus、
+    credit-stress、inflation-anchor、yield-curve-regime、gold/correlation。
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO analysis_results (endpoint, computed_at, valid_from, payload, version)
+            VALUES (%s, now(), %s, %s::jsonb, %s)
+            ON CONFLICT (endpoint) DO UPDATE SET
+                computed_at = EXCLUDED.computed_at,
+                valid_from  = EXCLUDED.valid_from,
+                payload     = EXCLUDED.payload,
+                version     = EXCLUDED.version
+            """,
+            (endpoint, valid_from, dumps_json(payload), version),
+        )
+    conn.commit()
 
 
 # ============== 高性能批量写入 ==============

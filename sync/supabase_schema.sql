@@ -177,3 +177,15 @@ create table if not exists regime_index_summaries (
     constraint uk_index_summary unique (index_symbol, period_start, period_end, regime)
 );
 create index if not exists idx_index_summaries_symbol on regime_index_summaries (index_symbol);
+
+-- ── 预计算分析结果（解决 Worker CPU 超限：6 个重分析接口改为读预计算 JSONB）──
+-- endpoint = 原 API 路径去前缀 + .json，例如 'analysis/cross-asset-correlation'
+-- payload  = 与原 API data 字段字节级一致
+create table if not exists analysis_results (
+    endpoint      text primary key,
+    computed_at   timestamptz not null default now(),
+    valid_from    date not null,
+    payload       jsonb not null,
+    version       int not null default 1
+);
+create index if not exists idx_analysis_results_computed_at on analysis_results (computed_at desc);

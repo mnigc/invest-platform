@@ -14,12 +14,12 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
-    "@astrojs/cloudflare": "^9.2.1",
-    "@astrojs/react": "^3.4.0",
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/cloudflare": "^12.6.13",
+    "@astrojs/react": "^4.4.2",
     "@neondatabase/serverless": "^1.1.0",
     "@tanstack/react-query": "^5.101.0",
-    "astro": "^4.9.0",
+    "astro": "^5.18.2",
     "echarts": "^5.5.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
