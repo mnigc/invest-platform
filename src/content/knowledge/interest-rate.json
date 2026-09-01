@@ -1,35 +1,36 @@
 {
   "title": "利率机制",
-  "subtitle": "名义利率 = 实际利率 + 通胀预期 · 曲线与传导",
-  "intro": "利率是金融资产的影子价格：名义利率 = 实际利率 + 通胀预期，期限溢价与供需共同决定收益率曲线形态。理解曲线的水平、斜率和曲率，是跨资产定价（股债金）的根。",
+  "subtitle": "名义利率 = 实际利率 + 通胀预期 · 曲线形态与传导",
+  "intro": "利率是所有资产的「地心引力」：名义利率 = 实际利率 + 通胀预期，再加上期限溢价，构成完整的收益率曲线。这张图把三个分量、曲线形态与政策传导链画在同一张图上——它们共同决定股票估值、债券价格、黄金与汇率，是跨资产定价的根。",
   "nodes": [
-    { "id": "real", "label": "实际利率", "type": "signal", "desc": "TIPS（DFII10）是真实的资金成本：实际利率上行=估值收紧，也是黄金的核心定价锚" },
-    { "id": "breakeven", "label": "盈亏平衡通胀", "type": "signal", "desc": "名义 - 实际（T10YIE）：市场对未来通胀的报价；>2.5% 即暗示预期松弛" },
-    { "id": "termprem", "label": "期限溢价", "type": "structural", "desc": "远期利率超出市场短期利率期望的部分：国债供给、久期风险、经济不确定性" },
-    { "id": "curve", "label": "收益率曲线", "type": "signal", "desc": "1M~30Y 各期限水平：陡峭化=宽松/复苏；平坦=紧缩后段" },
-    { "id": "invert", "label": "曲线倒挂", "type": "signal", "desc": "10Y-2Y < 0：历史上几乎 100% 领先衰退 12-18 个月（但老信号有钝化）" },
-    { "id": "transmit", "label": "利率传导链", "type": "structural", "desc": "政策利率 → 短端货币市场 → 长端供需 → 企业与居民融资成本 → 总需求" },
-    { "id": "equityR", "label": "股票估值", "type": "market", "desc": "折现率分母：实际利率每上行 100bp，成长股估值大约折损 10-20%" },
-    { "id": "bondr", "label": "债券价格", "type": "market", "desc": "利率下行=债价上行；久期越长弹性越大" },
-    { "id": "goldr", "label": "黄金", "type": "market", "desc": "零息资产：实际利率下行时持有现金机会成本降低 → 金价上行" },
-    { "id": "fx", "label": "汇率与利差", "type": "cross", "desc": "美中利差驱动人民币：美国利率相对走高 → 资本外流压力 → 人民币承压" },
-    { "id": "fedr", "label": "政策路径", "type": "response", "desc": "市场定价 FOMC 未来路径（点阵图 + FedWatch 隐含概率），宏观最硬的货币政策锚" }
+    { "id": "fedr", "label": "政策路径", "type": "response", "desc": "市场的「央行预期」：点阵图 + FedWatch 期货隐含概率。路径预期的修正（加息终点、降息时点）比单次会议决议更能驱动市场，是宏观最硬的政策锚。" },
+    { "id": "real", "label": "实际利率", "type": "signal", "desc": "扣除通胀后的真实资金成本（10Y TIPS / DFII10）：上行 = 估值收紧 + 持有黄金的机会成本上升。跨资产定价的第一变量。" },
+    { "id": "breakeven", "label": "盈亏平衡通胀", "type": "signal", "desc": "名义国债 - 同期限 TIPS = 市场为未来通胀的「报价」（T10YIE）。持续 > 2.5% 说明通胀预期松弛，< 1.5% 则逼近通缩担忧。" },
+    { "id": "termprem", "label": "期限溢价", "type": "structural", "desc": "持有长债要求的额外补偿：国债供给（财政赤字）、久期风险、货币政策不确定性共同决定。2023 年后美债收益率的波动很多来自它，而非加息预期本身。" },
+    { "id": "curve", "label": "收益率曲线", "type": "signal", "desc": "1M-30Y 各期限利率的「全景照片」：牛市陡峭化（降息预期）、熊市陡峭化（通胀 + 供给）、平坦化（紧缩后段）各有不同的交易含义。" },
+    { "id": "invert", "label": "曲线倒挂", "type": "signal", "desc": "10Y-2Y < 0：长端低于短端，市场押注央行将被迫降息。历史上几乎 100% 领先衰退 12-18 个月；但「这次不一样」的钝化争议也一直存在。" },
+    { "id": "transmit", "label": "利率传导链", "type": "structural", "desc": "政策落地的路径：政策利率 → 货币市场短端 → 债券长端（叠加期限溢价）→ 企业与居民融资成本 → 总需求。传导有时滞，通常 2-4 个季度才充分显效。" },
+    { "id": "equityR", "label": "股票估值", "type": "market", "desc": "分母端：折现率上行直接压缩估值。成长股「久期」长，对实际利率最敏感——实际利率每上行 100bp，成长股估值大约折损 10-20%。" },
+    { "id": "bondr", "label": "债券价格", "type": "market", "desc": "跷跷板：利率下行 = 债价上行，久期越长弹性越大——30Y 债对利率的敏感度约是 2Y 的十倍。管理债基本质是管理久期。" },
+    { "id": "goldr", "label": "黄金", "type": "market", "desc": "零息资产的机会成本账：实际利率越低，持有黄金「损失的利息」越少 → 金价越有支撑。实际利率的方向几乎决定金价的方向。" },
+    { "id": "fx", "label": "汇率与利差", "type": "cross", "desc": "利率是货币的引力：美中利差走阔 → 资本流向高息货币 → 人民币承压。利差是汇率的中期第一解释变量，比贸易差额更值得盯。" }
   ],
   "edges": [
-    { "source": "real", "target": "breakeven", "label": "加总为名义" },
-    { "source": "real", "target": "termprem", "label": "共同定价长端" },
-    { "source": "termprem", "target": "curve", "label": "远端斜率" },
-    { "source": "curve", "target": "invert", "label": "倒挂检测" },
+    { "source": "fedr", "target": "real", "label": "锚定短端" },
     { "source": "fedr", "target": "transmit", "label": "政策传导" },
-    { "source": "transmit", "target": "equityR", "label": "折现率变" },
-    { "source": "transmit", "target": "bondr", "label": "价格变" },
-    { "source": "real", "target": "goldr", "label": "机会成本" },
-    { "source": "fedr", "target": "fx", "label": "利差变动" }
+    { "source": "fedr", "target": "fx", "label": "利差变动" },
+    { "source": "real", "target": "curve", "label": "实际分量" },
+    { "source": "breakeven", "target": "curve", "label": "通胀预期分量" },
+    { "source": "termprem", "target": "curve", "label": "期限溢价分量" },
+    { "source": "curve", "target": "invert", "label": "倒挂检测" },
+    { "source": "transmit", "target": "equityR", "label": "融资与折现成本" },
+    { "source": "transmit", "target": "bondr", "label": "价格反向" },
+    { "source": "real", "target": "goldr", "label": "机会成本" }
   ],
-  "conclusion": "利率三件套（实际利率、盈亏平衡通胀、曲线形态）是宏观定价「总开关」：实际利率定黄金与成长股，盈亏平衡定商品与周期，曲线形态定衰退时间窗。",
+  "conclusion": "利率三件套：实际利率定黄金与成长股，盈亏平衡通胀定商品与周期，曲线形态定衰退时间窗。三个一起看，就是跨资产定价的总开关。",
   "strategy": [
-    "判断黄金：实际利率（DFII10）当前值与趋势是第一解释变量（平台已实现双因子定价残差模型）",
-    "判断股票估值：利率突变期（10Y 单季 ±100bp）盯紧估值与盈利的赛跑",
-    "曲线倒挂后 12-18 个月窗口：提高短债/现金比例是历史有效做法"
+    "判黄金：实际利率（DFII10）的水平与方向是第一解释变量（平台黄金双因子模型已内置）",
+    "判成长股：10Y 单季 ±100bp 的利率突变期，紧盯估值与盈利的赛跑，通常估值先输后赢",
+    "曲线倒挂后的 12-18 个月窗口：历史上提高短债 / 现金比例是最简单有效的防御"
   ]
 }

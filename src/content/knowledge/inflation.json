@@ -1,36 +1,38 @@
 {
   "title": "通胀机制",
-  "subtitle": "物价上涨的成因、传导与资产影响",
-  "intro": "通胀不是单一因素驱动的静态现象，而是货币、供需、预期与成本四条传导路径交织的结果。理解通胀链条，是判断央行政策与资产定价的核心前提。",
+  "subtitle": "物价上涨的四大成因、观察指标与资产传导",
+  "intro": "通胀不是「东西变贵」这么简单，而是货币、需求、成本、预期四股力量共同推动的结果。这张图从四大成因出发，途经 CPI、PPI 等观察指标，抵达央行的政策反应，再到股、债、金的价格影响——看懂这条传导链，就明白了央行为什么加息、资产为什么波动。",
   "nodes": [
-    { "id": "money", "label": "货币供给", "type": "driver", "desc": "M2 增速长期高于实际产出增速，广义货币超发是通胀的温床（弗里德曼：通胀永远是货币现象）" },
-    { "id": "demand", "label": "需求拉动", "type": "driver", "desc": "财政刺激 / 低利率 → 总需求超过总供给 → 商品与服务价格上行" },
-    { "id": "cost", "label": "成本推动", "type": "driver", "desc": "能源（油价）、工资、原材料价格上涨推升生产成本，企业转嫁至终端价格" },
-    { "id": "expectation", "label": "通胀预期", "type": "driver", "desc": "预期自我实现：市场预期高通胀 → 提前消费/要求加薪 → 实际通胀上行（锚定 vs 脱锚）" },
-    { "id": "cpi", "label": "CPI 同比", "type": "signal", "desc": "居民消费价格指数：市场最关注的名义通胀指标，美联储 2% 目标锚" },
-    { "id": "ppicore", "label": "PPI / 核心CPI", "type": "signal", "desc": "PPI 领先 CPI 约 1-2 个季度；核心 CPI 剔除食品能源，反映内生通胀" },
-    { "id": "fed", "label": "央行反应函数", "type": "response", "desc": "通胀超 2% → 加息缩表：实际利率上行 → 抑制需求与资产估值" },
-    { "id": "gold", "label": "黄金", "type": "asset", "desc": "抗通胀资产：实际利率（名义-通胀预期）下行或通胀失控时上涨" },
-    { "id": "realrate", "label": "实际利率", "type": "market", "desc": "TIPS 收益率 ≈ 名义利率 - 盈亏平衡通胀，是黄金估值的地心引力" },
-    { "id": "equity", "label": "股票", "type": "asset", "desc": "温和通胀友好（盈利上行），高通胀压缩估值（贴现率上行）" },
-    { "id": "wage", "label": "工资-物价螺旋", "type": "driver", "desc": "劳动力短缺 → 工资涨 → 物价涨 → 员工要求更高工资：1970s 滞胀重演的关键路径" }
+    { "id": "money", "label": "货币供给", "type": "driver", "desc": "通胀的总闸门：M2 增速长期高于名义 GDP 增速时，多出来的货币迟早体现在物价上。弗里德曼：「通胀在任何时候、任何地方都是货币现象。」" },
+    { "id": "demand", "label": "需求拉动", "type": "driver", "desc": "钱多东西少：财政发钱、低利率信贷 → 居民与企业集中消费投资 → 总需求超过总供给 → 价格上行。典型如 2021 年美国财政刺激。" },
+    { "id": "expectation", "label": "通胀预期", "type": "driver", "desc": "预期的自我实现：大家都相信要涨价 → 提前抢购、工人要求加薪 → 通胀真的上行。预期一旦「脱锚」，央行要用双倍的紧缩代价才能压回。" },
+    { "id": "ppicore", "label": "PPI / 核心CPI", "type": "signal", "desc": "两个「透视」指标：PPI 衡量工厂出厂价，通常领先 CPI 1-2 个季度；核心 CPI 剔除食品与能源的扰动，反映更内生的通胀趋势。" },
+    { "id": "cpi", "label": "CPI 同比", "type": "signal", "desc": "居民消费价格指数，通胀的头条指标。美联储的政策锚是核心 PCE 2%；CPI 同比长期站上 3% 即属高通胀，破 5% 会触发激进紧缩。" },
+    { "id": "cost", "label": "成本推动", "type": "driver", "desc": "东西先变贵再做：油价、工资、原材料上涨抬高生产成本，企业提价转嫁给消费者。1973 与 2022 年两轮全球通胀都由供给端成本点燃。" },
+    { "id": "wage", "label": "工资-物价螺旋", "type": "driver", "desc": "涨价的回声：物价涨 → 员工要求加薪 → 企业人力成本上升 → 再提价 → 循环强化。这是 1970s 美国通胀顽固难退的核心机制。" },
+    { "id": "fed", "label": "央行反应函数", "type": "response", "desc": "央行的应对剧本：通胀持续超过 2% → 加息 + 缩表 → 需求与资产估值同时承压。行动越晚，后面需要的加息力度越猛（如 2022 年美联储）。" },
+    { "id": "realrate", "label": "实际利率", "type": "market", "desc": "名义利率 - 通胀预期 = 实际利率（10Y TIPS 收益率）。它才是真实的资金成本：决定黄金的机会成本，也是成长股估值的贴现率。" },
+    { "id": "gold", "label": "黄金", "type": "asset", "desc": "抗通胀的「原始货币」：实际利率下行或货币信用受损时上涨；温和通胀下表现平平——它对冲的是「通胀失控」，不是通胀本身。" },
+    { "id": "equity", "label": "股票", "type": "asset", "desc": "对通胀「先甜后苦」：温和通胀（2-4%）盈利扩张、股市友好；高通胀（>5%）贴现率飙升压缩估值，且央行被迫紧缩加剧波动。" }
   ],
   "edges": [
     { "source": "money", "target": "cpi", "label": "过量货币" },
     { "source": "demand", "target": "cpi", "label": "超额需求" },
-    { "source": "cost", "target": "cpi", "label": "成本转嫁" },
     { "source": "expectation", "target": "cpi", "label": "自我实现" },
-    { "source": "wage", "target": "cost", "label": "劳动力成本" },
-    { "source": "cpi", "target": "fed", "label": "超目标" },
-    { "source": "fed", "target": "realrate", "label": "紧缩" },
+    { "source": "ppicore", "target": "cpi", "label": "领先 1-2 个季度" },
+    { "source": "cost", "target": "cpi", "label": "成本转嫁" },
+    { "source": "expectation", "target": "wage", "label": "预期升温" },
+    { "source": "wage", "target": "cost", "label": "人力成本上升" },
+    { "source": "cpi", "target": "fed", "label": "超出 2% 目标" },
+    { "source": "fed", "target": "realrate", "label": "紧缩推升" },
     { "source": "realrate", "target": "gold", "label": "负相关" },
-    { "source": "fed", "target": "equity", "label": "估值收缩" },
-    { "source": "expectation", "target": "wage", "label": "通胀预期升温" }
+    { "source": "realrate", "target": "equity", "label": "贴现率上行" },
+    { "source": "fed", "target": "equity", "label": "估值收缩" }
   ],
-  "conclusion": "观察通胀的核心顺序：货币与财政脉冲（领先）→ 薪资与供给冲击（同步）→ 通胀预期（检验）；央行紧缩最快的确定信号是实际利率转正（TIPS 收益率上行）。",
+  "conclusion": "看通胀要按先后顺序：先看货币与财政脉冲（领先 1-2 年），再看薪资与供给冲击（同步发生），最后看通胀预期是否仍然锚定（决定持续性）。央行转向最可靠的信号是实际利率（TIPS 收益率）转正并持续走高。",
   "strategy": [
-    "黄金与实际利率负相关：实际利率快速走低时金价有上行驱动",
-    "通胀预期脱锚（盈亏平衡通胀持续 > 3%）是央行最忌惮的剧本",
-    "高通胀环境下股价估值中枢下移，盈利质量与定价权（成本转嫁能力）是关键"
+    "判黄金盯实际利率：TIPS 收益率快速下行时金价弹性最大，转正上行时金价承压",
+    "盈亏平衡通胀持续高于 3% = 预期脱锚风险，央行被迫更鹰，全面压制风险资产估值",
+    "高通胀期选股看定价权：能把成本转嫁给下游的企业（品牌消费、资源、公用事业）盈利更稳"
   ]
 }

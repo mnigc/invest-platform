@@ -3,27 +3,20 @@ export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
-import type { KnowledgeTopic } from '../../components/knowledge/KnowledgeTopicPage'
-
-const TOPICS = await Promise.all([
-  import('../../content/knowledge/inflation.json' as any),
-  import('../../content/knowledge/deflation.json' as any),
-  import('../../content/knowledge/stagflation.json' as any),
-  import('../../content/knowledge/interest-rate.json' as any),
-])
-
-const topics: { slug: string; topic: KnowledgeTopic }[] = [
-  { slug: 'inflation', topic: TOPICS[0].default as KnowledgeTopic },
-  { slug: 'deflation', topic: TOPICS[1].default as KnowledgeTopic },
-  { slug: 'stagflation', topic: TOPICS[2].default as KnowledgeTopic },
-  { slug: 'interest-rate', topic: TOPICS[3].default as KnowledgeTopic },
-]
+import { KNOWLEDGE_TOPICS } from '../../content/knowledge/topics'
+import { NODE_TYPES } from '../../components/knowledge/graph'
 
 const ICONS: Record<string, string> = {
   inflation: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20L10 12L14 16L22 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 6H22V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   deflation: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6L10 14L14 10L22 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 20H22V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   stagflation: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="14" width="5" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="10.5" y="8" width="5" height="15" rx="1" stroke="currentColor" stroke-width="2"/><rect x="18" y="3" width="5" height="20" rx="1" stroke="currentColor" stroke-width="2"/></svg>`,
   'interest-rate': `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="13" cy="13" r="9" stroke="currentColor" stroke-width="2"/><path d="M13 8V13L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  liquidity: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 3C13 3 5 11 5 16a8 8 0 0 0 16 0c0-5-8-13-8-13z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 16a4 4 0 0 0 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  credit: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 7h16M5 13h16M5 19h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="19" r="2.5" stroke="currentColor" stroke-width="2"/></svg>`,
+  regime: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="2"/><rect x="9" y="9" width="14" height="14" rx="2" stroke="currentColor" stroke-width="2"/></svg>`,
+  gold: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 3l8 7-8 13-8-7 8-13z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M5 10h16M13 3v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  recession: `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5v16h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 9l3 4 3-2 5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  'cross-asset': `<svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="2.5" stroke="currentColor" stroke-width="2"/><circle cx="20" cy="9" r="2.5" stroke="currentColor" stroke-width="2"/><circle cx="13" cy="20" r="2.5" stroke="currentColor" stroke-width="2"/><path d="M8 7l10 1M8 7l3 11M18 11l-3 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
 }
 ---
 
@@ -31,27 +24,76 @@ const ICONS: Record<string, string> = {
   <div class="animate-enter">
     <PageHeader
       title="知识图谱"
-      subtitle="宏观机制可视化：通胀 · 通缩 · 滞胀 · 利率——节点驱动关系，点击查看详解"
+      subtitle="把宏观机制画成可交互的关系网：先看图理解传导，再读文记住结论"
     />
 
     <div class="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {
-        topics.map((t) => (
+        KNOWLEDGE_TOPICS.map((t) => (
           <a
             href={`/knowledge/${t.slug}`}
-            class="group flex flex-col rounded-lg border border-line bg-surface p-4 transition-colors duration-1 ease-terminal hover:border-accent hover:bg-surface-2"
+            class="group flex flex-col rounded-lg border border-line bg-surface p-4 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface-2"
           >
-            <span class="mb-2 text-accent transition-transform duration-2 ease-terminal group-hover:scale-105">
-              <Fragment set:html={ICONS[t.slug] || ''} />
+            <span class="flex items-center justify-between">
+              <span class="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-2 text-accent transition-transform duration-2 ease-terminal group-hover:scale-105">
+                <Fragment set:html={ICONS[t.slug] || ''} />
+              </span>
+              <svg
+                class="h-4 w-4 -translate-x-1 text-ink-3 opacity-0 transition-all duration-2 ease-terminal group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-6-6 6 6-6 6" />
+              </svg>
             </span>
-            <span class="text-md font-semibold text-ink">{t.topic.title}</span>
-            <span class="mt-1 text-xs leading-relaxed text-ink-3">{t.topic.subtitle}</span>
-            <span class="num mt-2.5 text-2xs text-info">
-              {t.topic.nodes.length} 个概念 · {t.topic.edges.length} 条关系
+            <span class="mt-3 text-md font-semibold text-ink">{t.title}</span>
+            <span class="mt-1 text-xs leading-relaxed text-ink-3">{t.subtitle}</span>
+            <span class="mt-2.5 line-clamp-2 text-xs leading-relaxed text-ink-2/90">{t.intro}</span>
+            <span class="num mt-3 border-t border-line pt-2.5 text-2xs text-ink-3">
+              {t.counts.nodes} 个概念 · {t.counts.edges} 条关系
             </span>
           </a>
         ))
       }
     </div>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-2xs font-bold uppercase tracking-widest text-ink-3">如何阅读图谱</h2>
+      <div class="mt-2.5 grid gap-x-6 gap-y-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <ul class="grid gap-1.5 text-xs leading-relaxed text-ink-2 sm:grid-cols-2">
+          <li class="flex gap-1.5">
+            <span class="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+            节点 = 概念，连线 = 因果或传导关系，连线上的文字说明「怎么传导」
+          </li>
+          <li class="flex gap-1.5">
+            <span class="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+            点击节点查看解释，右侧面板还能顺着上下游继续跳转
+          </li>
+          <li class="flex gap-1.5">
+            <span class="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+            画布顶部图例可按类型筛选；拖拽节点整理布局，滚轮 / 双指缩放
+          </li>
+          <li class="flex gap-1.5">
+            <span class="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+            每张图末尾附核心结论与投研应用，先玩图再读文效率最高
+          </li>
+        </ul>
+        <div class="flex flex-wrap content-start gap-1.5">
+          {
+            NODE_TYPES.map((m) => (
+              <span class="inline-flex items-center gap-1.5 rounded border border-line px-1.5 py-0.5 text-2xs text-ink-3">
+                <i class="h-1.5 w-1.5 rounded-full" style={`background: var(${m.cssVar})`} aria-hidden="true"></i>
+                {m.label}
+              </span>
+            ))
+          }
+        </div>
+      </div>
+    </section>
   </div>
 </Layout>

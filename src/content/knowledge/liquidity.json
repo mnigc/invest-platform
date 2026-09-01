@@ -1,0 +1,37 @@
+{
+  "title": "流动性机制",
+  "subtitle": "美联储资产负债表 · RRP · TGA · 净流动性 · 美元外溢",
+  "intro": "流动性是风险资产的「水位」：央行扩表/缩表、财政在 TGA 的存款腾挪、逆回购水池的吞吐，共同决定了市场真实可用资金。这张图把美联储资产负债表、RRP、TGA、SOFR 串成一条链——看懂它，就明白为什么「缩表」往往比「加息」更直接地压垮资产估值。",
+  "nodes": [
+    { "id": "fedbs", "label": "美联储资产负债表", "type": "driver", "desc": "流动性的总闸门：QE 买入国债/MBS 扩表→释放准备金，QT 到期不续投缩表→回收准备金。规模从 2020 年 4 万亿飙到 2022 年近 9 万亿，是这轮资产大牛市的底层燃料。" },
+    { "id": "rrp", "label": "RRP 逆回购", "type": "driver", "desc": "货币市场基金把钱「存回」美联储的水池：RRP 越高，说明资金找不到去处、被回收在美联储。它是流动性过剩的「蓄水池」，耗尽往往对应流动性拐点。" },
+    { "id": "tga", "label": "TGA 财政账户", "type": "driver", "desc": "财政部在美联储的存款：发债把钱收进 TGA = 抽走市场流动性；花掉 TGA = 把钱注回市场。一次债务上限和解后的 TGA 消化，常制造数千亿的临时宽松。" },
+    { "id": "netliq", "label": "净流动性", "type": "signal", "desc": "= 美联储总资产 − RRP − TGA，是衡量市场真实可用资金更准的口径。2023 年硅谷银行危机后 RRP 加速耗尽，净流动性短暂回升，撑起了一波风险资产反弹。" },
+    { "id": "reserves", "label": "银行准备金", "type": "signal", "desc": "银行体系在美联储的存款，是放贷与回购的「弹药」。准备金一旦逼近「最低充裕水平」(LCLoR)，回购市场会突发抽紧——2019 年回购危机就是前车之鉴。" },
+    { "id": "sofr", "label": "SOFR", "type": "signal", "desc": "担保隔夜融资利率，美元回购市场的基准融资成本。SOFR 突跳是流动性紧张的即时体温计，替代了被操纵丑闻缠身的 LIBOR。" },
+    { "id": "policy", "label": "央行政策", "type": "response", "desc": "加息管的是「资金价格」，缩表/扩表管的是「资金水量」。价格与水量双管齐下才完整：2022-23 美联储罕见地一边加息一边缩表，对估值的压制叠加而猛烈。" },
+    { "id": "cbcompare", "label": "主要央行对比", "type": "cross", "desc": "美联储、欧央行、日央行、英央行的扩表节奏差，决定美元的相对强弱与跨境资本流向。日央行是最后一个退出 YCC 的巨头，其转向常引发全球资产重新定价。" },
+    { "id": "equity", "label": "风险资产估值", "type": "market", "desc": "流动性水位的第一受益者：净流动性扩张→估值中枢上移，缩表期估值承压。成长股与加密资产对流动性边际变化尤其敏感——它们本质是「久期+流动性」的杠杆。" },
+    { "id": "credit", "label": "信用利差", "type": "market", "desc": "流动性充裕时利差收窄（risk-on），紧张时走阔（risk-off）。净流动性快速下行期，高收益利差几乎必然先于股市反映压力。" },
+    { "id": "em", "label": "新兴市场", "type": "asset", "desc": "美元流动性的外溢出口：美联储扩表→美元走弱、资金追逐收益→新兴市场股债汇齐升；缩表→美元回流→新兴市场承压，且美元债高的国家最脆弱。" }
+  ],
+  "edges": [
+    { "source": "policy", "target": "fedbs", "label": "扩表/缩表" },
+    { "source": "fedbs", "target": "reserves", "label": "准备金投放" },
+    { "source": "rrp", "target": "netliq", "label": "扣减水池" },
+    { "source": "tga", "target": "netliq", "label": "扣减财政存款" },
+    { "source": "fedbs", "target": "netliq", "label": "总水位" },
+    { "source": "reserves", "target": "sofr", "label": "回购资金松紧" },
+    { "source": "netliq", "target": "equity", "label": "估值驱动" },
+    { "source": "netliq", "target": "credit", "label": "风险偏好" },
+    { "source": "sofr", "target": "credit", "label": "融资成本" },
+    { "source": "fedbs", "target": "cbcompare", "label": "相对扩表节奏" },
+    { "source": "cbcompare", "target": "em", "label": "美元外溢/回流" }
+  ],
+  "conclusion": "看流动性盯三件事：美联储总资产的方向（QT 是否持续）、RRP 是否即将耗尽（耗尽后净流动性靠 TGA 消化续命）、净流动性的绝对水位。三者共同决定风险资产估值的中期方向。",
+  "strategy": [
+    "平台「全球流动性」页直接给出净流动性曲线：方向向上做多风险资产，向下减仓成长与高贝塔",
+    "RRP 接近归零是关键拐点：此后准备金下行会直接冲击回购市场，盯 SOFR 是否异动",
+    "美元流动性收紧期，降低美元债高、外储薄弱的新兴市场敞口"
+  ]
+}

@@ -82,6 +82,7 @@ interface ResidPoint {
 function buildResidualZ(goldPointZ: SeriesPoint[], dxyZ: SeriesPoint[], dfiiZ: SeriesPoint[], horizon: number): ResidPoint[] {
   // DXY 20d 动量（对数收益）序列
   const dxyRet = logReturns(dxyZ)
+  const dxyRetMap = new Map(dxyRet.map(r => [String(r.date), r.value]))
   const dfiiMap = new Map<string, number>()
   for (const p of dfiiZ) dfiiMap.set(String(p.date), p.value)
 
@@ -91,10 +92,10 @@ function buildResidualZ(goldPointZ: SeriesPoint[], dxyZ: SeriesPoint[], dfiiZ: S
 
   for (const p of goldPointZ) {
     const d = String(p.date)
-    // 维护当前 DXY 动量（FFILL）
-    const matching = dxyRet.find(r => String(r.date) === d)
-    if (matching) curDxyRet = matching.value
-    else if (dxyRet.length === 0) curDxyRet = null
+    // 维护当前 DXY 动量（FFILL，O(1) Map 查找，替代原循环 find）
+    const mv = dxyRetMap.get(d)
+    if (mv != null) curDxyRet = mv
+    else if (dxyRetMap.size === 0) curDxyRet = null
     // DFII10 FFILL
     const dfii = dfiiMap.get(d)
     if (dfii != null) curDfii = dfii
@@ -339,7 +340,7 @@ export const GET = withCache(async () => {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   })
-}, 300)
+}, 600)
 
 function app(v: number | null): number | null {
   return v != null ? +v.toFixed(2) : null

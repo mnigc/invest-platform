@@ -51,6 +51,18 @@
   --c-chart-5: 236 72 153; /* #EC4899 */
   --c-chart-6: 249 115 22; /* #F97316 */
 
+  /* --- 知识图谱节点类型色（DOM 静态图例用；ReactFlow SVG 侧用
+         components/knowledge/graph.ts 的调色板，色值需同步）--------------- */
+  --kn-driver: #fbbf24;
+  --kn-signal: #22d3ee;
+  --kn-response: #60a5fa;
+  --kn-asset: #f87171;
+  --kn-market: #a78bfa;
+  --kn-regime: #34d399;
+  --kn-structural: #94a3b8;
+  --kn-case: #f0abfc;
+  --kn-cross: #fb923c;
+
   /* --- 布局 ---------------------------------------------------------------- */
   --sidebar-width: 232px;
   --topbar-height: 52px;
@@ -104,4 +116,15 @@
   --c-chart-4: 124 58 237; /* #7C3AED */
   --c-chart-5: 190 24 93; /* #BE185D */
   --c-chart-6: 194 65 12; /* #C2410C */
+
+  /* --- 知识图谱节点类型色（与 graph.ts light 档同步）-------------------- */
+  --kn-driver: #b45309;
+  --kn-signal: #0e7490;
+  --kn-response: #1d4ed8;
+  --kn-asset: #b91c1c;
+  --kn-market: #6d28d9;
+  --kn-regime: #047857;
+  --kn-structural: #475569;
+  --kn-case: #a21caf;
+  --kn-cross: #c2410c;
 }

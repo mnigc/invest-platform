@@ -1,0 +1,38 @@
+{
+  "title": "宏观体制判定",
+  "subtitle": "增长·通胀·压力·曲线的决策树与资产配置矩阵",
+  "intro": "宏观体制是资产配置的总开关：不同增长×通胀×压力组合下，股、债、金、商品的最优权重完全不同。这张图把平台实时体制判定背后的决策树画出来——增长（CFNAI）、通胀（CPI）、压力（VIX/BBB）、曲线（10Y-2Y）四个输入如何组合出 RECOVERY/GROWTH/SLOWDOWN/STAGFLATION/RECESSION 五种体制，以及每种体制对应的历史资产收益矩阵。",
+  "nodes": [
+    { "id": "cfnai", "label": "CFNAI 增长", "type": "signal", "desc": "芝加哥联储全国活动指数，增长的同步综合读数：0 为趋势线，连续三月<-0.7 常预示衰退。它把就业、生产、消费、住房压成一个分数，是体制判定的「增长轴」。" },
+    { "id": "cpi", "label": "CPI 通胀", "type": "signal", "desc": "通胀轴：CPI 同比相对 2% 目标的位置。低于目标=通缩压力，温和=正常增长环境，高于 5%=通胀失控。和增长轴正交，共同框定体制象限。" },
+    { "id": "vix", "label": "VIX 压力", "type": "signal", "desc": "期权隐含波动率，市场恐慌/不确定性的价格。VIX 飙升常标志风险偏好切换；它和 BBB 利差一起构成体制判定的「压力轴」。" },
+    { "id": "bbb", "label": "BBB 信用压力", "type": "signal", "desc": "信用利差作为压力轴的第二输入：利差走阔=金融条件收紧+衰退预警。VIX 看情绪、BBB 看信用，两者一起确认压力的真实性。" },
+    { "id": "curve", "label": "10Y-2Y 曲线斜率", "type": "signal", "desc": "曲线形态判定衰退时窗：倒挂（<0）领先衰退 12-18 个月；陡峭化（降息预期）=复苏信号。它给体制判定加上「时间维度」。" },
+    { "id": "tree", "label": "体制决策树", "type": "structural", "desc": "把四轴输入组合成体制：增长×通胀定主象限，压力/曲线做修正。CFNAI 中性+利率正常+无压力=RECOVERY；增长强+通胀温和=GROWTH；增长弱+通胀高=STAGFLATION；增长崩+利差扩=RECESSION。" },
+    { "id": "recovery", "label": "RECOVERY 复苏", "type": "regime", "desc": "增长中性回升、利率正常、无压力：风险偏好修复期，股票领先、信用债修复，黄金与长债相对落后。是从衰退切回风险资产的窗口。" },
+    { "id": "growth", "label": "GROWTH 扩张", "type": "regime", "desc": "增长强、通胀温和、压力低：股商齐涨、美元偏强，是金发姑娘式最优环境。典型如 2017、2023下半年。股票贝塔与周期股最优。" },
+    { "id": "slowdown", "label": "SLOWDOWN 放缓", "type": "regime", "desc": "增长见顶回落、通胀仍黏、压力渐升：股市震荡、防御板块轮动领先，债券开始有机会。是从进攻切防御的过渡期。" },
+    { "id": "recession", "label": "RECESSION 衰退", "type": "regime", "desc": "增长崩、利差扩张、曲线倒挂后段：国债与黄金为王、股票与信用债承压。资产配置最防御的体制，现金久期价值凸显。" },
+    { "id": "matrix", "label": "体制×资产矩阵", "type": "case", "desc": "平台已实现的回测矩阵：不同体制下 S&P500/10Y 国债/黄金/美元等资产的后续收益分布。用历史分布校准当前体制的配置，是「先验+后验」结合的决策方法。" }
+  ],
+  "edges": [
+    { "source": "cfnai", "target": "tree", "label": "增长轴" },
+    { "source": "cpi", "target": "tree", "label": "通胀轴" },
+    { "source": "vix", "target": "tree", "label": "情绪压力" },
+    { "source": "bbb", "target": "tree", "label": "信用压力" },
+    { "source": "curve", "target": "tree", "label": "时序修正" },
+    { "source": "tree", "target": "recovery", "label": "中性回升" },
+    { "source": "tree", "target": "growth", "label": "强增长+温和通胀" },
+    { "source": "tree", "target": "slowdown", "label": "增长见顶" },
+    { "source": "tree", "target": "recession", "label": "增长崩+利差扩" },
+    { "source": "recovery", "target": "matrix", "label": "股票领先" },
+    { "source": "growth", "target": "matrix", "label": "股商齐涨" },
+    { "source": "recession", "target": "matrix", "label": "国债黄金为王" }
+  ],
+  "conclusion": "体制判定 = 增长（CFNAI）× 通胀（CPI）双轴定主象限，再用压力（VIX/BBB）与曲线（10Y-2Y）修正时序。先定体制，再用历史回测矩阵校准各资产权重——这是平台信号板的底层方法论。",
+  "strategy": [
+    "平台「宏观体制」页实时给出当前体制：对照资产回测矩阵决定股/债/金/现金权重",
+    "体制切换信号比单边趋势更重要：RECOVERY→GROWTH 加仓股票，SLOWDOWN 起转防御",
+    "曲线倒挂+利差扩张同时出现，RECESSION 概率显著上升，提前提升久期与黄金"
+  ]
+}

@@ -3,16 +3,14 @@ export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { KnowledgeTopicPage } from '../../components/knowledge/KnowledgeTopicPage'
-import raw from '../../content/knowledge/interest-rate.json'
+import { findTopic, relatedTopics } from '../../content/knowledge/topics'
 
-const topic = raw as any
+const topic = findTopic('interest-rate')!
+const related = relatedTopics('interest-rate')
 ---
 
 <Layout title={`${topic.title} - 知识图谱 - MACRO EDGE`}>
   <div class="animate-enter">
-    <KnowledgeTopicPage
-      client:load
-      topic={topic}
-    />
+    <KnowledgeTopicPage client:load topic={topic.data} related={related} />
   </div>
 </Layout>

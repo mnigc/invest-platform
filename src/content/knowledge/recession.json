@@ -1,0 +1,39 @@
+{
+  "title": "衰退预警机制",
+  "subtitle": "曲线倒挂 · 萨姆法则 · 信用利差 · 失业率的领先链",
+  "intro": "衰退不是单一指标能预测的，而是多条领先链共振的结果：收益率曲线倒挂看时序、萨姆法则看就业拐点、信用利差看金融压力、实际利率看政策紧缩。这张图把这些信号串成一张共振网——当多条链同时亮起，衰退概率才显著抬升，也是从进攻切防御的总信号。",
+  "nodes": [
+    { "id": "invert", "label": "曲线倒挂", "type": "signal", "desc": "10Y-2Y < 0：市场押注央行将被迫降息。历史上几乎 100% 领先衰退 12-18 个月，是最被研究的衰退先行指标——但「这次不一样」的钝化争议一直存在。" },
+    { "id": "sahm", "label": "萨姆法则", "type": "signal", "desc": "3 个月失业率均值较过去 12 个月低点上行超过 0.5pp = 衰退已开始。萨姆法则几乎无假信号、但偏同步：触发时衰退往往已在进行中，是「确认」而非「预测」。" },
+    { "id": "credit", "label": "信用利差", "type": "signal", "desc": "BBB/高收益利差走阔=金融条件收紧+企业偿债压力上升，衰退的信用端领先信号。利差扩张+国债利率下行是平台信用页重点检测的衰退组合。" },
+    { "id": "realrate", "label": "实际利率", "type": "signal", "desc": "紧缩周期里实际利率（TIPS）转正并持续走高=政策实质收紧，是衰退的政策端诱因。实际利率高位+曲线倒挂，历史上对衰退命中率很高。" },
+    { "id": "cfnai", "label": "CFNAI 增长", "type": "signal", "desc": "增长的同步综合读数：连续三月跌破-0.7 常预示衰退。它确认增长轴是否实质转弱，是体制判定从 GROWTH/SLOWDOWN 切向 RECESSION 的关键。" },
+    { "id": "yieldlow", "label": "长端利率下行", "type": "signal", "desc": "10Y 国债收益率趋势性走低=市场在为衰退降息定价。与信用利差扩张并存的「利差扩+利率下」组合，是衰退交易最经典的实时特征。" },
+    { "id": "fed", "label": "央行转向", "type": "response", "desc": "衰退临近时央行从加息转降息：政策转向是「政策底」信号，但「市场底」往往滞后。理解转向的速度（紧急/常规）能判断衰退深度。" },
+    { "id": "resonance", "label": "多链共振", "type": "structural", "desc": "单一信号噪音大，多条链同时亮起才显著：倒挂+萨姆触发+利差扩+长端下行+实际利率高位，共振项越多、衰退概率越高、时窗越近。" },
+    { "id": "recession", "label": "衰退", "type": "regime", "desc": "增长实质收缩、失业上行、企业盈利崩的体制阶段。资产上国债与黄金为王、股票与信用债承压，是配置最防御的窗口。" },
+    { "id": "treasury", "label": "国债", "type": "asset", "desc": "衰退期的「王冠资产」：央行降息+避险买盘推动长债价格上涨、收益率下行。久期越长弹性越大，是衰退交易的核心仓位。" },
+    { "id": "goldrec", "label": "黄金", "type": "asset", "desc": "衰退期避险+实际利率下行双驱动：危机爆发段金价跳升，但若衰退前实际利率已高、金价可能先承压后修复——节奏型，不是单边。" },
+    { "id": "equity", "label": "股票", "type": "asset", "desc": "衰退期盈利崩×估值先杀后修：先杀估值（利率升见顶前）、后杀盈利（衰退兑现）、最后估值修复（央行宽松+预期改善）。右侧布局需等政策底。" }
+  ],
+  "edges": [
+    { "source": "realrate", "target": "invert", "label": "紧缩推升短端" },
+    { "source": "invert", "target": "yieldlow", "label": "押注降息" },
+    { "source": "credit", "target": "yieldlow", "label": "利差扩+利率下" },
+    { "source": "credit", "target": "resonance", "label": "信用端信号" },
+    { "source": "invert", "target": "resonance", "label": "时序端信号" },
+    { "source": "sahm", "target": "resonance", "label": "就业端确认" },
+    { "source": "cfnai", "target": "resonance", "label": "增长端确认" },
+    { "source": "resonance", "target": "recession", "label": "共振触发" },
+    { "source": "recession", "target": "fed", "label": "倒逼转向" },
+    { "source": "fed", "target": "treasury", "label": "降息推涨债价" },
+    { "source": "recession", "target": "goldrec", "label": "避险驱动" },
+    { "source": "recession", "target": "equity", "label": "盈利杀" }
+  ],
+  "conclusion": "衰退预警看共振而非单一信号：曲线倒挂定时序、萨姆确认就业、信用利差看金融压力、长端利率下行看市场定价、实际利率高位看政策诱因。共振项越多，越该提前切防御。",
+  "strategy": [
+    "曲线倒挂后 12-18 个月窗口提前提高国债/黄金/现金比例，是历史最简单有效的防御",
+    "萨姆法则一旦触发=衰退确认，切向纯防御（国债+黄金），等政策底后再转 risk-on",
+    "盯「利差扩+利率下」组合：平台信用-利率交叉压力页实时检测，触发即加防御久期"
+  ]
+}

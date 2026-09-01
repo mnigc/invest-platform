@@ -1,0 +1,39 @@
+{
+  "title": "跨资产联动机制",
+  "subtitle": "动态相关性 · 风险偏好 · 分散化与避险切换",
+  "intro": "资产间相关性不是常数，而是随风险偏好切换的：风险偏好回归时股债负相关提供分散化，风险规避时相关性坍塌、避险资产同涨。这张图把股票/债券/商品/黄金/美元的联动、VIX 驱动的 risk-on/off、以及相关性崩塌时刻画在一起——它是平台「跨资产联动矩阵」页的机制底座。",
+  "nodes": [
+    { "id": "riskon", "label": "Risk-On 风险偏好", "type": "regime", "desc": "乐观资金追逐收益的环境：股票涨、信用利差收窄、商品与高息货币走强、避险资产相对落后。增长稳健+政策宽松+压力低时最容易出现。" },
+    { "id": "riskoff", "label": "Risk-Off 风险规避", "type": "regime", "desc": "恐慌资金追逐安全的环境：股票跌、利差走阔、国债与美元同涨、黄金视实际利率而定。地缘/信用/流动性冲击时触发，相关性往往在此刻坍塌。" },
+    { "id": "vix", "label": "VIX", "type": "signal", "desc": "风险偏好的总开关：VIX 低=风险偏好高位，资金愿意承担久期与流动性风险；VIX 飙升=风险偏好急转，资产相关性快速向 1 收敛。" },
+    { "id": "equity", "label": "股票", "type": "asset", "desc": "风险偏好最直接的载体：risk-on 时领涨、risk-off 时领跌。成长股久期长，对 risk 偏好与实际利率双敏感；价值股更贴增长。" },
+    { "id": "bond", "label": "债券", "type": "asset", "desc": "正常态与股票负相关=分散化价值；但在通胀冲击或财政主导情形下可能转为正相关（股债同跌），分散化失效——这正是相关性矩阵要监测的。" },
+    { "id": "gold", "label": "黄金", "type": "asset", "desc": "对冲法币信用与实际利率，而非「抗通胀」。risk-off 时不一定涨（实际利率可能上行），看与美元的相关状态决定。" },
+    { "id": "dxy", "label": "美元", "type": "asset", "desc": "全球风险资产的反向杠杆：美元涨=流动性收紧、风险资产承压；美元弱=美元外溢、新兴市场与商品受益。是跨资产联动的中枢变量。" },
+    { "id": "commodity", "label": "商品", "type": "asset", "desc": "需求与美元双驱动：risk-on+美元弱时涨，risk-off+美元强时跌。与新兴市场股和资源国汇率高度同步。" },
+    { "id": "corr", "label": "动态相关性", "type": "signal", "desc": "股债/股金/股商相关性随时间漂移：正常态股债负相关（分散化有效），危机态相关性向1坍塌（避险同涨、风险同跌）。平台用20/60/120日滚动相关监测。" },
+    { "id": "diversify", "label": "分散化", "type": "structural", "desc": "组合管理的目标：用低相关资产降低波动。但分散化在「最需要它」的危机时刻往往失效——这是相关性坍塌的代价，需用尾部对冲补偿。" },
+    { "id": "flight", "label": "避险切换", "type": "case", "desc": "危机时资金从风险资产逃向国债+现金：相关性坍塌、波动率飙升。2008、2020、2023 银行危机都是典型，是分散化失效与对冲价值的实证。" }
+  ],
+  "edges": [
+    { "source": "vix", "target": "riskon", "label": "低位触发" },
+    { "source": "vix", "target": "riskoff", "label": "飙升触发" },
+    { "source": "riskon", "target": "equity", "label": "领涨" },
+    { "source": "riskon", "target": "commodity", "label": "需求+弱美元" },
+    { "source": "riskoff", "target": "bond", "label": "避险买债" },
+    { "source": "riskoff", "target": "dxy", "label": "美元走强" },
+    { "source": "dxy", "target": "commodity", "label": "反向杠杆" },
+    { "source": "dxy", "target": "equity", "label": "流动性传导" },
+    { "source": "riskon", "target": "bond", "label": "抛债买股(负相关)" },
+    { "source": "riskoff", "target": "corr", "label": "相关性坍塌" },
+    { "source": "corr", "target": "diversify", "label": "分散化价值变化" },
+    { "source": "riskoff", "target": "flight", "label": "避险切换" },
+    { "source": "flight", "target": "gold", "label": "视实际利率" }
+  ],
+  "conclusion": "跨资产联动由风险偏好(VIX)驱动：risk-on 股商涨、债与美元弱；risk-off 国债美元涨、股票承压。盯动态相关性：正常态股债负相关=分散化有效，相关性坍塌=分散化失效、需尾部对冲。",
+  "strategy": [
+    "平台「跨资产联动矩阵」页给滚动相关：股债负相关转正相关=分散化失效，加尾部对冲",
+    "VIX 低位+美元弱=维持风险资产仓位；VIX 飙升+美元强=切防御",
+    "危机时刻相关性向1坍塌，国债+现金是真正的对冲，黄金需看实际利率而非简单避险"
+  ]
+}

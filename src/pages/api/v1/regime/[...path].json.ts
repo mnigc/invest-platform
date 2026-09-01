@@ -3,6 +3,7 @@ export const prerender = false
 import type { APIRoute } from 'astro'
 import { query, queryOne } from '../../../../lib/db'
 import { toDateStr } from '../../../../lib/date'
+import { withCache } from '../../../../lib/cache'
 import type { Anomaly, BacktestSnapshot, BacktestSummary } from '../../../../lib/core'
 
 async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
@@ -179,7 +180,7 @@ async function detectAnomalies(): Promise<Anomaly[]> {
   return anomalies
 }
 
-export const GET = async ({ request }: { request: Request }) => {
+export const GET = withCache(async ({ request }: { request: Request }) => {
   const url = new URL(request.url)
   const path = url.pathname
   const subPath = path.split('/').pop()
@@ -194,7 +195,7 @@ export const GET = async ({ request }: { request: Request }) => {
     JSON.stringify({ success: false, error: 'Not found' }),
     { status: 404, headers: { 'Content-Type': 'application/json' } }
   )
-}
+}, 600)
 
 async function handleAnomalies(): Promise<Response> {
   try {
@@ -259,35 +260,56 @@ async function handleBacktest(url: URL): Promise<Response> {
         { symbol: '^RUT', nameZh: '罗素2000' },
       ]
       const snapshotDates = snapshotsFormatted.map((s) => s.date)
-      for (const idx of INDEX_LIST) {
-        const priceRows = await query<any>(
-          `SELECT ap.trade_date, ap.close_price
-           FROM asset_prices ap
-           JOIN assets a ON a.id = ap.asset_id
-           WHERE a.symbol = ? AND ap.close_price IS NOT NULL AND ap.close_price > 0
-           ORDER BY ap.trade_date ASC`,
-          [idx.symbol]
+      // 只取快照起点（往前留一个月缓存）之后的行情，避免拉取全量历史（^GSPC 达上万行）
+      const priceFloor = new Date(snapshotDates[0])
+      priceFloor.setMonth(priceFloor.getMonth() - 1)
+      const priceFloorStr = toDateStr(priceFloor)
+      const priceRowsList = await Promise.all(
+        INDEX_LIST.map((idx) =>
+          query<any>(
+            `SELECT ap.trade_date, ap.close_price
+             FROM asset_prices ap
+             JOIN assets a ON a.id = ap.asset_id
+             WHERE a.symbol = ? AND ap.close_price IS NOT NULL AND ap.close_price > 0
+               AND ap.trade_date >= ?
+             ORDER BY ap.trade_date ASC`,
+            [idx.symbol, priceFloorStr]
+          )
         )
-        const sorted = priceRows.map((r: any) => ({
+      )
+      const sortedList = priceRowsList.map((priceRows) =>
+        priceRows.map((r: any) => ({
           date: toDateStr(r.trade_date),
           price: Number(r.close_price),
         }))
-        const data: (number | null)[] = []
-        let j = -1
+      )
+      for (const idx of INDEX_LIST) {
+        const sorted = sortedList[INDEX_LIST.indexOf(idx)]
+        let m = -1
+        const seriesData: (number | null)[] = []
         for (const d of snapshotDates) {
-          while (j + 1 < sorted.length && sorted[j + 1].date <= d) j++
-          data.push(j >= 0 ? sorted[j].price : null)
+          while (m + 1 < sorted.length && sorted[m + 1].date <= d) m++
+          seriesData.push(m >= 0 ? sorted[m].price : null)
         }
-        indexSeries.push({ symbol: idx.symbol, nameZh: idx.nameZh, dates: snapshotDates, data })
+        indexSeries.push({ symbol: idx.symbol, nameZh: idx.nameZh, dates: snapshotDates, data: seriesData })
       }
     } catch (e: any) {
       console.warn('[RegimeBacktest] 多指数价格不可用', e.message)
     }
 
-    // 预计算的多指数汇总统计
+    // 预计算的多指数汇总统计 + 直接读取预计算的汇总统计（并行，单表失败不拖垮整个接口）
+    const safeSummaryQuery = async (sqlStr: string, values: any[]) => {
+      try {
+        return await query<any>(sqlStr, values)
+      } catch (e: any) {
+        console.warn('[RegimeBacktest] 汇总表查询失败', e.message)
+        return []
+      }
+    }
     let indexSummaries: { symbol: string; nameZh: string; rows: BacktestSummary[] }[] = []
-    try {
-      const idxSumRaw = await query<any>(
+    let summaries: BacktestSummary[] = []
+    const [idxSumRawResult, summariesRawResult] = await Promise.all([
+      safeSummaryQuery(
         `SELECT index_symbol, index_name_zh, regime, label, count, avg_confidence,
                 avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
                 win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
@@ -295,9 +317,20 @@ async function handleBacktest(url: URL): Promise<Response> {
          WHERE period_start >= ? AND period_end <= ?
          ORDER BY index_symbol ASC, count DESC`,
         [startDate, endDate]
-      )
+      ),
+      safeSummaryQuery(
+        `SELECT regime, label, count, avg_confidence,
+                avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
+                win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
+         FROM regime_backtest_summaries
+         WHERE period_start >= ? AND period_end <= ?
+         ORDER BY count DESC`,
+        [startDate, endDate]
+      ),
+    ])
+    try {
       const byIndex = new Map<string, { nameZh: string; rows: BacktestSummary[] }>()
-      for (const s of idxSumRaw) {
+      for (const s of idxSumRawResult) {
         const row: BacktestSummary = {
           regime: s.regime,
           label: s.label,
@@ -321,18 +354,7 @@ async function handleBacktest(url: URL): Promise<Response> {
       console.warn('[RegimeBacktest] 多指数汇总不可用', e.message)
     }
 
-    // 直接读取预计算的汇总统计
-    const summariesRaw = await query<any>(
-      `SELECT regime, label, count, avg_confidence,
-              avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
-              win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
-       FROM regime_backtest_summaries
-       WHERE period_start >= ? AND period_end <= ?
-       ORDER BY count DESC`,
-      [startDate, endDate]
-    )
-
-    const summaries: BacktestSummary[] = summariesRaw.map((s: any) => ({
+    summaries = summariesRawResult.map((s: any) => ({
       regime: s.regime,
       label: s.label,
       count: s.count,

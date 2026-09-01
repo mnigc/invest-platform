@@ -68,8 +68,11 @@ function dirFromSignal(direction: string | undefined): Dir {
 
 function safeJson<T = any>(
   url: string,
+  timeoutMs: number = 10000,
 ): Promise<{ ok: boolean; data: T | null; error?: string }> {
-  return fetch(url)
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  return fetch(url, { signal: ctrl.signal })
     .then((r) => r.json())
     .then((j: any) =>
       j.success
@@ -77,6 +80,7 @@ function safeJson<T = any>(
         : { ok: false, data: null, error: j.error },
     )
     .catch((e: any) => ({ ok: false, data: null, error: e.message }))
+    .finally(() => clearTimeout(timer))
 }
 
 /** Promise.allSettled 失败分支的兜底，需与 safeJson 返回结构一致以便类型收窄 */
@@ -385,6 +389,16 @@ export function SignalBoardDashboard() {
         setSignals(rows)
         setTiles(tls)
         setAgg({ score: sN, label, stance, count: active.length })
+        // 全部 9 路信号都失败时才提示错误（部分失败保持部分渲染）
+        if (rows.length === 0) {
+          const failedCount = results.filter(
+            (r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok),
+          ).length
+          if (failedCount > 0) {
+            setError('全部数据源加载失败，请稍后重试。')
+            return
+          }
+        }
       })
       .catch((e: any) => alive && setError(e.message || '加载失败'))
       .finally(() => alive && setLoading(false))
