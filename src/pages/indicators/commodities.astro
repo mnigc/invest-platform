@@ -1,0 +1,52 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+import CommodityDashboard from '../../components/CommodityDashboard'
+---
+
+<Layout title="大宗商品 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="大宗商品"
+      subtitle="WTI · 布伦特 · 天然气 · 铜 · 铁矿石"
+    />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">判读规则：</strong>工业金属与能源<strong class="text-ink">同涨</strong> = 需求扩张，顺周期；能源涨而金属<strong class="text-ink">跌</strong> = 供给冲击，滞胀风险；全线<strong class="text-ink">下跌</strong> = 需求收缩，通缩压力。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">大宗商品</strong>是通胀与总需求的交叉验证器。股价反映的是对企业盈利的预期，
+        商品价格反映的是<strong class="text-ink">当下真实</strong>的实物供需 —— 它不撒谎，也因此常被当作宏观判断的
+        「验钞机」：当债券市场说通胀会降、而商品说不会时，往往该信商品。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">WTI / 布伦特原油</strong> — 全球最重要的能源基准。油价通过运输、化工、电力层层传导，
+          是 CPI 里最直接的供给冲击来源。两者价差（Brent − WTI）走阔通常反映跨区运输瓶颈或地缘溢价。
+        </li>
+        <li>
+          <strong class="text-ink">Henry Hub 天然气</strong> — 美国天然气基准。与原油不同，天然气高度区域化，
+          更多反映本地天气与发电需求，因此常与油价脱钩。
+        </li>
+        <li>
+          <strong class="text-ink">铜</strong> — 工业金属里最具宏观指示意义的品种（「铜博士」）。
+          电线、建筑、新能源都用铜，其价格对全球制造业景气高度敏感，常领先于工业产出数据转向。
+        </li>
+        <li>
+          <strong class="text-ink">铁矿石</strong> — 钢铁的原料，主要反映基建与地产的实物工作量。
+          与铜对比可以区分「制造业景气」与「建筑投资强度」两者的相对强弱。
+        </li>
+        <li>
+          <strong class="text-ink">金油比</strong> — 金价（美元/盎司）÷ WTI（美元/桶）。比值走高通常意味着
+          避险情绪升温或实物需求走弱，是风险偏好的一个侧面刻度。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <CommodityDashboard client:load />
+  </div>
+</Layout>

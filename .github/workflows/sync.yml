@@ -63,6 +63,20 @@ jobs:
         run: python run_sync.py macro_analysis
         # 说明：收益率曲线/通胀预期/信用利差等FRED指标同步
 
+      - name: "Run global_liquidity sync (全球流动性: 美联储资产负债表/SOFR/IORB/准备金/M1M2)"
+        working-directory: sync
+        run: python run_sync.py global_liquidity
+        # 说明：本轮扩充 IORB/WRESBAL/M1/M2，补齐「准备金→SOFR」传导链与货币剪刀差
+
+      - name: "Run commodities sync (大宗商品: WTI/布伦特/铜/铁矿/天然气)"
+        working-directory: sync
+        run: python run_sync.py commodities
+
+      - name: "Run leading sync (领先指标: NFCI/初请失业金/失业率/工业产出/产能利用率/营建许可/核心资本品订单/消费者信心)"
+        working-directory: sync
+        run: python run_sync.py leading
+        # 说明：Sahm Rule 由前端 API 层现算，无需预计算任务
+
       # ===== 预计算层：必须在上面取数任务之后，读库计算后写 analysis_results =====
       # 这些任务把原先在 Worker 里跑的重计算（滚动相关/事件研究/OLS 残差）离线化，
       # 用于消除 Cloudflare "Worker exceeded CPU time limit"。顺序不可调整。

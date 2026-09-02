@@ -128,6 +128,66 @@ INDICATORS = {
     ("BOJ_BALANCE_SHEET", "GLOBAL"): dict(zh="日本央行总资产", en="BOJ Total Assets", cat="全球流动性",
                                           sub="央行资产负债表", unit="百亿日元", freq="monthly",
                                           source="fred", series="JPNASSETS"),
+
+    # ── 货币市场与准备金（FRED，补齐「准备金 → SOFR」传导链）──
+    # 知识图谱 liquidity.json 里 reserves 节点早已画出这条边，但数据层此前没有对应指标。
+    ("IORB", "GLOBAL"): dict(zh="准备金余额利率", en="Interest on Reserve Balances",
+                             cat="全球流动性", sub="政策利率",
+                             unit="%", freq="daily", source="fred", series="IORB"),
+    ("BANK_RESERVES", "GLOBAL"): dict(zh="银行体系准备金", en="Reserve Balances with Fed",
+                                      cat="全球流动性", sub="银行准备金",
+                                      unit="百万美元", freq="weekly", source="fred",
+                                      series="WRESBAL"),
+    ("M1", "US"): dict(zh="M1 货币供应", en="M1 Money Stock", cat="货币", sub="货币供应",
+                       unit="十亿美元", freq="monthly", source="fred", series="M1SL"),
+    ("M2", "US"): dict(zh="M2 货币供应", en="M2 Money Stock", cat="货币", sub="货币供应",
+                       unit="十亿美元", freq="monthly", source="fred", series="M2SL"),
+
+    # ── 大宗商品（FRED，区域归 GLOBAL：均为全球定价基准）──
+    ("WTI", "GLOBAL"): dict(zh="WTI 原油", en="WTI Crude Oil", cat="大宗商品", sub="能源",
+                            unit="美元/桶", freq="daily", source="fred", series="DCOILWTICO"),
+    ("BRENT", "GLOBAL"): dict(zh="布伦特原油", en="Brent Crude Oil", cat="大宗商品", sub="能源",
+                              unit="美元/桶", freq="daily", source="fred", series="DCOILBRENTEU"),
+    ("NATGAS", "GLOBAL"): dict(zh="Henry Hub 天然气", en="Henry Hub Natural Gas",
+                               cat="大宗商品", sub="能源",
+                               unit="美元/百万英热", freq="daily", source="fred",
+                               series="DHHNGSP"),
+    ("COPPER", "GLOBAL"): dict(zh="全球铜价", en="Global Copper Price", cat="大宗商品",
+                               sub="金属", unit="美元/吨", freq="monthly", source="fred",
+                               series="PCOPPUSDM"),
+    ("IRON_ORE", "GLOBAL"): dict(zh="全球铁矿石价", en="Global Iron Ore Price", cat="大宗商品",
+                                 sub="金属", unit="美元/吨", freq="monthly", source="fred",
+                                 series="PIORECRUSDM"),
+
+    # ── 领先指标（FRED）──
+    # 注：ISM 制造业 PMI（FRED: NAPM）已下架，实测返回 HTTP 400，故不纳入。
+    # 替代方案用硬数据：核心资本品订单（NEWORDER）+ 产能利用率（TCU）+ 工业产出（INDPRO）。
+    ("NFCI", "US"): dict(zh="芝加哥联储金融状况指数", en="Chicago Fed NFCI", cat="金融状况",
+                         sub="压力指数", unit="指数", freq="weekly", source="fred",
+                         series="NFCI"),
+    ("ICSA", "US"): dict(zh="初请失业金人数", en="Initial Claims", cat="经济数据", sub="就业",
+                         unit="人", freq="weekly", source="fred", series="ICSA"),
+    ("UNRATE", "US"): dict(zh="失业率", en="Unemployment Rate", cat="经济数据", sub="就业",
+                           unit="%", freq="monthly", source="fred", series="UNRATE"),
+    ("PAYEMS", "US"): dict(zh="非农就业总数", en="All Employees Total Nonfarm", cat="经济数据",
+                           sub="就业", unit="千人", freq="monthly", source="fred",
+                           series="PAYEMS"),
+    ("INDPRO", "US"): dict(zh="工业产出指数", en="Industrial Production Index", cat="经济数据",
+                           sub="生产", unit="指数(2017=100)", freq="monthly", source="fred",
+                           series="INDPRO"),
+    ("CAPACITY_UTIL", "US"): dict(zh="产能利用率", en="Capacity Utilization", cat="经济数据",
+                                  sub="生产", unit="%", freq="monthly", source="fred",
+                                  series="TCU"),
+    ("PERMIT", "US"): dict(zh="营建许可", en="Building Permits", cat="经济数据", sub="房地产",
+                           unit="千套", freq="monthly", source="fred", series="PERMIT"),
+    # NEWORDER 的 FRED 全名是 Manufacturers' New Orders: Nondefense Capital Goods
+    # Excluding Aircraft，即「核心资本品订单」，不是 ISM 新订单 —— 名称不可混淆。
+    ("CORE_CAPEX_ORDERS", "US"): dict(zh="核心资本品订单", en="Core Capital Goods Orders",
+                                      cat="经济数据", sub="需求", unit="百万美元",
+                                      freq="monthly", source="fred", series="NEWORDER"),
+    ("CONSUMER_SENT", "US"): dict(zh="密歇根消费者信心", en="UoM Consumer Sentiment",
+                                  cat="经济数据", sub="信心", unit="指数", freq="monthly",
+                                  source="fred", series="UMCSENT"),
 }
 
 

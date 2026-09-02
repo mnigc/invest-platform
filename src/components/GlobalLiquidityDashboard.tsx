@@ -16,6 +16,9 @@ import {
   lineSeries,
   valueAxis,
 } from '../lib/chartOptions'
+// 从 seriesMath 而非 series 导入：series 会连带引入 lib/db（数据库驱动），
+// 客户端组件引用它会把驱动打进浏览器包
+import { asOfLookup } from '../lib/seriesMath'
 
 interface SeriesData {
   code: string
@@ -26,10 +29,20 @@ interface SeriesData {
   data: { date: string; value: number | null }[]
 }
 
+interface MoneySupplyPoint {
+  date: string
+  m1Yoy: number | null
+  m2Yoy: number | null
+  scissors: number | null
+}
+
 interface Payload {
   series: SeriesData[]
   updatedAt: string
   netLiquidity?: { date: string; value: number }[]
+  /** SOFR − IORB，单位基点 */
+  sofrIorbSpread?: { date: string; value: number }[]
+  moneySupply?: MoneySupplyPoint[]
 }
 
 const CODE = {
@@ -39,6 +52,10 @@ const CODE = {
   sofr: 'SOFR',
   ecb: 'ECB_BALANCE_SHEET',
   boj: 'BOJ_BALANCE_SHEET',
+  iorb: 'IORB',
+  reserves: 'BANK_RESERVES',
+  m1: 'M1',
+  m2: 'M2',
 } as const
 
 function findSeries(data: Payload | null, code: string): SeriesData | undefined {
@@ -309,20 +326,37 @@ function CbComparisonChart({ series }: { series: SeriesData[] }) {
   return <ResponsiveChartBox option={option} deps={[option]} />
 }
 
-function SofrChart({ series }: { series: SeriesData[] }) {
+/**
+ * SOFR vs IORB —— 回购市场紧张度。
+ *
+ * IORB 是美联储付给银行准备金的利率，构成货币市场利率的「地板」；SOFR 是市场
+ * 实际成交的回购利率。两条线之间的间距即融资紧张度：SOFR 上穿 IORB，意味着
+ * 机构宁可付出高于政策底的成本也要借到钱 —— 2019 年回购危机就是这么起头的。
+ * 裸看 SOFR 只能看到绝对水平，减去 IORB 才看得出「相对底线是否吃紧」。
+ */
+function SofrIorbChart({ series }: { series: SeriesData[] }) {
   const t = useChartTheme()
   const sofr = series.find((s) => s.code === CODE.sofr)
+  const iorb = series.find((s) => s.code === CODE.iorb)
 
   const option = useMemo(() => {
     if (!sofr?.data.length) return null
+    const dates = sofr.data.map((p) => p.date)
+
+    // IORB 与 SOFR 都是日频，但节假日与发布时点不完全一致，
+    // 用 as-of 对齐而不是按日期精确匹配，否则会出现大量假断点。
+    const iorbPts = (iorb?.data || [])
+      .filter((p): p is { date: string; value: number } => p.value != null)
+      .map((p) => ({ date: p.date, value: p.value as number }))
+
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         valueFormatter: (v: any) => (v != null ? `${Number(v).toFixed(2)}%` : '--'),
       }),
-      legend: chartLegend(t, ['SOFR']),
+      legend: chartLegend(t, iorbPts.length ? ['SOFR', 'IORB'] : ['SOFR']),
       grid: chartGrid({ top: 32, bottom: 30 }),
-      xAxis: categoryAxis(t, sofr.data.map((p) => p.date)),
+      xAxis: categoryAxis(t, dates),
       yAxis: valueAxis(t, {
         name: '%',
         nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
@@ -340,14 +374,137 @@ function SofrChart({ series }: { series: SeriesData[] }) {
           sofr.data.map((p) => p.value),
           t.series[1],
           {
+            lineStyle: { width: 1.4, color: t.series[1] },
             areaStyle: { color: t.series[1], opacity: 0.08 },
+          },
+        ),
+        ...(iorbPts.length
+          ? [
+              lineSeries(
+                'IORB',
+                dates.map((d) => asOfLookup(iorbPts, d)),
+                t.series[5],
+                { lineStyle: { width: 1.2, color: t.series[5], type: 'dashed' } },
+              ),
+            ]
+          : []),
+      ],
+    }
+  }, [sofr, iorb, t])
+
+  if (!option) return <EmptyState title="SOFR 数据暂无" />
+  return <ResponsiveChartBox option={option} deps={[option]} />
+}
+
+/**
+ * 银行体系准备金水位。
+ *
+ * 这张图补齐了知识图谱 liquidity.json 里「准备金 → SOFR」那条此前有图无数据的
+ * 传导边：准备金是银行放贷与回购的「弹药」，一旦逼近最低充裕水平（LCLoR），
+ * 回购市场会突发抽紧，并立刻反映到 SOFR 上。
+ */
+function ReservesChart({ series }: { series: SeriesData[] }) {
+  const t = useChartTheme()
+  const reserves = series.find((s) => s.code === CODE.reserves)
+
+  const option = useMemo(() => {
+    if (!reserves?.data.length) return null
+    const dates = reserves.data.map((p) => p.date)
+    const vals = reserves.data.map((p) =>
+      p.value != null ? +(p.value / 1e6).toFixed(4) : null,
+    )
+
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        formatter: (params: any) => {
+          const p = Array.isArray(params) ? params[0] : params
+          if (!p) return ''
+          return `<div style="font-size:11px;color:${t.text3};margin-bottom:4px">${p.axisValue}</div>
+<div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${t.series[3]};flex:none"></span><span>银行准备金</span><span style="margin-left:20px;font-weight:600;color:${t.series[3]}">${p.value != null ? fmtTrillion(p.value * 1e6) : '--'}</span></div>`
+        },
+      }),
+      grid: chartGrid({ top: 14, bottom: 30 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, {
+        name: '万亿美元',
+        nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
+      }),
+      dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
+      series: [
+        lineSeries('银行准备金', vals, t.series[3], {
+          lineStyle: { width: 1.3, color: t.series[3] },
+          areaStyle: { color: t.series[3], opacity: 0.08 },
+        }),
+      ],
+    }
+  }, [reserves, t])
+
+  if (!option) return <EmptyState title="银行准备金数据暂无" />
+  return <ResponsiveChartBox option={option} deps={[option]} />
+}
+
+/**
+ * M1 / M2 同比与剪刀差。
+ *
+ * 剪刀差 = M1同比 − M2同比。M1 是随时可花的活钱，M2 含定期等准储蓄；
+ * 剪刀差转负说明资金在「躺平」而非流通，是通缩预警链条的第一环
+ * （呼应知识图谱 deflation.json 的预警顺序）。
+ */
+function MoneySupplyChart({ moneySupply }: { moneySupply: MoneySupplyPoint[] }) {
+  const t = useChartTheme()
+
+  const option = useMemo(() => {
+    if (!moneySupply.length) return null
+    const dates = moneySupply.map((p) => p.date)
+
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v != null ? `${Number(v).toFixed(2)}%` : '--'),
+      }),
+      legend: chartLegend(t, ['M1 同比', 'M2 同比', '剪刀差 (M1−M2)']),
+      grid: chartGrid({ top: 32, bottom: 30 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, {
+        name: '同比 %',
+        nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
+        axisLabel: {
+          color: t.text3,
+          fontSize: 10,
+          fontFamily: t.fontMono,
+          formatter: '{value}%',
+        },
+      }),
+      dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
+      series: [
+        lineSeries(
+          'M1 同比',
+          moneySupply.map((p) => p.m1Yoy),
+          t.series[1],
+          { lineStyle: { width: 1.3, color: t.series[1] } },
+        ),
+        lineSeries(
+          'M2 同比',
+          moneySupply.map((p) => p.m2Yoy),
+          t.series[2],
+          { lineStyle: { width: 1.2, color: t.series[2] } },
+        ),
+        barSeries(
+          '剪刀差 (M1−M2)',
+          moneySupply.map((p) => p.scissors),
+          t.series[4],
+          {
+            barMaxWidth: 3,
+            // 剪刀差可正可负，四角都给圆角，避免负柱底部是直角显得突兀
+            itemStyle: { color: t.series[4], borderRadius: 2, opacity: 0.45 },
           },
         ),
       ],
     }
-  }, [sofr, t])
+  }, [moneySupply, t])
 
-  if (!option) return <EmptyState title="SOFR 数据暂无" />
+  if (!option) return <EmptyState title="货币供应数据暂无" />
   return <ResponsiveChartBox option={option} deps={[option]} />
 }
 
@@ -438,21 +595,35 @@ export default function GlobalLiquidityDashboard() {
   const rrpS = findSeries(data, CODE.rrp)
   const tgaS = findSeries(data, CODE.tga)
   const sofrS = findSeries(data, CODE.sofr)
+  const iorbS = findSeries(data, CODE.iorb)
+  const reservesS = findSeries(data, CODE.reserves)
 
   const last = (s?: SeriesData) => s?.data?.[s.data.length - 1]?.value ?? null
+  const delta = (s?: SeriesData) => {
+    const a = last(s)
+    const b = s?.data?.[s.data.length - 2]?.value ?? null
+    return a != null && b != null ? a - b : null
+  }
+
   const rrpLast = last(rrpS)
-  const rrpPrev = rrpS?.data?.[rrpS.data.length - 2]?.value ?? null
-  const rrpChange = rrpLast != null && rrpPrev != null ? rrpLast - rrpPrev : null
+  const rrpChange = delta(rrpS)
   const tgaLast = last(tgaS)
-  const tgaPrev = tgaS?.data?.[tgaS.data.length - 2]?.value ?? null
-  const tgaChange = tgaLast != null && tgaPrev != null ? tgaLast - tgaPrev : null
+  const tgaChange = delta(tgaS)
   const sofrLast = last(sofrS)
-  const sofrPrev = sofrS?.data?.[sofrS.data.length - 2]?.value ?? null
-  const sofrChange = sofrLast != null && sofrPrev != null ? sofrLast - sofrPrev : null
+  const sofrChange = delta(sofrS)
+  const iorbLast = last(iorbS)
+  const reservesLast = last(reservesS)
+  const reservesChange = delta(reservesS)
 
   const netLast = data.netLiquidity?.[data.netLiquidity.length - 1]?.value ?? null
   const netPrev = data.netLiquidity?.[data.netLiquidity.length - 2]?.value ?? null
   const netChange = netLast != null && netPrev != null ? netLast - netPrev : null
+
+  // 以下派生量由 API 层现算（纯算术派生，不入库，避免与基础序列的同步时序耦合）
+  const spreadLast = data.sofrIorbSpread?.[data.sofrIorbSpread.length - 1]?.value ?? null
+  const msLast = data.moneySupply?.[data.moneySupply.length - 1] ?? null
+  const hasReserves = (reservesS?.data?.length ?? 0) > 0
+  const hasMoneySupply = (data.moneySupply?.length ?? 0) > 0
 
   const hasChartData = data.series.some((s) => s.data.length > 0)
   const netChangeTone =
@@ -520,6 +691,58 @@ export default function GlobalLiquidityDashboard() {
           value={sofrLast == null ? '--' : `${sofrLast.toFixed(2)}%`}
           sub={sofrChange != null ? `Δ ${sofrChange >= 0 ? '+' : ''}${sofrChange.toFixed(2)}pp` : undefined}
           tone="info"
+        />
+        <StatTile
+          label="SOFR − IORB"
+          value={spreadLast == null ? '--' : `${spreadLast > 0 ? '+' : ''}${spreadLast.toFixed(0)}bp`}
+          sub={
+            spreadLast == null
+              ? undefined
+              : spreadLast > 0
+                ? '高于政策底 · 融资偏紧'
+                : '低于政策底 · 融资宽松'
+          }
+          tone={spreadLast == null ? 'neutral' : spreadLast > 0 ? 'down' : 'up'}
+          accent={spreadLast != null && spreadLast > 0 ? 'red' : 'green'}
+        />
+        <StatTile
+          label="银行准备金"
+          value={reservesLast == null ? '--' : fmtTrillion(reservesLast / 1e6)}
+          sub={
+            reservesChange != null
+              ? `周 ${reservesChange >= 0 ? '+' : ''}${(reservesChange / 1e6).toFixed(3)}T`
+              : undefined
+          }
+          tone="neutral"
+        />
+        <StatTile
+          label="M1 同比"
+          value={msLast?.m1Yoy == null ? '--' : `${msLast.m1Yoy >= 0 ? '+' : ''}${msLast.m1Yoy.toFixed(2)}%`}
+          sub="活钱增速"
+          tone="info"
+        />
+        <StatTile
+          label="M2 同比"
+          value={msLast?.m2Yoy == null ? '--' : `${msLast.m2Yoy >= 0 ? '+' : ''}${msLast.m2Yoy.toFixed(2)}%`}
+          sub="含准储蓄"
+          tone="info"
+        />
+        <StatTile
+          label="M1−M2 剪刀差"
+          value={
+            msLast?.scissors == null
+              ? '--'
+              : `${msLast.scissors >= 0 ? '+' : ''}${msLast.scissors.toFixed(2)}pp`
+          }
+          sub={
+            msLast?.scissors == null
+              ? undefined
+              : msLast.scissors >= 0
+                ? '资金活化'
+                : '资金躺平 · 通缩预警'
+          }
+          tone={msLast?.scissors == null ? 'neutral' : msLast.scissors >= 0 ? 'up' : 'down'}
+          accent={msLast?.scissors != null && msLast.scissors < 0 ? 'gold' : 'none'}
         />
       </div>
 
@@ -591,9 +814,66 @@ export default function GlobalLiquidityDashboard() {
             </p>
           </MacroCard>
 
-          <MacroCard title="SOFR — 美元融资成本">
-            <SofrChart series={data.series} />
+          <MacroCard
+            title="SOFR vs IORB — 回购市场紧张度"
+            badge={
+              spreadLast != null ? (
+                <span
+                  className={`num rounded-sm border px-1.5 py-px text-2xs font-semibold ${
+                    spreadLast > 0
+                      ? 'border-down/40 text-down'
+                      : 'border-up/40 text-up'
+                  }`}
+                >
+                  {spreadLast > 0 ? '+' : ''}
+                  {spreadLast.toFixed(0)}bp
+                </span>
+              ) : undefined
+            }
+          >
+            <SofrIorbChart series={data.series} />
+            <LegendNote
+              items={[
+                { color: t.series[1], label: 'SOFR — 市场实际回购融资成本' },
+                { color: t.series[5], label: 'IORB — 政策利率底（虚线）' },
+              ]}
+            />
+            <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
+              两线间距即融资紧张度：IORB 是美联储付给准备金的利率，构成货币市场利率的地板，
+              SOFR 是市场实际成交价。
+              {iorbLast != null && <>当前 IORB {iorbLast.toFixed(2)}%。</>}
+              {' '}SOFR 上穿 IORB（利差转正）说明机构宁可付高于政策底的成本也要借到钱 ——
+              2019 年 9 月的回购危机正是这么起头的。
+            </p>
           </MacroCard>
+
+          {hasReserves && (
+            <MacroCard title="银行体系准备金 (Reserve Balances)">
+              <ReservesChart series={data.series} />
+              <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
+                准备金是银行放贷与回购的「弹药」。这张图补齐了知识图谱里
+                「准备金 → SOFR」那条传导链：水位持续下行并逼近最低充裕水平（LCLoR）时，
+                回购市场会突发抽紧，并立刻反映到 SOFR 上。
+              </p>
+            </MacroCard>
+          )}
+
+          {hasMoneySupply && (
+            <MacroCard title="M1 / M2 同比与剪刀差">
+              <MoneySupplyChart moneySupply={data.moneySupply ?? []} />
+              <LegendNote
+                items={[
+                  { color: t.series[1], label: 'M1 同比 — 随时可花的活钱' },
+                  { color: t.series[2], label: 'M2 同比 — 含定期等准储蓄' },
+                  { color: t.series[4], label: '剪刀差 (M1−M2)，转负即资金躺平' },
+                ]}
+              />
+              <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
+                剪刀差 = M1同比 − M2同比。M1 增速快于 M2 说明资金在活化、愿意流通；
+                反之则是钱都存成了定期、不进实体 —— 这是通缩预警链条的第一环。
+              </p>
+            </MacroCard>
+          )}
         </>
       ) : (
         <EmptyState title="暂无图表数据" />

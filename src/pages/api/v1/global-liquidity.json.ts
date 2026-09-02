@@ -2,8 +2,14 @@ export const prerender = false;
 
 import { query } from '../../../lib/db';
 import { withCache } from '../../../lib/cache';
-import { toDateStr } from '../../../lib/date';
-import type { GlobalLiquidityResponse, LiquiditySeries, LiquidityIndicatorCode } from '../../../lib/core';
+import { loadSeries } from '../../../lib/series';
+import { asOfLookup, yoySeries, mergeByDate } from '../../../lib/seriesMath';
+import type {
+  GlobalLiquidityResponse,
+  LiquiditySeries,
+  LiquidityIndicatorCode,
+  MoneySupplyPoint,
+} from '../../../lib/core';
 
 const CODES: { code: LiquidityIndicatorCode; zh: string; en: string }[] = [
   { code: 'FED_BALANCE_SHEET', zh: '美联储总资产', en: 'Fed Total Assets' },
@@ -12,21 +18,12 @@ const CODES: { code: LiquidityIndicatorCode; zh: string; en: string }[] = [
   { code: 'SOFR', zh: '担保隔夜融资利率', en: 'SOFR' },
   { code: 'ECB_BALANCE_SHEET', zh: '欧央行总资产', en: 'ECB Total Assets' },
   { code: 'BOJ_BALANCE_SHEET', zh: '日本央行总资产', en: 'BOJ Total Assets' },
+  // 流动性缺口补齐
+  { code: 'IORB', zh: '准备金余额利率', en: 'Interest on Reserve Balances' },
+  { code: 'BANK_RESERVES', zh: '银行体系准备金', en: 'Reserve Balances with Fed' },
+  { code: 'M1', zh: 'M1 货币供应', en: 'M1 Money Stock' },
+  { code: 'M2', zh: 'M2 货币供应', en: 'M2 Money Stock' },
 ];
-
-async function loadSeries(code: string, limitDays = 1825): Promise<{ date: string; value: number }[]> {
-  const rows = await query<any>(
-    `SELECT d.period_date, d.value
-     FROM indicator_data d
-     JOIN indicators i ON i.id = d.indicator_id
-     WHERE i.code = ? AND d.value IS NOT NULL
-     ORDER BY d.period_date DESC LIMIT ?`,
-    [code, limitDays]
-  );
-  return rows
-    .map((r: any) => ({ date: toDateStr(r.period_date), value: Number(r.value) }))
-    .reverse();
-}
 
 function ffillMap(points: { date: string; value: number }[]): Map<string, number> {
   const out = new Map<string, number>();
@@ -72,10 +69,19 @@ export const GET = withCache(async () => {
       .sort()
       .pop();
 
-    const fedData = results[0];
-    const rrpData = results[1];
-    const tgaData = results[2];
+    // 按 code 取值，不依赖数组下标 —— 后续增删指标时不会因为顺序变动而错位
+    const byCode = new Map(results.map((r, i) => [CODES[i].code, r]));
+    const pick = (code: LiquidityIndicatorCode) => byCode.get(code) ?? [];
 
+    const fedData = pick('FED_BALANCE_SHEET');
+    const rrpData = pick('FED_RRP');
+    const tgaData = pick('FED_TGA');
+    const sofrData = pick('SOFR');
+    const iorbData = pick('IORB');
+    const m1Data = pick('M1');
+    const m2Data = pick('M2');
+
+    // ── 净流动性 = 美联储总资产 - RRP - TGA ──
     const rrpMap = ffillMap(rrpData);
     const tgaMap = ffillMap(tgaData);
 
@@ -90,10 +96,33 @@ export const GET = withCache(async () => {
       });
     }
 
+    // ── SOFR − IORB 利差（基点）──
+    // IORB 是政策利率底，SOFR 是市场实际融资成本。裸看 SOFR 只能看绝对水平，
+    // 减去 IORB 才能看出「相对底线是否吃紧」—— 转正是回购市场缺钱的最早期信号。
+    const sofrIorbSpread: { date: string; value: number }[] = [];
+    for (const p of sofrData) {
+      const iorb = asOfLookup(iorbData, p.date);
+      if (iorb == null) continue;
+      sofrIorbSpread.push({ date: p.date, value: +((p.value - iorb) * 100).toFixed(2) });
+    }
+
+    // ── M1 / M2 同比与剪刀差 ──
+    const moneySupply: MoneySupplyPoint[] = mergeByDate(
+      yoySeries(m1Data),
+      yoySeries(m2Data),
+    ).map((p) => ({
+      date: p.date,
+      m1Yoy: p.a,
+      m2Yoy: p.b,
+      scissors: +(p.a - p.b).toFixed(2),
+    }));
+
     const result: GlobalLiquidityResponse = {
       series,
       updatedAt: updatedAt || new Date().toISOString(),
       netLiquidity,
+      sofrIorbSpread,
+      moneySupply,
     };
 
     return new Response(JSON.stringify({ success: true, data: result }), {

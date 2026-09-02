@@ -46,6 +46,20 @@ TASKS = {
         "delay": 20,
         "args": [],
     },
+    "commodities": {
+        "name": "大宗商品（WTI/布伦特/铜/铁矿/天然气）",
+        "script": "sync_commodities",
+        "group": "daily",
+        "delay": 8,
+        "args": [],
+    },
+    "leading": {
+        "name": "领先指标（金融状况/就业/生产/地产/需求/信心）",
+        "script": "sync_leading",
+        "group": "daily",
+        "delay": 8,
+        "args": [],
+    },
     "regime": {
         "name": "宏观体制与风险异常",
         "script": "sync_regime",
@@ -134,6 +148,8 @@ TASK_ORDER = [
     "indices",            # 美股指数 / 金价 / DXY（走网络源，耗时最长）
     "gold_decision",
     "global_liquidity",
+    "commodities",
+    "leading",
     "regime",
     "macro_analysis",
     "regime_backtest",    # 产出 regime_snapshots，analysis_yield_curve 依赖它

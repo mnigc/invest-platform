@@ -1,0 +1,59 @@
+---
+export const prerender = false
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+import LeadingIndicatorDashboard from '../../components/LeadingIndicatorDashboard'
+---
+
+<Layout title="领先指标 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="领先指标"
+      subtitle="金融状况 · 就业 · 生产 · 需求 · 地产 · 信心"
+    />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">衰退预警规则：</strong>Sahm Rule ≥ 0.5 <strong class="text-ink">且</strong> NFCI 转正 =
+        高置信衰退信号；仅其一触发时，按「预警」对待而非「确认」。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">领先指标</strong>的价值在于抢时间。GDP、非农这类数据虽然权威，但发布滞后且常被大幅修订；
+        真正能提前发出警报的，是那些<strong class="text-ink">高频</strong>（周频的初请失业金、NFCI）
+        与<strong class="text-ink">前瞻</strong>（订单、营建许可、信心）的指标组合。
+        本页刻意按「频率优先」组织：周频信号在最上面。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">Sahm Rule</strong> — 失业率 3 个月移动平均 − 过去 12 个月该均线最低值。
+          突破 0.5 时历史上几乎都对应 NBER 认定的衰退起点。只需失业率一条序列即可算出，
+          是单指标里可靠性最高的衰退开关。
+        </li>
+        <li>
+          <strong class="text-ink">NFCI 金融状况指数</strong> — 芝加哥联储编制，综合信用、杠杆、风险三类指标。
+          零轴上方代表金融环境比历史平均更紧，是系统性压力而非单一市场噪音。
+        </li>
+        <li>
+          <strong class="text-ink">初请失业金</strong> — 周频发布，比非农快得多。
+          企业裁员是最先发生的动作之一，因此它常在非农转弱之前就已抬头。
+        </li>
+        <li>
+          <strong class="text-ink">核心资本品订单</strong> — 剔除飞机与国防的制造业新订单。
+          这两项波动极大（单笔飞机订单就能扭曲整体），剔除后更能反映企业真实的设备投资意愿。
+        </li>
+        <li>
+          <strong class="text-ink">营建许可</strong> — 地产链条中最领先的环节（早于新屋开工、更早于完工）。
+          地产是利率传导最灵敏的部门，因此它是观察货币政策是否起效的窗口。
+        </li>
+        <li>
+          <strong class="text-ink">密歇根消费者信心</strong> — 居民对未来收入与就业的主观感受，
+          前瞻消费意愿。它不预测「会发生什么」，而预测「人们会怎么做」。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <LeadingIndicatorDashboard client:load />
+  </div>
+</Layout>

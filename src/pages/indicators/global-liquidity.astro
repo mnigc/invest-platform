@@ -11,7 +11,7 @@ import GlobalLiquidityDashboard from '../../components/GlobalLiquidityDashboard'
   <div class="animate-enter">
     <PageHeader
       title="全球流动性监测"
-      subtitle="美联储资产负债表 · RRP · TGA · 主要央行对比 · SOFR"
+      subtitle="美联储资产负债表 · RRP · TGA · 净流动性 · 银行准备金 · SOFR vs IORB · M1/M2"
     />
 
     <IndicatorGuide>
@@ -32,7 +32,18 @@ import GlobalLiquidityDashboard from '../../components/GlobalLiquidityDashboard'
           <strong class="text-ink">TGA（财政部一般账户）</strong> — 政府存款变动方向即流动性方向：TGA 增加 = 抽走市场资金（紧缩），TGA 减少 = 注入资金（宽松）。
         </li>
         <li>
-          <strong class="text-ink">SOFR</strong> — 担保隔夜融资利率，反映银行间资金紧张程度。利率上行即流动性收紧信号。
+          <strong class="text-ink">SOFR vs IORB</strong> — SOFR 是市场实际成交的回购利率，IORB 是美联储付给准备金的利率
+          （货币市场利率的「地板」）。<strong class="text-ink">两者之差</strong>才是真正的融资紧张度：
+          SOFR 上穿 IORB 意味着机构宁可付高于政策底的成本也要借到钱 —— 2019 年 9 月的回购危机正是这么起头的。
+        </li>
+        <li>
+          <strong class="text-ink">银行准备金</strong> — 银行体系存放在美联储的余额，是放贷与回购的「弹药」。
+          水位持续下行并逼近最低充裕水平（LCLoR）时，回购市场会突发抽紧，并立刻传导到 SOFR。
+        </li>
+        <li>
+          <strong class="text-ink">M1 / M2 剪刀差</strong> — M1 是随时可花的活钱，M2 还含定期等准储蓄。
+          剪刀差 = M1同比 − M2同比，<strong class="text-ink">转负</strong>说明资金在「躺平」而非流通，
+          是通缩预警链条的第一环。
         </li>
         <li>
           <strong class="text-ink">主要央行资产负债表对比</strong> — 以 100 为基准，横向比较美联储、欧央行、日央行的相对宽松/紧缩节奏。

@@ -231,7 +231,18 @@ export function fmtCompact(value: number | null): string {
 }
 
 // ── 全球流动性 ──
-export type LiquidityIndicatorCode = 'FED_BALANCE_SHEET' | 'FED_RRP' | 'FED_TGA' | 'SOFR' | 'ECB_BALANCE_SHEET' | 'BOJ_BALANCE_SHEET'
+export type LiquidityIndicatorCode =
+  | 'FED_BALANCE_SHEET'
+  | 'FED_RRP'
+  | 'FED_TGA'
+  | 'SOFR'
+  | 'ECB_BALANCE_SHEET'
+  | 'BOJ_BALANCE_SHEET'
+  // 流动性缺口补齐：政策利率底 + 准备金水位 + 货币供应
+  | 'IORB'
+  | 'BANK_RESERVES'
+  | 'M1'
+  | 'M2'
 
 export interface LiquiditySeries {
   code: LiquidityIndicatorCode
@@ -242,10 +253,86 @@ export interface LiquiditySeries {
   data: { date: string; value: number | null }[]
 }
 
+/** M1 / M2 同比与剪刀差，月频对齐 */
+export interface MoneySupplyPoint {
+  date: string
+  m1Yoy: number | null
+  m2Yoy: number | null
+  /** 剪刀差 = M1同比 − M2同比。转负常对应资金活化不足 / 通缩压力 */
+  scissors: number | null
+}
+
 export interface GlobalLiquidityResponse {
   series: LiquiditySeries[]
   updatedAt: string
   netLiquidity?: { date: string; value: number }[]
+  /** SOFR − IORB，单位：基点。转正 = 回购融资成本高于政策利率底，市场缺钱 */
+  sofrIorbSpread?: { date: string; value: number }[]
+  moneySupply?: MoneySupplyPoint[]
+}
+
+// ── 大宗商品 ──
+export type CommodityCode = 'WTI' | 'BRENT' | 'NATGAS' | 'COPPER' | 'IRON_ORE'
+
+export interface CommoditySeries {
+  code: CommodityCode
+  nameZh: string
+  nameEn: string
+  unit: string
+  frequency: string
+  data: { date: string; value: number | null }[]
+}
+
+/** 商品的相对价值信号 */
+export interface CommoditySpreadPoint {
+  date: string
+  /** 布伦特 − WTI，反映跨区供需与运输瓶颈 */
+  brentWti: number | null
+  /** 金油比 = 金价(美元/盎司) ÷ WTI(美元/桶) */
+  goldOilRatio: number | null
+}
+
+export interface CommodityResponse {
+  series: CommoditySeries[]
+  updatedAt: string
+  spreads: CommoditySpreadPoint[]
+}
+
+// ── 领先指标 ──
+export type LeadingCode =
+  | 'NFCI'
+  | 'ICSA'
+  | 'UNRATE'
+  | 'PAYEMS'
+  | 'INDPRO'
+  | 'CAPACITY_UTIL'
+  | 'PERMIT'
+  | 'CORE_CAPEX_ORDERS'
+  | 'CONSUMER_SENT'
+
+export interface LeadingSeries {
+  code: LeadingCode
+  nameZh: string
+  nameEn: string
+  unit: string
+  frequency: string
+  data: { date: string; value: number | null }[]
+}
+
+/** Sahm Rule 判定结果 */
+export interface SahmSignal {
+  value: number | null
+  threshold: number
+  triggered: boolean
+  status: string
+}
+
+export interface LeadingResponse {
+  series: LeadingSeries[]
+  updatedAt: string
+  /** Sahm Rule：失业率 3 月均线 − 过去 12 个月该均线最低值 */
+  sahm: { date: string; value: number | null }[]
+  sahmSignal: SahmSignal
 }
 
 // ── 信贷脉冲 ──
