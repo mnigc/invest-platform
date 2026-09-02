@@ -310,11 +310,19 @@ async function handleBacktest(url: URL): Promise<Response> {
     let summaries: BacktestSummary[] = []
     const [idxSumRawResult, summariesRawResult] = await Promise.all([
       safeSummaryQuery(
+        // 只取最新一段 (period_start, period_end)：历史多次同步会留下多段区间，
+        // 若不加此限定，同一指数同一体制会重复出现多行（表格"叠加"）。
         `SELECT index_symbol, index_name_zh, regime, label, count, avg_confidence,
                 avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
                 win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
          FROM regime_index_summaries
-         WHERE period_start >= ? AND period_end <= ?
+         WHERE (period_start, period_end) = (
+                 SELECT period_start, period_end
+                 FROM regime_index_summaries
+                 WHERE period_start >= ? AND period_end <= ?
+                 ORDER BY period_end DESC, period_start DESC
+                 LIMIT 1
+               )
          ORDER BY index_symbol ASC, count DESC`,
         [startDate, endDate]
       ),
@@ -323,14 +331,26 @@ async function handleBacktest(url: URL): Promise<Response> {
                 avg_return_1m, avg_return_3m, avg_return_6m, avg_return_12m,
                 win_rate_1m, win_rate_3m, win_rate_6m, win_rate_12m
          FROM regime_backtest_summaries
-         WHERE period_start >= ? AND period_end <= ?
+         WHERE (period_start, period_end) = (
+                 SELECT period_start, period_end
+                 FROM regime_backtest_summaries
+                 WHERE period_start >= ? AND period_end <= ?
+                 ORDER BY period_end DESC, period_start DESC
+                 LIMIT 1
+               )
          ORDER BY count DESC`,
         [startDate, endDate]
       ),
     ])
     try {
       const byIndex = new Map<string, { nameZh: string; rows: BacktestSummary[] }>()
+      const seenRegimes = new Map<string, Set<string>>() // symbol -> 已收录 regime，兜底防脏数据重复
       for (const s of idxSumRawResult) {
+        const seen = seenRegimes.get(s.index_symbol) ?? new Set<string>()
+        if (seen.has(s.regime)) continue
+        seen.add(s.regime)
+        seenRegimes.set(s.index_symbol, seen)
+
         const row: BacktestSummary = {
           regime: s.regime,
           label: s.label,

@@ -160,7 +160,6 @@ function SignalCard({ signal }: { signal: RegimeSignal }) {
 
 export function RegimeDetailDashboard() {
   const [regime, setRegime] = useState<RegimeData | null>(null)
-  const [backtest, setBacktest] = useState<BacktestSummary[] | null>(null)
   const [indexSummaries, setIndexSummaries] = useState<{ symbol: string; nameZh: string; rows: BacktestSummary[] }[]>([])
   const [snapshots, setSnapshots] = useState<BacktestSnapshot[] | null>(null)
   const [indexSeries, setIndexSeries] = useState<{ symbol: string; nameZh: string; data: (number | null)[] }[]>([])
@@ -198,7 +197,6 @@ export function RegimeDetailDashboard() {
       .then(r => r.json())
       .then((backtestResult) => {
         if (!alive || !backtestResult?.success || !backtestResult.data) return
-        setBacktest(backtestResult.data.summaries)
         setSnapshots(backtestResult.data.snapshots ?? null)
         setIndexSeries(backtestResult.data.indexSeries ?? [])
         setIndexSummaries(backtestResult.data.indexSummaries ?? [])
@@ -230,8 +228,10 @@ export function RegimeDetailDashboard() {
   const segments = useMemo(() => regimeSegments(snapshots), [snapshots])
 
   const currentSeries = indexSeries.find((i) => i.symbol === chartIndex) ?? indexSeries[0] ?? null
-  const currentSummaryRows =
-    indexSummaries.find((i) => i.symbol === summaryIndex)?.rows ?? null
+  // 选中指数可能无数据（数据库缺该 symbol），回退到第一个可用指数，避免切换后表格空白
+  const currentSummary =
+    indexSummaries.find((i) => i.symbol === summaryIndex) ?? indexSummaries[0] ?? null
+  const currentSummaryRows = currentSummary?.rows ?? null
 
   const sp500Option = useMemo<EChartsOption | null>(() => {
     const override = currentSeries
@@ -378,7 +378,7 @@ export function RegimeDetailDashboard() {
                   type="button"
                   onClick={() => setSummaryIndex(idx.symbol)}
                   className={`rounded-sm border px-2 py-0.5 text-2xs transition-colors duration-1 ease-terminal ${
-                    summaryIndex === idx.symbol
+                    currentSummary?.symbol === idx.symbol
                       ? 'border-accent bg-accent/15 text-ink'
                       : 'border-line bg-surface-2 text-ink-3 hover:text-ink-2'
                   }`}
@@ -390,10 +390,10 @@ export function RegimeDetailDashboard() {
           ) : undefined
         }
       >
-        {(currentSummaryRows && currentSummaryRows.length > 0) || (backtest && backtest.length > 0) ? (
+        {currentSummaryRows && currentSummaryRows.length > 0 ? (
           <>
             <p className="mb-3 text-2xs leading-relaxed text-ink-3">
-              历史上各宏观体制出现后，{currentSummaryRows ? indexSummaries.find((i) => i.symbol === summaryIndex)?.nameZh.replace('指数', '') : 'S&P500'} 在 1/3/6/12 个月后的平均收益率和胜率。
+              历史上各宏观体制出现后，{currentSummary?.nameZh?.replace('指数', '') ?? 'S&P500'} 在 1/3/6/12 个月后的平均收益率和胜率。
             </p>
             <DataTable
               columns={[
@@ -440,13 +440,13 @@ export function RegimeDetailDashboard() {
                   ),
                 },
               ]}
-              rows={currentSummaryRows ?? backtest ?? []}
+              rows={currentSummaryRows}
               rowKey={(r) => r.regime}
             />
           </>
         ) : (
           <p className="py-3 text-xs text-ink-3">
-            需要同步 S&P500 数据后自动生成回测统计。回测展示各宏观体制下 S&P500 的 1/3/6/12 个月前瞻收益。
+            {currentSummary?.nameZh ?? '股票指数'} 暂无回测数据，请运行 regime 回测同步脚本后重试。
           </p>
         )}
       </MacroCard>
