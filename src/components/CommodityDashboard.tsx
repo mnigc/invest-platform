@@ -275,14 +275,26 @@ export default function CommodityDashboard() {
   const stats = useMemo(() => {
     const out = {} as Record<
       string,
-      { cur: number | null; yoy: number | null; unit: string }
+      { cur: number | null; yoy: number | null; unit: string; frequency: string }
     >
     for (const s of data?.series ?? []) {
       const pts = toPoints(s)
-      out[s.code] = { cur: lastValue(pts), yoy: lastValue(yoySeries(pts)), unit: s.unit }
+      out[s.code] = {
+        cur: lastValue(pts),
+        yoy: lastValue(yoySeries(pts)),
+        unit: s.unit,
+        frequency: s.frequency,
+      }
     }
     return out
   }, [data])
+
+  const yoyPeriodLabel = (freq: string): string => {
+    if (freq === 'daily') return '年同比 (日)'
+    if (freq === 'monthly') return '年同比 (月)'
+    if (freq === 'weekly') return '年同比 (周)'
+    return '年同比'
+  }
 
   if (loading) return <LoadingSkeleton type="card" rows={3} height={320} />
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
@@ -314,7 +326,7 @@ export default function CommodityDashboard() {
               sub={
                 yoy == null
                   ? s?.unit || undefined
-                  : `同比 ${yoy >= 0 ? '+' : ''}${yoy.toFixed(1)}%`
+                  : `${yoyPeriodLabel(s?.frequency || '')} ${yoy >= 0 ? '+' : ''}${yoy.toFixed(1)}%`
               }
               tone={yoy == null ? 'neutral' : yoy >= 0 ? 'up' : 'down'}
             />
