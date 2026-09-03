@@ -4,6 +4,7 @@ import '../styles/global.css'
 import Sidebar from '../components/Sidebar.astro'
 import ClientRoot from '../components/ClientRoot'
 import { DataFreshness } from '../components/ui/DataFreshness'
+import { DonateButton } from '../components/ui/DonateButton'
 import { ThemeToggle } from '../components/ui/ThemeToggle'
 
 interface Props {
@@ -86,6 +87,7 @@ const { title = 'MACRO EDGE · 宏观投资研究终端' } = Astro.props
         <div class="topbar-brand">MACRO EDGE</div>
 
         <div class="topbar-actions">
+          <DonateButton client:load />
           <DataFreshness client:load />
           <ThemeToggle client:load />
         </div>

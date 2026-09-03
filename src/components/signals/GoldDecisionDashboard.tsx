@@ -668,7 +668,7 @@ export function GoldDecisionDashboard() {
             <StatTile
               label="关联状态"
               value={latest.bandLabel}
-              sub={latest.bandDesc}
+              sub="鼠标移入查看说明"
               tone="info"
               tooltip={latest.bandDesc}
             />
