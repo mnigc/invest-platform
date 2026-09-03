@@ -265,7 +265,7 @@ function SignalPanel({ signal }: { signal: Data['signal'] }) {
                       样本少
                     </span>
                   )}
-                  <span className="ml-auto flex items-baseline gap-1.5">
+                  <span className="flex items-baseline gap-1.5">
                     <strong
                       className={`num ${
                         h.median >= 0 ? 'text-up' : 'text-down'
@@ -668,7 +668,7 @@ export function GoldDecisionDashboard() {
             <StatTile
               label="关联状态"
               value={latest.bandLabel}
-              sub="鼠标移入查看说明"
+              sub={`60日相关 ${latest.corr60.toFixed(2)}`}
               tone="info"
               tooltip={latest.bandDesc}
             />
@@ -773,19 +773,9 @@ export function GoldDecisionDashboard() {
         </MacroCard>
       </div>
 
-      {/* 右栏：信号 · 数据来源 */}
+      {/* 右栏：信号 */}
       <aside className="flex flex-col gap-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:sticky lg:top-[calc(var(--topbar-height)+16px)]">
         <SignalPanel signal={data.signal} />
-
-        <MacroCard title="数据来源" padding="sm">
-          <p className="text-2xs leading-relaxed text-ink-3">
-            Yahoo Finance（金价 GC=F、美元指数 DXY）、FRED（DFII10、T10YIE）。
-          </p>
-          <p className="num mt-1.5 text-2xs text-ink-3">更新 {data.updatedAt}</p>
-          <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
-            所有信号为统计研究结果，不构成投资建议。
-          </p>
-        </MacroCard>
       </aside>
     </div>
   )
