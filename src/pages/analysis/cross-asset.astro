@@ -1,13 +1,69 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import CrossAssetDashboard from '../../components/analysis/CrossAssetDashboard'
+
+const description =
+  '跨资产联动矩阵：国债-信用利差、国债-VIX、实际利率-VIX 等关键资产对的滚动相关性（63 日 / 252 日），监控分散化失效与市场结构转换。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '跨资产联动矩阵数据集',
+  description,
+  keywords: '跨资产,相关性,分散化,国债,VIX,实际利率,风险偏好,资产配置',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  temporalCoverage: '2010-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: '跨资产联动' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '相关',
+      links: [
+        { href: '/knowledge/cross-asset', label: '跨资产机制' },
+        { href: '/signal-board', label: '宏观信号板' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/analysis/macro-consensus', label: '信号一致性' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/dxy', label: '美元指数' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="跨资产联动矩阵 - MACRO EDGE">
+<Layout
+  title="跨资产联动矩阵 - MACRO EDGE"
+  description={description}
+  canonical="/analysis/cross-asset"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="跨资产联动矩阵"

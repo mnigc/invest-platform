@@ -26,6 +26,28 @@ npm install
 npm run dev
 ```
 
+## SEO
+
+项目对搜索引擎（Google / Bing / 百度 / 360 / 搜狗 / 神马）已做基础优化：
+
+- **静态预渲染**（`prerender = true`）—— 所有页面构建期生成完整 HTML，爬虫零 JS 即可索引
+- **每页独立** `<title>` / `description` / `canonical` / Open Graph / Twitter Card
+- **JSON-LD 结构化数据** —— 知识图谱页（`Article` + `FAQPage`，可直接出"人们也问"卡片），指标 / 信号 / 分析页（`Dataset`）
+- **`/sitemap-index.xml`** + **`/rss.xml`**（构建时自动生成）
+- **`/robots.txt`**（允许 Baiduspider / 360 / 搜狗 / 神马 / 字节 / GPTBot / Claude 等）
+
+部署后需在站长平台提交 sitemap：
+
+- Google Search Console：`https://search.google.com/search-console`
+- Bing Webmaster：`https://www.bing.com/webmasters`
+- 百度站长平台：`https://ziyuan.baidu.com`
+
+`SITE_URL` 通过 `astro.config.mjs` 的 `site` 字段配置，构建时设环境变量：
+
+```bash
+SITE_URL=https://macroedge.example.com npm run build
+```
+
 ## 数据同步脚本
 
 生产数据由 `sync/` 目录下的独立 Python 脚本写入 Supabase（PostgreSQL），脚本自带连接、SQL 适配层、日志记录和重试机制。

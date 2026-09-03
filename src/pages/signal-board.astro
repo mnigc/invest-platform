@@ -1,15 +1,104 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../layouts/Layout.astro'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SignalBoardDashboard } from '../components/signals/SignalBoardDashboard'
+
+const description =
+  '宏观资产配置综合信号板：黄金价格、宏观体制、风险异常、信用利差、收益率曲线、领先指标、跨资产联动等多源信号加权综合评分，给出当前宏观环境的资产配置研判。每日更新。'
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'MACRO EDGE',
+    alternateName: '宏观投资研究终端',
+    url: 'https://macroedge.example.com/',
+    inLanguage: 'zh-CN',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://macroedge.example.com/signal-board',
+      'query-input': 'required name=search_term_string',
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Dataset',
+    name: '宏观资产配置综合信号板',
+    description,
+    keywords: '资产配置,宏观信号,黄金,信用利差,收益率曲线,衰退预警,投资策略,综合评分',
+    creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+    distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+    temporalCoverage: '2015-01-01/..',
+  },
+]
+
+const breadcrumb = [{ label: '首页', href: '/' }, { label: '宏观信号板' }]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '今日热门',
+      links: [
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/signals/regime', label: '宏观体制研判' },
+        { href: '/indicators/leading', label: '衰退预警' },
+        { href: '/indicators/dxy', label: '美元指数' },
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+      ],
+    },
+    {
+      title: '宏观指标',
+      links: [
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/commodities', label: '大宗商品' },
+        { href: '/indicators/cpi', label: 'CPI 通胀数据' },
+        { href: '/equity-cycle', label: '股票风险溢价' },
+      ],
+    },
+    {
+      title: '宏观分析',
+      links: [
+        { href: '/analysis/yield-curve', label: '收益率曲线' },
+        { href: '/analysis/credit-stress', label: '信用压力' },
+        { href: '/analysis/inflation-anchor', label: '通胀锚定' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+        { href: '/analysis/macro-consensus', label: '信号一致性' },
+      ],
+    },
+    {
+      title: '知识图谱',
+      links: [
+        { href: '/knowledge/inflation', label: '通胀机制' },
+        { href: '/knowledge/recession', label: '衰退预警机制' },
+        { href: '/knowledge/gold', label: '黄金定价机制' },
+        { href: '/knowledge/liquidity', label: '流动性机制' },
+        { href: '/knowledge', label: '查看全部 10 个主题' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+    { href: '/indicators/global-liquidity', label: '全球流动性' },
+  ],
+}
 ---
 
-<Layout title="组合信号板 - MACRO EDGE">
+<Layout
+  title="宏观信号板 · 资产配置综合评分 - MACRO EDGE"
+  description={description}
+  canonical="/signal-board"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
-      title="组合信号板"
+      title="宏观信号板 · 资产配置综合评分"
       subtitle="黄金 / 宏观体制 / 风险异常 · 多信号加权 · 研究参考"
     />
     <SignalBoardDashboard client:load />

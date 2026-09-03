@@ -1,13 +1,76 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import InflationAnchorDashboard from '../../components/analysis/InflationAnchorDashboard'
+
+const description =
+  '通胀预期锚定分析：5Y / 10Y TIPS 隐含通胀率与联储 2% 目标的偏离、5Y5Y 远期通胀、实际利率、滚动 Z-Score。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '通胀预期锚定分析数据集',
+  description,
+  keywords: 'TIPS,盈亏平衡通胀,5Y5Y,实际利率,通胀锚定,通缩,脱锚,通胀预期',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'T5YIE', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'T10YIE', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DFII5', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DFII10', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'CPIAUCSL YoY', unitText: 'percent' },
+  ],
+  temporalCoverage: '2003-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: '通胀锚定' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '通胀相关',
+      links: [
+        { href: '/knowledge/inflation', label: '通胀机制' },
+        { href: '/indicators/cpi', label: 'CPI 通胀数据' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/signals/regime', label: '宏观体制' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/analysis/yield-curve', label: '收益率曲线' },
+        { href: '/analysis/credit-stress', label: '信用压力' },
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="通胀预期锚定分析 - MACRO EDGE">
+<Layout
+  title="通胀预期锚定分析 - MACRO EDGE"
+  description={description}
+  canonical="/analysis/inflation-anchor"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="通胀预期锚定分析"

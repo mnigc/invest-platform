@@ -1,13 +1,74 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../layouts/Layout.astro'
 import { PageHeader } from '../components/ui/PageHeader'
 import IndicatorGuide from '../components/ui/IndicatorGuide.astro'
 import EquityCycleDashboard from '../components/EquityCycleDashboard'
+
+const description =
+  '股票风险溢价与轮动：BBB-HY 信用下沉利差、10Y 实际利率 DFII10、周期/防御 ETF 相对强弱，三共振判断权益性价比。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '股票风险溢价与轮动数据集',
+  description,
+  keywords: '股票风险溢价,BBB-HY 利差,DFII10,实际利率,周期股,防御股,行业轮动,资产配置',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'DFII10', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'BBB-HY', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: '周期/防御 ETF 比', unitText: 'ratio' },
+  ],
+  temporalCoverage: '2010-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: '股票风险溢价' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '权益相关',
+      links: [
+        { href: '/signal-board', label: '宏观信号板' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+        { href: '/analysis/credit-stress', label: '信用压力' },
+        { href: '/indicators/dxy', label: '美元指数' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/indicators/leading', label: '衰退预警' },
+        { href: '/analysis/inflation-anchor', label: '通胀锚定' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="股票风险溢价与轮动 - MACRO EDGE">
+<Layout
+  title="股票风险溢价与轮动 - MACRO EDGE"
+  description={description}
+  canonical="/equity-cycle"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="股票风险溢价与轮动"
@@ -16,8 +77,7 @@ import EquityCycleDashboard from '../components/EquityCycleDashboard'
 
     <IndicatorGuide>
       <p slot="summary">
-        <strong class="text-ink">判读规则：</strong>
-        BBB-HY 利差扩张（信用下沉）+ 实际利率上行（贴现率压顶）+ 周期/防御比下行
+        <strong class="text-ink">判读规则：</strong>BBB-HY 利差扩张（信用下沉）+ 实际利率上行（贴现率压顶）+ 周期/防御比下行
         = 三共振，权益性价比最差；反之三者同向改善 = 风险偏好修复。
       </p>
       <p class="my-1.5">

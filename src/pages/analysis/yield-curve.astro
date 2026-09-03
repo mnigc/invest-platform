@@ -1,13 +1,77 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import YieldCurveRegimeDashboard from '../../components/analysis/YieldCurveRegimeDashboard'
+
+const description =
+  '收益率曲线与宏观体制联动：10Y-2Y、10Y-3M 期限利差，3M / 2Y / 10Y / 30Y 期限结构，与六大宏观体制的对应关系。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '收益率曲线体制联动数据集',
+  description,
+  keywords: '收益率曲线,期限利差,10Y-2Y,10Y-3M,衰退前瞻,陡峭化,平坦化,曲线倒挂',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'DGS3MO', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DGS2', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DGS10', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DGS30', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'T10Y2Y', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'T10Y3M', unitText: 'percent' },
+  ],
+  temporalCoverage: '1962-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: '收益率曲线' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '曲线相关',
+      links: [
+        { href: '/knowledge/recession', label: '衰退预警机制' },
+        { href: '/analysis/credit-stress', label: '信用压力' },
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+        { href: '/analysis/inflation-anchor', label: '通胀锚定' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/leading', label: '衰退预警' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="收益率曲线 × 宏观体制联动 - MACRO EDGE">
+<Layout
+  title="收益率曲线 × 宏观体制联动 - MACRO EDGE"
+  description={description}
+  canonical="/analysis/yield-curve"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="收益率曲线 × 宏观体制联动"

@@ -1,16 +1,77 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDashboard'
+
+const description =
+  '黄金价格信号分析：黄金与美元指数（DXY）的滚动相关性（20/60/120 日）、实际利率（DFII10）定价残差 z-score、央行购金、20/60 日动量、事件回测，给出高估/低估信号。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '黄金价格信号分析数据集',
+  description,
+  keywords: '黄金价格,金价,美元指数,DXY,实际利率,DFII10,T10YIE,定价残差,央行购金,FRED',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'GLD', unitText: 'USD' },
+    { '@type': 'PropertyValue', name: 'DXY', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'DFII10', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'T10YIE', unitText: 'percent' },
+  ],
+  temporalCoverage: '2010-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '信号', href: '/signal-board' },
+  { label: '黄金价格' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '黄金相关',
+      links: [
+        { href: '/knowledge/gold', label: '黄金定价机制' },
+        { href: '/indicators/dxy', label: '美元指数 DXY' },
+        { href: '/analysis/inflation-anchor', label: '通胀预期 实际利率' },
+        { href: '/signals/regime', label: '宏观体制 黄金配置' },
+      ],
+    },
+    {
+      title: '其他资产',
+      links: [
+        { href: '/indicators/commodities', label: '大宗商品' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="黄金决策 - MACRO EDGE">
+<Layout
+  title="黄金价格 · 美元指数 · 实际利率信号 - MACRO EDGE"
+  description={description}
+  canonical="/signals/gold"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
-      title="黄金决策"
+      title="黄金价格 · 美元指数 · 实际利率信号"
       subtitle="黄金-美元收益率滚动相关 · 定价残差 · 脱锚事件研究"
     />
 
@@ -20,11 +81,11 @@ import { GoldDecisionDashboard } from '../../components/signals/GoldDecisionDash
         <span class="text-warn">价格图竖线</span>=残差极端信号（高估/低估），<span class="text-warn">相关图竖线</span>=相关性失效/正相关切换，可直观看到信号后金价与相关性的后续演化。
       </p>
       <p class="my-1.5">
-        <strong class="text-ink">黄金决策</strong>以「黄金-美元负相关」经典范式为锚，叠加实际利率定价与残差检验，判断金价相对基本面是否高估或低估，并以历史事件回测验证信号有效性。
+        <strong class="text-ink">黄金价格</strong>以「黄金-美元负相关」经典范式为锚，叠加实际利率定价与残差检验，判断金价相对基本面是否高估或低估，并以历史事件回测验证信号有效性。
       </p>
       <ul class="my-1.5 list-disc space-y-1 pl-5">
         <li>
-          <strong class="text-ink">黄金-美元收益率滚动相关（20 / 60 / 120 日）</strong> — 经典范式为负相关（美元涨则黄金跌）。20 日捕捉短期冲击，60 日为基准窗口，120 日反映结构性变化。
+          <strong class="text-ink">黄金-美元指数收益率滚动相关（20 / 60 / 120 日）</strong> — 经典范式为负相关（美元涨则黄金跌）。20 日捕捉短期冲击，60 日为基准窗口，120 日反映结构性变化。
         </li>
         <li>
           <strong class="text-ink">关联状态（基于 60 日相关）</strong> — 正常负相关（&lt;-0.4，范式生效）；相关性弱化（-0.4 ~ -0.15，范式松动）；相关性失效（-0.15 ~ 0.15，由地缘/避险等其他因素定价）；正相关区间（&gt;0.15，黄金与美元同涨同跌）。

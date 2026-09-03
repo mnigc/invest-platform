@@ -1,0 +1,43 @@
+User-agent: *
+Allow: /
+
+# Baidu 国内主搜索引擎
+User-agent: Baiduspider
+Allow: /
+
+# 360 搜索
+User-agent: 360Spider
+Allow: /
+User-agent: HaosouSpider
+Allow: /
+
+# 搜狗
+User-agent: Sogou Spider
+Allow: /
+
+# 神马搜索（移动）
+User-agent: YisouSpider
+Allow: /
+
+# 字节跳动搜索
+User-agent: Bytespider
+Allow: /
+
+# AI 爬虫（用于后续被 AI 引擎收录）
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+# 任何站点的爬虫一律禁止采集 API 端点（防止打爆数据库）
+Disallow: /api/
+
+Sitemap: https://macroedge.example.com/sitemap-index.xml

@@ -1,13 +1,76 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import CreditStressDashboard from '../../components/analysis/CreditStressDashboard'
+
+const description =
+  '信用-利率交叉压力分析：BBB / AAA / HY 各档信用利差与 10Y / 2Y 国债收益率交叉，识别避险模式、紧缩性信用收缩与信用修复期。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '信用-利率交叉压力分析数据集',
+  description,
+  keywords: 'BBB 利差,HY 利差,信用利差,国债收益率,衰退信号,信用修复,高收益债',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'BAMLC0A0CM', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'BAMLH0A0HYM2', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'AAA OAS', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DGS10', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DGS2', unitText: 'percent' },
+  ],
+  temporalCoverage: '1996-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: '信用-利率压力' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '信用相关',
+      links: [
+        { href: '/knowledge/credit', label: '信用周期机制' },
+        { href: '/analysis/yield-curve', label: '收益率曲线' },
+        { href: '/analysis/macro-consensus', label: '信号一致性' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/dxy', label: '美元指数' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="信用-利率交叉压力分析 - MACRO EDGE">
+<Layout
+  title="信用-利率交叉压力分析 - MACRO EDGE"
+  description={description}
+  canonical="/analysis/credit-stress"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="信用-利率交叉压力分析"

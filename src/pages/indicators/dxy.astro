@@ -1,0 +1,196 @@
+---
+export const prerender = true
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+
+const title = '美元指数 · DXY · 美元走势 · 实际利率 - MACRO EDGE'
+const description =
+  '美元指数（DXY / U.S. Dollar Index）监测：DXY 历史走势、与黄金负相关性、20/60/120 日滚动相关、20 日动量、10Y 实际利率（DFII10）、美元强弱对大类资产的影响。'
+const canonical = '/indicators/dxy'
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '美元指数数据集',
+  description,
+  keywords:
+    '美元指数,DXY,美元走势,美元,美元强弱,实际利率,DFII10,美元黄金负相关,美元周期',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'DTWEXBGS', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'DFII10', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DGS10', unitText: 'percent' },
+  ],
+  temporalCoverage: '1973-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: '美元指数' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '美元相关',
+      links: [
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/fed-funds', label: '美联储利率 实际利率' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/commodities', label: '大宗商品' },
+        { href: '/indicators/cpi', label: 'CPI 通胀' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
+  <div class="animate-enter">
+    <PageHeader
+      title="美元指数 · DXY · 实际利率"
+      subtitle="美元强弱周期与黄金 / 风险资产联动"
+    />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">监测目标：</strong><strong class="text-ink">美元指数（DXY）</strong>走势、
+        与<strong class="text-ink">黄金</strong>的滚动相关、<strong class="text-ink">实际利率（DFII10）</strong>对美元的传导，
+        识别美元强弱周期与全球流动性外溢。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">美元指数（DXY）</strong>衡量美元对一篮子货币（欧元 57.6%、日元 13.6%、英镑 11.9% 等）的强弱。
+        美元走强通常对应：美联储加息周期 / 全球避险 / 美国相对经济优势。
+        走弱对应：降息周期 / 风险偏好回升 / 美国财政与贸易双赤字恶化。
+        美元强弱是全球大类资产定价的"锚"——
+        <strong class="text-ink">美元涨则黄金跌 / 新兴市场承压 / 大宗商品以美元计价更贵</strong>。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">DXY（美元指数）</strong> — ICE 美元指数，最常被引用的美元强弱指标。
+          100 为荣枯线；&gt; 105 算强美元，&lt; 95 算弱美元。
+        </li>
+        <li>
+          <strong class="text-ink">DTWEXBGS（贸易加权广义美元指数）</strong> — Fed 编制，
+          覆盖更广（含新兴市场货币），比 DXY 更准确反映美国贸易竞争力。
+        </li>
+        <li>
+          <strong class="text-ink">实际利率（DFII10）</strong> — 美元资产的真实回报率。
+          实际利率上行 → 美元资产吸引力提升 → 美元走强；反之亦然。
+          实际利率与美元的相关性近 10 年显著上升。
+        </li>
+        <li>
+          <strong class="text-ink">黄金-美元负相关</strong> — 经典范式：美元涨则黄金跌。
+          20 日 / 60 日 / 120 日滚动相关可在黄金页查看。
+          相关性失效 = 地缘 / 避险等其他因素主导定价。
+        </li>
+        <li>
+          <strong class="text-ink">美元周期</strong> — 历史约 7-10 年一个完整周期。
+          上一轮弱美元 2008-2014，本轮强美元 2022-2024（联储加息 + 美国相对优势）。
+        </li>
+        <li>
+          <strong class="text-ink">美元对新兴市场</strong> — 美元走强 = 美元债务偿还压力上升 +
+          资本回流美国 = 新兴市场资产承压（"美元微笑"理论的左半边）。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-md font-semibold text-ink">查看完整美元指数与黄金联动数据</h2>
+      <p class="mt-1.5 text-xs leading-relaxed text-ink-3">
+        本页是美元指数的入口与背景。完整 DXY 走势、与黄金的滚动相关、20 日动量、双因子残差请到以下页面查看：
+      </p>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          [
+            { href: '/signals/gold', label: '黄金价格信号' },
+            { href: '/indicators/global-liquidity', label: '全球流动性' },
+            { href: '/signals/regime', label: '宏观体制' },
+            { href: '/analysis/cross-asset', label: '跨资产联动' },
+            { href: '/analysis/yield-curve', label: '收益率曲线' },
+            { href: '/knowledge/gold', label: '黄金定价（知识图谱）' },
+          ].map((r) => (
+            <a
+              href={r.href}
+              class="group flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface"
+            >
+              <span class="text-sm text-ink">{r.label}</span>
+              <svg
+                class="h-3.5 w-3.5 -translate-x-1 text-ink-3 opacity-0 transition-all duration-2 ease-terminal group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-6-6 6 6-6 6" />
+              </svg>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-2xs font-bold uppercase tracking-widest text-ink-3">常见问题</h2>
+      <dl class="mt-2.5 space-y-3 text-xs leading-relaxed text-ink-2">
+        <div>
+          <dt class="font-semibold text-ink">美元指数 DXY 是什么？</dt>
+          <dd class="mt-1 text-ink-2">
+            DXY（U.S. Dollar Index）是 ICE 编制的美元对一篮子 6 种货币（欧元 57.6%、日元 13.6%、英镑 11.9% 等）的加权指数。
+            100 为荣枯线。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">美元和黄金为什么是负相关？</dt>
+          <dd class="mt-1 text-ink-2">
+            黄金以美元计价，美元涨则其他货币买黄金更贵，需求下降；
+            同时美元资产（特别是美债）实际利率上行时吸引力上升，资金从黄金流向美元资产。
+            这两个机制导致经典的"美元涨则黄金跌"范式。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">实际利率对美元有什么影响？</dt>
+          <dd class="mt-1 text-ink-2">
+            实际利率（DFII10）= 名义利率 − 通胀预期，反映美元资产的真实回报。
+            实际利率上行 → 美元资产吸引力上升 → 资金流入 → 美元走强。
+            2022-2023 联储加息周期中，实际利率从 -1% 升到 +2%，美元指数从 95 升到 107。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">美元走强对资产价格有什么影响？</dt>
+          <dd class="mt-1 text-ink-2">
+            美元走强：黄金承压、新兴市场资产承压、大宗商品（以美元计价）承压、美元负债企业承压；
+            美元走弱：黄金利好、新兴市场资产反弹、大宗商品走强、美元负债企业减压。
+          </dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+</Layout>

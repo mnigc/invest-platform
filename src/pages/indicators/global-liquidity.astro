@@ -1,13 +1,79 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import GlobalLiquidityDashboard from '../../components/GlobalLiquidityDashboard'
+
+const description =
+  '全球流动性监测：美联储资产负债表、RRP 隔夜逆回购、TGA 财政部账户、净流动性、银行准备金 WRESBAL、SOFR vs IORB 利差、M1/M2 剪刀差。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '全球流动性数据集',
+  description,
+  keywords: '美联储,资产负债表,RRP,TGA,净流动性,SOFR,IORB,准备金,M1,M2,全球流动性',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'WALCL', unitText: 'million USD' },
+    { '@type': 'PropertyValue', name: 'RRPONTSYAWARD', unitText: 'million USD' },
+    { '@type': 'PropertyValue', name: 'WTREGEN', unitText: 'million USD' },
+    { '@type': 'PropertyValue', name: 'WRESBAL', unitText: 'million USD' },
+    { '@type': 'PropertyValue', name: 'SOFR', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'IORB', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'M1SL', unitText: 'billion USD' },
+    { '@type': 'PropertyValue', name: 'M2SL', unitText: 'billion USD' },
+  ],
+  temporalCoverage: '2002-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: '全球流动性' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '流动性相关',
+      links: [
+        { href: '/knowledge/liquidity', label: '流动性机制' },
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/analysis/macro-consensus', label: '信号一致性' },
+      ],
+    },
+    {
+      title: '其他指标',
+      links: [
+        { href: '/indicators/dxy', label: '美元指数' },
+        { href: '/indicators/cpi', label: 'CPI 通胀' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="全球流动性 - MACRO EDGE">
+<Layout
+  title="全球流动性 - MACRO EDGE"
+  description={description}
+  canonical="/indicators/global-liquidity"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="全球流动性监测"

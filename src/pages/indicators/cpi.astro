@@ -1,0 +1,194 @@
+---
+export const prerender = true
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+
+const title = 'CPI 数据 · 通胀数据 · 美国 CPI / PCE / PPI - MACRO EDGE'
+const description =
+  '美国 CPI（消费者价格指数）数据监测：CPI 同比、核心 CPI 同比、PCE 同比、核心 PCE 同比、PPI 生产者价格指数、CPI vs PCE 差异、5Y5Y 通胀预期偏离。通胀温度计与联储反应函数。'
+const canonical = '/indicators/cpi'
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '美国 CPI 通胀数据集',
+  description,
+  keywords:
+    'CPI,通胀数据,CPI同比,核心CPI,PCE,核心PCE,PPI,生产者价格,CPI数据,美国CPI,通胀预期',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'CPIAUCSL', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'CPILFESL', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'PCEPI', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'PCEPILFE', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'PPIACO', unitText: 'index' },
+  ],
+  temporalCoverage: '1947-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: 'CPI 通胀数据' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '通胀相关',
+      links: [
+        { href: '/knowledge/inflation', label: '通胀机制' },
+        { href: '/analysis/inflation-anchor', label: '通胀预期锚定' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/signals/gold', label: '黄金价格' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/commodities', label: '大宗商品' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
+  <div class="animate-enter">
+    <PageHeader
+      title="CPI · 通胀数据"
+      subtitle="CPI / 核心 CPI / PCE / 核心 PCE / PPI · 通胀温度计与联储反应函数"
+    />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">监测目标：</strong>美国通胀的全套价格指数——
+        <strong class="text-ink">CPI</strong>（居民消费价格）、<strong class="text-ink">核心 CPI</strong>（剔除食品能源）、
+        <strong class="text-ink">PCE</strong>（个人消费支出，联储锚定的目标）、
+        <strong class="text-ink">PPI</strong>（生产者出厂价，领先 CPI 1-2 个季度）。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">CPI</strong>（Consumer Price Index）是市场最关注的通胀数据，
+        但<strong class="text-ink">美联储政策锚是核心 PCE 2%</strong>，不是 CPI。
+        两个指数在权重、范围、计算方式上都不同：CPI 固定权重覆盖 80% 居民消费，
+        PCE 动态权重覆盖更全（含雇主代付保险等），通常 PCE 同比 < CPI 同比 0.3-0.5 个百分点。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">CPI 同比（Headline CPI YoY）</strong> — 通胀温度计。
+          长期站上 3% 偏高，破 5% 触发激进紧缩；2022 年 6 月峰值 9.1% 创 40 年新高。
+        </li>
+        <li>
+          <strong class="text-ink">核心 CPI 同比</strong> — 剔除食品与能源的扰动，反映更内生的通胀趋势。
+          联储更看重核心 CPI 的拐点。
+        </li>
+        <li>
+          <strong class="text-ink">PCE 同比 / 核心 PCE 同比</strong> — 联储政策锚。
+          核心 PCE 长期偏离 2% = 联储必须加/降息。
+        </li>
+        <li>
+          <strong class="text-ink">PPI 同比</strong> — 生产者出厂价格，领先 CPI 1-2 个季度。
+          PPI 走高 → CPI 即将走高，是早期预警。
+        </li>
+        <li>
+          <strong class="text-ink">CPI vs PCE 差异</strong> — 通常 PCE 同比 - CPI 同比 ≈ -0.3 ~ -0.5%。
+          差距异常扩大 = 结构性变化（医疗/保险权重差异最显著）。
+        </li>
+        <li>
+          <strong class="text-ink">5Y5Y 远期通胀预期</strong> — 市场预期的"5 年后 5 年期"通胀，
+          > 2.5% 视为长期通胀预期脱锚信号。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-md font-semibold text-ink">查看完整通胀曲线与历史</h2>
+      <p class="mt-1.5 text-xs leading-relaxed text-ink-3">
+        本页是 CPI 数据的入口与背景。完整曲线、Z-Score、与联储 2% 目标的偏离请到以下页面查看：
+      </p>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          [
+            { href: '/knowledge/inflation', label: '通胀机制（知识图谱）' },
+            { href: '/analysis/inflation-anchor', label: '通胀预期锚定' },
+            { href: '/signals/regime', label: '宏观体制' },
+            { href: '/signals/gold', label: '黄金价格' },
+            { href: '/indicators/global-liquidity', label: '全球流动性' },
+            { href: '/analysis/credit-stress', label: '信用-利率压力' },
+          ].map((r) => (
+            <a
+              href={r.href}
+              class="group flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface"
+            >
+              <span class="text-sm text-ink">{r.label}</span>
+              <svg
+                class="h-3.5 w-3.5 -translate-x-1 text-ink-3 opacity-0 transition-all duration-2 ease-terminal group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-6-6 6 6-6 6" />
+              </svg>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-2xs font-bold uppercase tracking-widest text-ink-3">常见问题</h2>
+      <dl class="mt-2.5 space-y-3 text-xs leading-relaxed text-ink-2">
+        <div>
+          <dt class="font-semibold text-ink">CPI 同比和核心 CPI 同比的区别？</dt>
+          <dd class="mt-1 text-ink-2">
+            CPI 同比含食品与能源（波动大），核心 CPI 同比剔除食品能源（更平滑）。
+            短期看 CPI，长期趋势看核心 CPI。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">为什么美联储看 PCE 而不是 CPI？</dt>
+          <dd class="mt-1 text-ink-2">
+            PCE 覆盖范围更广（包含雇主代付保险等），权重动态调整（消费者替代效应），
+            更贴近"实际支出"的通胀。联储正式锚定核心 PCE 2%。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">PPI 和 CPI 是什么关系？</dt>
+          <dd class="mt-1 text-ink-2">
+            PPI 是工厂出厂价，CPI 是居民支付价。PPI 上涨 → 企业成本上升 → 1-2 个季度后转嫁到 CPI。
+            PPI 是 CPI 的领先指标。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">通胀多少算高？</dt>
+          <dd class="mt-1 text-ink-2">
+            联储目标是 2% 核心 PCE。CPI 同比 &lt; 3% 受控，3-5% 偏高，&gt; 5% 严重。
+            1970s 美国滞胀期 CPI 同比曾达 14.8%（1980 年 3 月）。
+          </dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+</Layout>

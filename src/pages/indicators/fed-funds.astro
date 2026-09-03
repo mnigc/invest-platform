@@ -1,0 +1,185 @@
+---
+export const prerender = true
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+
+const title = '美联储利率 · 联邦基金利率 · SOFR · IORB - MACRO EDGE'
+const description =
+  '美联储利率与联邦基金利率（Federal Funds Rate）监测：FFTR / DFF 政策利率、IORB 准备金利率、SOFR 隔夜回购利率、SOFR-IORB 利差、10Y-2Y 期限利差，识别加息周期、降息周期与回购市场紧张信号。'
+const canonical = '/indicators/fed-funds'
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '美联储利率数据集',
+  description,
+  keywords:
+    '美联储利率,联邦基金利率,Federal Funds Rate,FOMC,加息,降息,SOFR,IORB,回购利率,准备金利率,货币政策',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'DFF', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'IORB', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'SOFR', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'DFederal', unitText: 'percent' },
+  ],
+  temporalCoverage: '2000-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: '美联储利率' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '利率相关',
+      links: [
+        { href: '/knowledge/interest-rate', label: '利率机制' },
+        { href: '/analysis/yield-curve', label: '收益率曲线' },
+        { href: '/analysis/inflation-anchor', label: '通胀锚定 实际利率' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/dxy', label: '美元指数' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonical={canonical}
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
+  <div class="animate-enter">
+    <PageHeader
+      title="美联储利率 · 联邦基金利率"
+      subtitle="DFF / IORB / SOFR · 加息降息周期与回购市场紧张度"
+    />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">监测目标：</strong>把美联储货币政策传导链上三条最关键的利率放在同一页——
+        <strong class="text-ink">政策底（IORB）</strong>、<strong class="text-ink">市场实际成交（SOFR）</strong>、
+        <strong class="text-ink">政策利率（DFF / Effective Fed Funds Rate）</strong>，
+        以及<strong class="text-ink">期限结构（10Y-2Y）</strong>，判断当下是加息/降息周期与融资压力。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">联邦基金利率（Federal Funds Rate）</strong>是美联储设定并通过 IORB（准备金利率）+ ON RRP（隔夜逆回购利率）形成走廊，
+        由 DFF（Effective Federal Funds Rate / 实际有效联邦基金利率）反映银行间隔夜拆借的实际成交价。
+        想要看实时市场利率，看 <strong class="text-ink">SOFR</strong>（Tri-Party Repo 实际利率，自 2018 年起取代 Fed Funds 成为主流基准）。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">DFF（联邦基金有效利率）</strong> — 银行间隔夜拆借的实际成交价。是 FOMC 加息/降息直接作用的目标。
+        </li>
+        <li>
+          <strong class="text-ink">IORB（准备金利率）</strong> — 美联储付给银行准备金的利率，是货币市场利率的「地板」。
+          联邦基金利率走廊的下限。
+        </li>
+        <li>
+          <strong class="text-ink">SOFR（担保隔夜融资利率）</strong> — 美国国债为抵押的隔夜回购实际利率。
+          自 2018 年起逐步取代 LIBOR，成为美元基准利率。
+        </li>
+        <li>
+          <strong class="text-ink">SOFR − IORB 利差</strong> — 真正的融资紧张度。
+          利差> 0 且走阔 = 机构愿意付高于政策底的成本借钱 = 货币市场承压（2019-09 美元回购危机就是这个信号）。
+        </li>
+        <li>
+          <strong class="text-ink">FOMC 加息/降息周期</strong> — 历史 7 轮加息周期（最近一轮 2022-2023），
+          每次加息末期 SOFR 都会冲高，降息周期开启时 SOFR-IORB 利差快速收窄。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-md font-semibold text-ink">查看完整利率曲线与历史</h2>
+      <p class="mt-1.5 text-xs leading-relaxed text-ink-3">
+        本页是与美联储利率相关的入口与背景。完整数据图与历史曲线请到以下页面查看：
+      </p>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          [
+            { href: '/signals/regime', label: '宏观体制研判' },
+            { href: '/indicators/global-liquidity', label: '全球流动性' },
+            { href: '/analysis/inflation-anchor', label: '通胀预期锚定' },
+            { href: '/analysis/yield-curve', label: '收益率曲线' },
+            { href: '/signals/gold', label: '黄金价格信号' },
+            { href: '/knowledge/interest-rate', label: '利率机制（知识图谱）' },
+          ].map((r) => (
+            <a
+              href={r.href}
+              class="group flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface"
+            >
+              <span class="text-sm text-ink">{r.label}</span>
+              <svg
+                class="h-3.5 w-3.5 -translate-x-1 text-ink-3 opacity-0 transition-all duration-2 ease-terminal group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-6-6 6 6-6 6" />
+              </svg>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
+      <h2 class="text-2xs font-bold uppercase tracking-widest text-ink-3">常见问题</h2>
+      <dl class="mt-2.5 space-y-3 text-xs leading-relaxed text-ink-2">
+        <div>
+          <dt class="font-semibold text-ink">联邦基金利率（Federal Funds Rate）是什么？</dt>
+          <dd class="mt-1 text-ink-2">
+            银行间隔夜拆借的基准利率，由美联储通过 FOMC 会议设定目标区间。IORB 是走廊下限，ON RRP 是走廊上限。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">SOFR 和联邦基金利率有什么区别？</dt>
+          <dd class="mt-1 text-ink-2">
+            SOFR 是国债抵押的回购利率（市场实际成交），联邦基金利率是无担保的银行间隔夜拆借。SOFR 自 2018 年起逐步取代 LIBOR 成为美元基准利率。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">加息周期和降息周期怎么判断？</dt>
+          <dd class="mt-1 text-ink-2">
+            观察 DFF（Effective Fed Funds Rate）连续上行 = 加息周期，连续下行 = 降息周期。
+            配合 10Y-2Y 期限利差判断周期末段：深度倒挂 = 加息末期/衰退前夕。
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">回购市场紧张信号是什么？</dt>
+          <dd class="mt-1 text-ink-2">
+            SOFR 上穿 IORB 且持续走阔，说明银行宁愿付高于政策底的成本借钱，
+            2019-09 美元回购危机与 2020-03 美元荒都是这个信号。
+          </dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+</Layout>

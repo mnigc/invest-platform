@@ -1,13 +1,69 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import MacroConsensusDashboard from '../../components/analysis/MacroConsensusDashboard'
+
+const description =
+  '宏观信号一致性评分：流动性、恐慌（VIX）、利率（10Y-2Y）、通胀（盈亏平衡）、信用（BBB+HY 利差）五维信号加权综合得分（0-100）。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '宏观信号一致性评分数据集',
+  description,
+  keywords: '宏观信号,一致性评分,流动性,VIX,期限利差,通胀,信用,综合得分,资产配置',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  temporalCoverage: '2010-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: '信号一致性' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '相关',
+      links: [
+        { href: '/signal-board', label: '宏观信号板' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/analysis/credit-stress', label: '信用压力' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/leading', label: '衰退预警' },
+        { href: '/indicators/dxy', label: '美元指数' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="宏观信号一致性评分 - MACRO EDGE">
+<Layout
+  title="宏观信号一致性评分 - MACRO EDGE"
+  description={description}
+  canonical="/analysis/macro-consensus"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="宏观信号一致性评分"

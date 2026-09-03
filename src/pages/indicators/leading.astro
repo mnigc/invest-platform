@@ -1,16 +1,80 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import LeadingIndicatorDashboard from '../../components/LeadingIndicatorDashboard'
+
+const description =
+  '领先指标与衰退预警：Sahm Rule 萨姆法则（衰退开关）、NFCI 金融状况指数、初请失业金 ICSA、核心资本品订单、营建许可、密歇根消费者信心、产能利用率、G7 工业产出。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '领先指标与衰退预警数据集',
+  description,
+  keywords: '衰退预警,Sahm Rule,萨姆法则,衰退预测,NFCI,金融状况指数,初请失业金,营建许可,G7 工业产出,经济衰退',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'NFCI', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'ICSA', unitText: 'persons' },
+    { '@type': 'PropertyValue', name: 'UNRATE', unitText: 'percent' },
+    { '@type': 'PropertyValue', name: 'INDPRO', unitText: 'index' },
+    { '@type': 'PropertyValue', name: 'PERMIT', unitText: 'thousand units' },
+    { '@type': 'PropertyValue', name: 'UMCSENT', unitText: 'index' },
+  ],
+  temporalCoverage: '1960-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: '领先指标 衰退预警' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '衰退相关',
+      links: [
+        { href: '/knowledge/recession', label: '衰退预警机制' },
+        { href: '/analysis/yield-curve', label: '收益率曲线倒挂' },
+        { href: '/analysis/credit-stress', label: '信用利差' },
+        { href: '/signals/regime', label: '宏观体制' },
+      ],
+    },
+    {
+      title: '数据明细',
+      links: [
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/cpi', label: 'CPI 通胀' },
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+        { href: '/indicators/commodities', label: '大宗商品' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="领先指标 - MACRO EDGE">
+<Layout
+  title="领先指标 · 衰退预警 · Sahm Rule 萨姆法则 - MACRO EDGE"
+  description={description}
+  canonical="/indicators/leading"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
-      title="领先指标"
+      title="领先指标 · 衰退预警 · Sahm Rule"
       subtitle="金融状况 · 就业 · 生产 · 需求 · 地产 · 信心 · 全球 G7 工业"
     />
 
@@ -28,7 +92,7 @@ import LeadingIndicatorDashboard from '../../components/LeadingIndicatorDashboar
       </p>
       <ul class="my-1.5 list-disc space-y-1 pl-5">
         <li>
-          <strong class="text-ink">Sahm Rule</strong> — 失业率 3 个月移动平均 − 过去 12 个月该均线最低值。
+          <strong class="text-ink">Sahm Rule 萨姆法则</strong> — 失业率 3 个月移动平均 − 过去 12 个月该均线最低值。
           突破 0.5 时历史上几乎都对应 NBER 认定的衰退起点。只需失业率一条序列即可算出，
           是单指标里可靠性最高的衰退开关。
         </li>

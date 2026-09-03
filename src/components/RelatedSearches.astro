@@ -1,0 +1,70 @@
+---
+/**
+ * 相关搜索（内部链接块）
+ *
+ * - 作用：每个页面末尾向搜索引擎和用户暴露站内"高频搜索词"对应的入口，
+ *   是百度/Google 权重算法里内部链接的锚文本来源。
+ * - 命中原则：锚文本必须包含用户实际会搜的词，不能写成导航风。
+ */
+interface SearchLink {
+  href: string
+  label: string
+}
+
+interface Props {
+  /** 当前页面相关词条（按主题分组，每组 3-6 个） */
+  groups: Array<{
+    title: string
+    links: SearchLink[]
+  }>
+  /** 站点级通用词条（任何页都显示，提高内链密度） */
+  universal?: SearchLink[]
+}
+
+const { groups, universal } = Astro.props
+---
+
+<section
+  class="stagger mt-4 rounded-lg border border-line bg-surface p-4"
+  aria-labelledby="related-searches-title"
+>
+  <h2 id="related-searches-title" class="text-2xs font-bold uppercase tracking-widest text-ink-3">
+    相关搜索
+  </h2>
+  <div class="mt-2.5 space-y-2.5">
+    {groups.map((g) => (
+      <div>
+        <h3 class="text-2xs uppercase tracking-wider text-ink-3/80">{g.title}</h3>
+        <ul class="mt-1 flex flex-wrap gap-1.5">
+          {g.links.map((l) => (
+            <li>
+              <a
+                href={l.href}
+                class="inline-flex items-center rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink-2 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface hover:text-ink"
+              >
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+    {universal && universal.length > 0 && (
+      <div>
+        <h3 class="text-2xs uppercase tracking-wider text-ink-3/80">站内热门</h3>
+        <ul class="mt-1 flex flex-wrap gap-1.5">
+          {universal.map((l) => (
+            <li>
+              <a
+                href={l.href}
+                class="inline-flex items-center rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink-2 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface hover:text-ink"
+              >
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+</section>

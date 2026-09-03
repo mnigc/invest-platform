@@ -1,13 +1,76 @@
 ---
-export const prerender = false
+export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import CommodityDashboard from '../../components/CommodityDashboard'
+
+const description =
+  '大宗商品监测：WTI / 布伦特原油、Henry Hub 天然气、LME 铜、铁矿石价格，布伦特-WTI 价差、金油比、CRB 综合指数。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: '大宗商品数据集',
+  description,
+  keywords: 'WTI,布伦特,天然气,铜,铁矿石,金油比,CRB,大宗商品,通胀,原油价格',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'WTI', unitText: 'USD/barrel' },
+    { '@type': 'PropertyValue', name: 'Brent', unitText: 'USD/barrel' },
+    { '@type': 'PropertyValue', name: 'Henry Hub', unitText: 'USD/MMBtu' },
+    { '@type': 'PropertyValue', name: 'LME Copper', unitText: 'USD/ton' },
+    { '@type': 'PropertyValue', name: 'Iron Ore', unitText: 'USD/ton' },
+  ],
+  temporalCoverage: '2000-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '指标', href: '/signal-board' },
+  { label: '大宗商品' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '商品相关',
+      links: [
+        { href: '/analysis/inflation-anchor', label: '通胀预期 实际利率' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+    {
+      title: '其他指标',
+      links: [
+        { href: '/indicators/dxy', label: '美元指数' },
+        { href: '/indicators/cpi', label: 'CPI 通胀' },
+        { href: '/indicators/fed-funds', label: '美联储利率' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/signals/gold', label: '黄金价格' },
+    { href: '/indicators/dxy', label: '美元指数' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/leading', label: '衰退预警' },
+  ],
+}
 ---
 
-<Layout title="大宗商品 - MACRO EDGE">
+<Layout
+  title="大宗商品 - MACRO EDGE"
+  description={description}
+  canonical="/indicators/commodities"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
   <div class="animate-enter">
     <PageHeader
       title="大宗商品"
