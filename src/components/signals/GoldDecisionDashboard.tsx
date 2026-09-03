@@ -15,6 +15,7 @@ import {
   chartTooltip,
   chartGrid,
   lineSeries,
+  markArea,
   markLine,
   rightValueAxis,
   thresholdLine,
@@ -83,7 +84,13 @@ interface Data {
     confidence: number
     evidence: string[]
     counterEvidence: string[]
-    historical: { label: string; n: number; median: number; winRate: number }[]
+    historical: {
+      label: string
+      expected?: 'bullish' | 'bearish' | 'neutral'
+      n: number
+      median: number
+      winRate: number
+    }[]
     updatedAt: string
   }
   updatedAt: string
@@ -110,6 +117,42 @@ const BAND_LABEL_ZH: Record<string, string> = {
 const fmtPct = (v: number) => `${(v * 100).toFixed(1)}%`
 const signed = (v: number | null, digits = 2) =>
   v == null ? '--' : `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`
+
+/** 从残差序列中切出"持续高估 / 持续低估"区间。
+ *  - 高估：z 跨过 2 进入，离开条件是回落至 < 2
+ *  - 低估：z 跨过 -2 进入，离开条件是回升至 > -2
+ *  - 持续 < minDays 个交易日的尖峰会被剔除（避免擦边噪声被画成区段）
+ *  - start/end 都取该日对应的类目轴日期字符串（ECharts markArea 用 xAxis 类别定位） */
+function buildResidSpans(
+  series: { date: string; z: number | null }[],
+  minDays: number,
+): { start: string; end: string; dir: 'overvalued' | 'undervalued' }[] {
+  const spans: { start: string; end: string; dir: 'overvalued' | 'undervalued' }[] = []
+  let cur: { start: string; end: string; dir: 'overvalued' | 'undervalued' } | null = null
+  for (const p of series) {
+    const v = p.z
+    if (v == null) continue
+    const isOver = v >= 2
+    const isUnder = v <= -2
+    if (cur) {
+      if ((cur.dir === 'overvalued' && isOver) || (cur.dir === 'undervalued' && isUnder)) {
+        cur.end = p.date
+        continue
+      }
+      // 离开区间：先结算再判断是否进入新区间
+      spans.push(cur)
+      cur = null
+    }
+    if (isOver) cur = { start: p.date, end: p.date, dir: 'overvalued' }
+    else if (isUnder) cur = { start: p.date, end: p.date, dir: 'undervalued' }
+  }
+  if (cur) spans.push(cur)
+  return spans.filter((s) => {
+    const startIdx = series.findIndex((p) => p.date === s.start)
+    const endIdx = series.findIndex((p) => p.date === s.end)
+    return endIdx - startIdx + 1 >= minDays
+  })
+}
 
 /* --------------------------------------------------------------------------- */
 
@@ -169,36 +212,111 @@ function SignalPanel({ signal }: { signal: Data['signal'] }) {
       </div>
 
       {signal.historical.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {signal.historical.map((h, i) => (
-            <div
-              key={i}
-              className="rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-xs"
-            >
-              <span className="text-ink-3">{h.label}：</span>
-              <strong
-                className={`num ${
-                  h.median >= 0 ? 'text-up' : 'text-down'
-                }`}
-              >
-                {fmtPct(h.median)}
-              </strong>
-              <span className="text-ink-3">
-                {' '}
-                · 胜率 <span className="num">{fmtPct(h.winRate)}</span> ·{' '}
-                <span className="num">{h.n}</span> 次
-              </span>
-            </div>
-          ))}
+        <div className="mt-4">
+          <h3 className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">
+            历史回测（信号出现后 60 日）
+          </h3>
+          <div className="flex flex-col gap-1.5">
+            {signal.historical.map((h, i) => {
+              const expected = h.expected ?? 'neutral'
+              const actual =
+                h.median > 0.001
+                  ? 'bullish'
+                  : h.median < -0.001
+                    ? 'bearish'
+                    : 'neutral'
+              const aligned =
+                expected === 'neutral' || expected === actual
+              const lowSample = h.n < 5
+              const expLabel =
+                expected === 'bullish'
+                  ? '预期看多'
+                  : expected === 'bearish'
+                    ? '预期看空'
+                    : '方向中性'
+              const expColor =
+                expected === 'bullish'
+                  ? 'text-up'
+                  : expected === 'bearish'
+                    ? 'text-down'
+                    : 'text-ink-3'
+              return (
+                <div
+                  key={i}
+                  className={[
+                    'flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border bg-surface-2 px-2.5 py-1.5 text-xs transition-opacity',
+                    aligned
+                      ? 'border-line'
+                      : 'border-warn/60 bg-warn/5',
+                    lowSample ? 'opacity-70' : '',
+                  ].join(' ')}
+                >
+                  <span className="font-medium text-ink-2">{h.label}</span>
+                  <span className={`text-2xs ${expColor}`}>
+                    {expLabel}
+                  </span>
+                  {!aligned && (
+                    <span className="rounded-sm border border-warn/60 px-1 text-2xs text-warn">
+                      ⚠ 实际方向与预期相反
+                    </span>
+                  )}
+                  {lowSample && (
+                    <span className="rounded-sm border border-line px-1 text-2xs text-ink-3">
+                      样本少
+                    </span>
+                  )}
+                  <span className="ml-auto flex items-baseline gap-1.5">
+                    <strong
+                      className={`num ${
+                        h.median >= 0 ? 'text-up' : 'text-down'
+                      }`}
+                    >
+                      {fmtPct(h.median)}
+                    </strong>
+                    <span className="text-2xs text-ink-3">
+                      胜率 <span className="num">{fmtPct(h.winRate)}</span>
+                    </span>
+                    <span className="text-2xs text-ink-3">
+                      · <span className="num">{h.n}</span> 次
+                    </span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </MacroCard>
   )
 }
 
-function StudyTable({ title, study }: { title: string; study: Study }) {
+function StudyTable({
+  title,
+  study,
+  expected,
+  triggerHint,
+}: {
+  title: string
+  study: Study
+  expected: 'bullish' | 'bearish' | 'neutral'
+  triggerHint: string
+}) {
   const rows = useMemo(() => Object.entries(study?.horizons ?? {}), [study])
   if (!study || study.nEvents === 0 || rows.length === 0) return null
+
+  const sampleMaturity =
+    study.nEvents >= 12
+      ? { label: '成熟', tone: 'text-up border-up/40 bg-up/5' }
+      : study.nEvents >= 5
+        ? { label: '积累中', tone: 'text-warn border-warn/40 bg-warn/5' }
+        : { label: '观察期', tone: 'text-ink-3 border-line bg-surface-2' }
+
+  const expLabel =
+    expected === 'bullish'
+      ? '预期看多（回归向上）'
+      : expected === 'bearish'
+        ? '预期看空（回归向下）'
+        : '方向中性（相关性失效，无方向含义）'
 
   const columns: Column<[string, HorizonStat]>[] = [
     { key: 'h', header: '窗口', render: ([h]) => `${h} 日` },
@@ -223,23 +341,101 @@ function StudyTable({ title, study }: { title: string; study: Study }) {
         </span>
       ),
     },
-    { key: 'mean', header: '均值', numeric: true, render: ([, s]) => fmtPct(s.mean) },
-    { key: 'p25', header: 'P25', numeric: true, render: ([, s]) => fmtPct(s.p25) },
-    { key: 'p75', header: 'P75', numeric: true, render: ([, s]) => fmtPct(s.p75) },
+    {
+      key: 'mean',
+      header: '均值',
+      numeric: true,
+      render: ([, s]) => (
+        <span className={s.mean >= 0 ? 'text-up' : 'text-down'}>
+          {fmtPct(s.mean)}
+        </span>
+      ),
+    },
+    {
+      key: 'consistency',
+      header: '方向',
+      numeric: true,
+      render: ([, s]) => {
+        const actual =
+          s.median > 0.001 ? 'bullish' : s.median < -0.001 ? 'bearish' : 'neutral'
+        const aligned =
+          expected === 'neutral' ||
+          actual === 'neutral' ||
+          expected === actual
+        return (
+          <span
+            className={
+              aligned
+                ? s.n < 5
+                  ? 'text-ink-3'
+                  : expected === 'neutral'
+                    ? 'text-ink-3'
+                    : 'text-up'
+                : 'text-warn'
+            }
+            title={
+              aligned
+                ? '实际方向与模型预期一致'
+                : '实际方向与模型预期相反（窗口内中位数）'
+            }
+          >
+            {aligned
+              ? expected === 'neutral'
+                ? '—'
+                : s.n < 5
+                  ? '~'
+                  : '✓'
+              : '⚠'}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'p25',
+      header: 'P25',
+      numeric: true,
+      render: ([, s]) => fmtPct(s.p25),
+    },
+    {
+      key: 'p75',
+      header: 'P75',
+      numeric: true,
+      render: ([, s]) => fmtPct(s.p75),
+    },
   ]
 
   return (
     <div className="mt-4 first:mt-0">
-      <h3 className="mb-1.5 text-xs font-semibold text-ink-2">
-        {title}
-        <span className="num ml-1 text-ink-3">（{study.nEvents} 次事件）</span>
-      </h3>
+      <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <h3 className="text-xs font-semibold text-ink-2">
+          {title}
+          <span className="num ml-1 text-ink-3">
+            （{study.nEvents} 次事件）
+          </span>
+        </h3>
+        <span
+          className={`rounded-sm border px-1.5 text-2xs ${sampleMaturity.tone}`}
+        >
+          {sampleMaturity.label}
+        </span>
+        <span className="text-2xs text-ink-3">· {expLabel}</span>
+      </div>
       <DataTable
         columns={columns}
         rows={rows}
         rowKey={([h]) => h}
         stickyFirst
+        caption={
+          study.nEvents < 5
+            ? '样本量低于 5，结果仅供观察，可能由离群单事件主导，置信度有限。'
+            : study.nEvents < 12
+              ? '样本量 5-12，方向性提示可参考，建议继续积累。'
+              : undefined
+        }
       />
+      <p className="mt-1 text-2xs leading-relaxed text-ink-3">
+        触发规则：{triggerHint}
+      </p>
     </div>
   )
 }
@@ -275,12 +471,26 @@ export function GoldDecisionDashboard() {
     if (!data?.priceChart?.length) return null
     const total = data.priceChart.length
     const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const dates = data.priceChart.map((p) => p.date)
+
+    // 从残差序列中切出"持续高估 / 持续低估"区间，避免依赖 data.extremes 离散点
+    // 过滤掉持续 < 3 个交易日的过窄尖峰
+    const residSpans = buildResidSpans(data.residSeries ?? [], 3)
+    const residAreas: unknown[][] = []
+    for (const s of residSpans) {
+      const color = s.dir === 'overvalued' ? t.downBg : t.upBg
+      residAreas.push([
+        { xAxis: s.start, itemStyle: { color } },
+        { xAxis: s.end },
+      ])
+    }
+
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
-      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY']),
+      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY', '高估区间', '低估区间']),
       grid: chartGrid({ top: 32, bottom: 32 }),
-      xAxis: categoryAxis(t, data.priceChart.map((p) => p.date)),
+      xAxis: categoryAxis(t, dates),
       yAxis: [
         valueAxis(t, {
           name: 'Gold',
@@ -299,20 +509,7 @@ export function GoldDecisionDashboard() {
           t.series[2],
           {
             lineStyle: { width: 1.3, color: t.series[2] },
-            markLine: {
-              silent: true,
-              symbol: ['none', 'none'],
-              animation: false,
-              data: (data.extremes ?? [])
-                .slice(-12)
-                .map((e) =>
-                  eventLine(
-                    e.date,
-                    e.dir === 'overvalued' ? t.down : t.up,
-                    e.dir === 'overvalued' ? '高估' : '低估',
-                  ),
-                ),
-            },
+            markArea: markArea(residAreas),
           },
         ),
         lineSeries(
@@ -513,12 +710,10 @@ export function GoldDecisionDashboard() {
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
         <MacroCard title="金价 vs 美元指数">
           <ResponsiveChartBox option={priceOption} deps={[priceOption]} />
-          {data.extremes.length > 0 && (
-            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-              竖线：残差极端点（<span className="text-down">红色=高估 z≥2</span> /
-              <span className="text-up">绿色=低估 z≤-2</span>），信号触发后可观察金价后续走势。
-            </p>
-          )}
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            背景色块：定价残差 z 持续偏离区间（<span className="text-down">浅红 = 高估 z≥2</span> /
+            <span className="text-up">浅绿 = 低估 z≤-2</span>，持续≥3 个交易日），可观察金价在极端估值期的后续走势。
+          </p>
         </MacroCard>
 
         <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
@@ -550,9 +745,24 @@ export function GoldDecisionDashboard() {
         </MacroCard>
 
         <MacroCard title="事件研究：信号出现后的黄金后市收益">
-          <StudyTable title="① 相关性失效/正相关切换后" study={data.eventStudies.broken} />
-          <StudyTable title="② 残差高估（z ≥ 2）后" study={data.eventStudies.overvalued} />
-          <StudyTable title="③ 残差低估（z ≤ -2）后" study={data.eventStudies.undervalued} />
+          <StudyTable
+            title="① 相关性失效/正相关切换后"
+            study={data.eventStudies.broken}
+            expected="neutral"
+            triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
+          />
+          <StudyTable
+            title="② 残差高估（z ≥ 2）后"
+            study={data.eventStudies.overvalued}
+            expected="bearish"
+            triggerHint="双因子定价残差 z 首次向上突破 +2σ"
+          />
+          <StudyTable
+            title="③ 残差低估（z ≤ -2）后"
+            study={data.eventStudies.undervalued}
+            expected="bullish"
+            triggerHint="双因子定价残差 z 首次向下突破 -2σ"
+          />
           {data.eventStudies.broken.nEvents === 0 &&
             data.eventStudies.overvalued.nEvents === 0 &&
             data.eventStudies.undervalued.nEvents === 0 && (

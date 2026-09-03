@@ -202,6 +202,17 @@ export function markLine(lines: unknown[], opts: Plain = {}): any {
   }
 }
 
+/** markArea：用于在类目轴上画连续背景区段（高估/低估持续期等）。
+ * items 中每个元素形如 [{ xAxis: 'YYYY-MM-DD', itemStyle: { color: 'rgba(...)' } }, { xAxis: 'YYYY-MM-DD' }] */
+export function markArea(items: unknown[][], opts: Plain = {}): any {
+  return {
+    silent: true,
+    animation: false,
+    data: items,
+    ...opts,
+  }
+}
+
 /** 信号事件竖线（类目轴上画一条虚线），用于在图上标注信号发生时点 */
 export function eventLine(date: string, color: string, label?: string): any {
   return {

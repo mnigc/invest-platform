@@ -302,6 +302,7 @@ def sync():
         if broken_study["nEvents"] > 0 and hs and hs["n"] >= 3:
             historical.append({
                 "label": "相关失效后 60 日",
+                "expected": "neutral",
                 "n": broken_study["nEvents"],
                 "median": hs["median"],
                 "winRate": hs["winRate"],
@@ -310,6 +311,7 @@ def sync():
         if over_study["nEvents"] > 0 and oh and oh["n"] >= 3:
             historical.append({
                 "label": "残差高估后 60 日",
+                "expected": "bearish",
                 "n": over_study["nEvents"],
                 "median": oh["median"],
                 "winRate": oh["winRate"],
@@ -318,6 +320,7 @@ def sync():
         if under_study["nEvents"] > 0 and uh and uh["n"] >= 3:
             historical.append({
                 "label": "残差低估后 60 日",
+                "expected": "bullish",
                 "n": under_study["nEvents"],
                 "median": uh["median"],
                 "winRate": uh["winRate"],
@@ -327,11 +330,6 @@ def sync():
         strength = "strong" if abs_z >= 2.5 else ("moderate" if abs_z >= 1.5 else "weak")
         confidence = round(max(0, min(95, 45 + abs_z * 15 + (0 if strength == "weak" else 10) - (10 if counter_evidence else 0))))
         confidence = max(20, min(95, confidence))
-
-        evidence.extend(
-            f"历史：{h['label']} 均值收益 {fmt_pct(h['median'])}（{h['n']} 次，胜率 {fmt_pct(h['winRate'])}）"
-            for h in historical
-        )
 
         signal = {
             "id": "gold-pricing-residual",
