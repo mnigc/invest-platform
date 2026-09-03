@@ -11,6 +11,14 @@ ENDPOINT = "analysis/yield-curve-regime"
 HORIZON = 5 * 365
 SP500_SYMBOL = "^GSPC"
 
+# 前瞻收益回测的指数池：(symbol, 中文名)。与 sync_indexes.py / regime 回测对齐。
+INDEXES = [
+    ("^GSPC", "标普500指数"),
+    ("^IXIC", "纳斯达克综合指数"),
+    ("^DJI", "道琼斯工业平均"),
+    ("^RUT", "罗素2000"),
+]
+
 # 曲线形态 → (direction, strength, confidence)。
 # 注意 direction 用 bullish/bearish/neutral —— 这是 /signal-board 的
 # dirFromSignal 唯一能识别的值域，与 currentSpread.signal
@@ -56,7 +64,7 @@ def _load_indicator(conn, code, horizon):
     ]
 
 
-def _load_sp500(conn, horizon):
+def _load_index(conn, symbol, horizon):
     rows = _load(conn, """
         SELECT p.trade_date, p.close_price
         FROM asset_prices p
@@ -64,7 +72,7 @@ def _load_sp500(conn, horizon):
         WHERE a.symbol = %s AND p.close_price IS NOT NULL
         ORDER BY p.trade_date DESC
         LIMIT %s
-    """, (SP500_SYMBOL, horizon))
+    """, (symbol, horizon))
     return [
         {"date": _to_date(r["trade_date"]), "value": float(r["close_price"])}
         for r in reversed(rows)
@@ -103,6 +111,26 @@ def _detect_transitions(dates, regimes):
                 "date": dates[i],
             })
     return out
+
+
+def _inversion_periods(spread_history):
+    """spread10y2y < 0 的连续区间。遇到 None 或值 >=0 即结束一段。
+    返回 [{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}]。"""
+    periods = []
+    start = None
+    for p in spread_history:
+        v = p["spread10y2y"]
+        if v is not None and v < 0:
+            if start is None:
+                start = p["date"]
+            end = p["date"]
+        else:
+            if start is not None:
+                periods.append({"start": start, "end": end})
+                start = None
+    if start is not None:
+        periods.append({"start": start, "end": end})
+    return periods
 
 
 def _calc_forward(spread_history, price_history):
@@ -205,7 +233,6 @@ def sync():
         dgs10 = _load_indicator(conn, "DGS10", HORIZON)
         dgs3m = _load_indicator(conn, "DGS3MO", HORIZON)
         dgs30 = _load_indicator(conn, "DGS30", HORIZON)
-        sp500 = _load_sp500(conn, HORIZON)
         regime_snaps = _load_regime(conn, HORIZON)
 
         spread_history = [
@@ -287,13 +314,28 @@ def sync():
             signal = "neutral"
             signal_desc = "曲线形态中性"
 
-        forward_returns = _calc_forward(spread_history, sp500)
+        forward_returns_by_index = [
+            {
+                "symbol": sym,
+                "nameZh": name,
+                "buckets": _calc_forward(spread_history, _load_index(conn, sym, HORIZON)),
+            }
+            for sym, name in INDEXES
+        ]
+        # 顶层仍保留 S&P500 一套（供 signal evidence 与向后兼容）
+        forward_returns = next(
+            (f for f in forward_returns_by_index if f["symbol"] == SP500_SYMBOL),
+            forward_returns_by_index[0],
+        )["buckets"]
+        inversion_periods = _inversion_periods(spread_history)
 
         data = {
             "curveHistory": curve_history,
             "spreadHistory": spread_history,
             "regimeTransitions": regime_transitions,
             "forwardReturns": forward_returns,
+            "forwardReturnsByIndex": forward_returns_by_index,
+            "inversionPeriods": inversion_periods,
             "signal": _build_signal(
                 signal, signal_desc, latest_spread, inversion_months,
                 percentile_1y, percentile_5y, forward_returns,

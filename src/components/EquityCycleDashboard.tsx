@@ -27,7 +27,7 @@ function axisNameStyle(color: string) {
 
 /* --------------------------------------------------------------------------- */
 
-/** BBB-HY 利差（左 bp）+ DFII10（右 %）：双轴。0 轴做参考线 */
+/** HY-BBB 利差（左 bp）+ DFII10（右 %）：双轴 */
 function SpreadRealRateChart({
   spread,
   realRate,
@@ -50,7 +50,7 @@ function SpreadRealRateChart({
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {}),
-      legend: chartLegend(t, ['BBB-HY 利差 (左 bp)', 'DFII10 (右 %)']),
+      legend: chartLegend(t, ['HY-BBB 利差 (左 bp)', 'DFII10 (右 %)']),
       grid: chartGrid({ top: 32, bottom: 30 }),
       xAxis: categoryAxis(t, dates),
       yAxis: [
@@ -60,7 +60,7 @@ function SpreadRealRateChart({
       dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
       series: [
         lineSeries(
-          'BBB-HY 利差 (左 bp)',
+          'HY-BBB 利差 (左 bp)',
           dates.map((d) => spreadMap.get(d) ?? null),
           t.series[1],
           {
@@ -135,22 +135,36 @@ function ComponentsChart({
     const dates = Array.from(
       new Set(components.flatMap((c) => c.data.map((p) => p.date))),
     ).sort()
-    const palette = [t.series[1], t.series[2], t.series[3], t.series[4], t.series[5], t.series[0]]
-    const series = components.map((c, i) => {
+    // 周期暖色系 + 实线；防御冷色系 + 虚线，阵营分化一眼可辨
+    const palette: Record<'cyclical' | 'defensive', string[]> = {
+      cyclical: [t.series[1], t.series[3], t.series[4], t.series[5]],
+      defensive: [t.series[2], t.series[0]],
+    }
+    const bucketCount: Record<string, number> = {}
+    const series = components.map((c) => {
+      const idx = bucketCount[c.bucket] ?? 0
+      bucketCount[c.bucket] = idx + 1
+      const pool = palette[c.bucket]
+      const color = pool[idx % pool.length]
       const m = new Map(c.data.map((p) => [p.date, p.value]))
       return lineSeries(
         c.code,
         dates.map((d) => m.get(d) ?? null),
-        palette[i % palette.length],
+        color,
         {
-          lineStyle: { width: 1.0, color: palette[i % palette.length] },
-          type: c.bucket === 'defensive' ? 'dashed' : 'solid',
+          lineStyle: {
+            width: 1.0,
+            color,
+            type: c.bucket === 'defensive' ? 'dashed' : 'solid',
+          },
         },
       )
     })
     return {
       ...chartAnimation,
-      tooltip: chartTooltip(t, {}),
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v != null ? Number(v).toFixed(1) : '--'),
+      }),
       legend: chartLegend(
         t,
         components.map((c) => `${c.code}${c.bucket === 'defensive' ? ' (防)' : ' (周)'}`),
@@ -200,7 +214,7 @@ export default function EquityCycleDashboard() {
 
   const stats = useMemo(() => {
     if (!data) return null
-    const spreadLast = lastValue(data.bbbHySpread as Point[]) ?? null
+    const spreadLast = lastValue(data.hyBbbSpread as Point[]) ?? null
     const realRateLast = lastValue(data.realRate as Point[]) ?? null
     const cdLast = lastValue(data.cyclicalDefensiveRatio as Point[]) ?? null
     return { spreadLast, realRateLast, cdLast }
@@ -210,7 +224,7 @@ export default function EquityCycleDashboard() {
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data || !stats) return <EmptyState title="暂无数据" />
 
-  if (!data.bbbHySpread.length && !data.realRate.length && !data.cyclicalDefensiveRatio.length) {
+  if (!data.hyBbbSpread.length && !data.realRate.length && !data.cyclicalDefensiveRatio.length) {
     return (
       <EmptyState
         title="股票风险溢价与轮动数据尚未同步"
@@ -219,7 +233,14 @@ export default function EquityCycleDashboard() {
     )
   }
 
-  const toneSpread = stats.spreadLast == null ? 'neutral' : stats.spreadLast > 50 ? 'down' : 'up'
+  const toneSpread =
+    stats.spreadLast == null
+      ? 'neutral'
+      : stats.spreadLast > 500
+        ? 'down'
+        : stats.spreadLast < 200
+          ? 'warn'
+          : 'up'
   const toneRate =
     stats.realRateLast == null ? 'neutral' : stats.realRateLast >= 2 ? 'down' : 'up'
   const toneCD = stats.cdLast == null ? 'neutral' : stats.cdLast >= 1.1 ? 'up' : stats.cdLast <= 0.9 ? 'down' : 'neutral'
@@ -228,9 +249,17 @@ export default function EquityCycleDashboard() {
     <div className="flex flex-col gap-4">
       <div className="stagger grid grid-cols-1 gap-3 lg:grid-cols-3">
         <StatTile
-          label="BBB-HY 信用利差"
+          label="HY-BBB 信用利差"
           value={stats.spreadLast == null ? '--' : `${stats.spreadLast.toFixed(1)} bp`}
-          sub={stats.spreadLast != null ? (stats.spreadLast > 50 ? '扩张 — 信用下沉溢价走高' : '稳定 — 信用下沉溢价收敛') : undefined}
+          sub={
+            stats.spreadLast != null
+              ? stats.spreadLast > 500
+                ? '信用压力 — 下沉溢价大幅走阔'
+                : stats.spreadLast < 200
+                  ? '下沉拥挤 — 溢价压缩，警惕晚期周期'
+                  : '稳定 — 溢价处于常态区间'
+              : undefined
+          }
           tone={toneSpread}
         />
         <StatTile
@@ -249,11 +278,12 @@ export default function EquityCycleDashboard() {
 
       <MacroCard title="风险溢价代理 — 信用利差 + 实际利率">
         <SpreadRealRateChart
-          spread={data.bbbHySpread}
+          spread={data.hyBbbSpread}
           realRate={data.realRate}
         />
         <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
-          左轴 BBB − HY 利差（bp）反映市场要求的<strong className="text-ink">信用下沉溢价</strong>，
+          左轴 HY − BBB 利差（bp）反映市场要求的<strong className="text-ink">信用下沉溢价</strong>
+          —— 走阔 = 溢价扩大、信用承压；压缩到极低 = 下沉拥挤、晚期周期预警。
           右轴 DFII10 反映<strong className="text-ink">贴现率底</strong>。
           二者同向上行 = 风险溢价被推高、权益估值需要打折；反之估值环境宽松。
         </p>

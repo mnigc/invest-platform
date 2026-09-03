@@ -42,7 +42,7 @@ export function chartLegend(
   return {
     data,
     top: 0,
-    right: 0,
+    meidum: 0,
     itemWidth: 12,
     itemHeight: 8,
     itemGap: 14,

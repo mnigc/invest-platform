@@ -25,60 +25,66 @@ const SECTOR_ETFS = [
 ];
 
 // ── 价格层辅助 ──
-async function loadEtfMonthly(symbol: string, years = 20): Promise<{ date: string; value: number }[]> {
+/** 一次查询拉回全部 ETF 近 N 年日线，按 symbol 分组后各自聚合月末收盘 */
+async function loadAllEtfMonthly(
+  symbols: string[],
+  years = 20,
+): Promise<Map<string, { date: string; value: number }[]>> {
   // 取近 N 年（默认 20），月频只需要 ~240 个点，比拉全量日线省一个量级
   const since = new Date();
   since.setFullYear(since.getFullYear() - years);
   const sinceStr = since.toISOString().slice(0, 10);
 
   const rows = await query<any>(
-    `SELECT ap.trade_date, ap.close_price
+    `SELECT a.symbol, ap.trade_date, ap.close_price
      FROM asset_prices ap
      JOIN assets a ON a.id = ap.asset_id
-     WHERE a.symbol = ?
+     WHERE a.symbol = ANY(?)
        AND ap.close_price IS NOT NULL AND ap.close_price > 0
        AND ap.trade_date >= ?
-     ORDER BY ap.trade_date ASC`,
-    [symbol, sinceStr],
+     ORDER BY a.symbol, ap.trade_date ASC`,
+    [symbols, sinceStr],
   );
-  if (!rows.length) return [];
-  const daily = rows.map((r: any) => ({
-    date: toDateStr(r.trade_date),
-    value: Number(r.close_price),
-  }));
-  return monthEndClose(daily);
-}
 
-async function loadAssetId(symbol: string): Promise<number | null> {
-  const rows = await query<any>(`SELECT id FROM assets WHERE symbol = ? LIMIT 1`, [symbol]);
-  return rows.length ? Number(rows[0].id) : null;
+  const bySymbol = new Map<string, { date: string; value: number }[]>();
+  for (const r of rows) {
+    const sym = String(r.symbol);
+    let arr = bySymbol.get(sym);
+    if (!arr) {
+      arr = [];
+      bySymbol.set(sym, arr);
+    }
+    arr.push({ date: toDateStr(r.trade_date), value: Number(r.close_price) });
+  }
+
+  const out = new Map<string, { date: string; value: number }[]>();
+  for (const [sym, daily] of bySymbol) out.set(sym, monthEndClose(daily));
+  return out;
 }
 
 export const GET = withCache(async () => {
   try {
-    // ── 1. BBB-HY 利差（基点） + DFII10 ──
+    // ── 1. HY-BBB 利差（基点） + DFII10 ──
     const [bbbSeries, hySeries, realRateSeries] = await Promise.all([
       loadSeries('BAMLC0A4CBBB'),
       loadSeries('BAMLH0A0HYM2'),
       loadSeries('DFII10'),
     ]);
 
-    // BBB − HY，单位 %；转基点
-    const bbbHySpread: { date: string; value: number | null }[] = bbbSeries.map((p) => {
-      const hy = asOfLookup(hySeries, p.date);
-      if (hy == null) return { date: p.date, value: null };
-      // p.value 与 hy 都是 % 形式，相减再乘 100 = bp
-      return { date: p.date, value: +((p.value - hy) * 100).toFixed(2) };
+    // HY − BBB，单位 %；转基点。上行 = 信用下沉溢价扩大
+    const hyBbbSpread: { date: string; value: number | null }[] = hySeries.map((p) => {
+      const bbb = asOfLookup(bbbSeries, p.date);
+      if (bbb == null) return { date: p.date, value: null };
+      // p.value 与 bbb 都是 % 形式，相减再乘 100 = bp
+      return { date: p.date, value: +((p.value - bbb) * 100).toFixed(2) };
     });
 
     // ── 2. 6 个 ETF 月线 + 周期/防御等权 + 相对强弱 ──
-    const etfMonthly = await Promise.all(
-      SECTOR_ETFS.map(async (e) => ({
-        meta: e,
-        id: await loadAssetId(e.code),
-        monthly: e.code ? await loadEtfMonthly(e.code) : [],
-      })),
-    );
+    const monthlyBySymbol = await loadAllEtfMonthly(SECTOR_ETFS.map((e) => e.code));
+    const etfMonthly = SECTOR_ETFS.map((e) => ({
+      meta: e,
+      monthly: monthlyBySymbol.get(e.code) ?? [],
+    }));
 
     const cyclicalRaw = etfMonthly.filter((m) => m.meta.bucket === 'cyclical' && m.monthly.length);
     const defensiveRaw = etfMonthly.filter((m) => m.meta.bucket === 'defensive' && m.monthly.length);
@@ -127,7 +133,7 @@ export const GET = withCache(async () => {
       : updatedAt;
 
     const result: EquityCycleResponse = {
-      bbbHySpread,
+      hyBbbSpread,
       realRate: realRateSeries.map((p) => ({ date: p.date, value: p.value })),
       cyclicalDefensiveRatio,
       cyclicalComponents,

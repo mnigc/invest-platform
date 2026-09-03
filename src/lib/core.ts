@@ -379,8 +379,8 @@ export interface EquityCycleComponent {
 }
 
 export interface EquityCycleResponse {
-  /** BBB OAS − HY OAS（基点）；上行 → 信用下沉风险升温 */
-  bbbHySpread: { date: string; value: number | null }[]
+  /** HY OAS − BBB OAS（基点）；上行 = 信用下沉溢价扩大，<200bp 警惕下沉拥挤 */
+  hyBbbSpread: { date: string; value: number | null }[]
   /** 10Y TIPS 实际利率（%）；上行 → 贴现率压顶 */
   realRate: { date: string; value: number | null }[]
   /** 周期等权 / 防御等权（首日=100 归一化）；>1 偏周期 */
