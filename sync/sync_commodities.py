@@ -26,6 +26,7 @@ KEYS = [
     ("NATGAS", "GLOBAL"),
     ("COPPER", "GLOBAL"),
     ("IRON_ORE", "GLOBAL"),
+    ("GLOBAL_COMM_IDX", "GLOBAL"),
 ]
 
 

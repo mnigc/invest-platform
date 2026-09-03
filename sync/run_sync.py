@@ -137,6 +137,13 @@ TASKS = {
         "delay": 0,
         "args": [],
     },
+    "nowcast": {
+        "name": "Nowcast（亚特兰大 GDPNow / 圣路易斯联储 ENI via FRED）",
+        "script": "sync_nowcast",
+        "group": "daily",
+        "delay": 15,
+        "args": [],
+    },
 }
 
 # 执行顺序（重要）：analysis_* 是「预计算层」，必须跑在「取数层」之后。
@@ -153,6 +160,7 @@ TASK_ORDER = [
     "regime",
     "macro_analysis",
     "regime_backtest",    # 产出 regime_snapshots，analysis_yield_curve 依赖它
+    "nowcast",            # 亚特兰大 GDPNow / 纽约联储 Nowcast
     # —— 预计算层 ——
     "analysis_cross_asset",
     "analysis_macro_consensus",

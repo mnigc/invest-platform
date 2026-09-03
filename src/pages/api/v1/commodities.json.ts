@@ -18,6 +18,7 @@ const CODES: { code: CommodityCode; zh: string; en: string }[] = [
   { code: 'NATGAS', zh: 'Henry Hub 天然气', en: 'Henry Hub Natural Gas' },
   { code: 'COPPER', zh: '全球铜价', en: 'Global Copper Price' },
   { code: 'IRON_ORE', zh: '全球铁矿石价', en: 'Global Iron Ore Price' },
+  { code: 'GLOBAL_COMM_IDX', zh: '全球商品综合价格指数', en: 'Global Commodity Price Index' },
 ];
 
 /**

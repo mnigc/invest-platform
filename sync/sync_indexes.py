@@ -30,11 +30,25 @@ INDEXES = [
     ("^RUT", "罗素2000", "Russell 2000", "1978-01-01", "^rut.us"),
 ]
 
+# 标普 11 大行业中 ETF 流动性最好的代表 —— 用于「周期 vs 防御」相对强弱
+# (symbol, name_zh, name_en, start_date, bucket)
+#   bucket = 'cyclical' 或 'defensive'。stooq 不支持 ETF，走 yfinance / curl_cffi。
+SECTOR_ETFS = [
+    ("XLI", "工业精选行业 ETF", "Industrial Select Sector SPDR", "2000-01-01", "cyclical"),
+    ("XLY", "可选消费精选行业 ETF", "Consumer Discretionary Select Sector SPDR",
+     "2000-01-01", "cyclical"),
+    ("XLE", "能源精选行业 ETF", "Energy Select Sector SPDR", "2000-01-01", "cyclical"),
+    ("XLB", "原材料精选行业 ETF", "Materials Select Sector SPDR", "2000-01-01", "cyclical"),
+    ("XLU", "公用事业精选行业 ETF", "Utilities Select Sector SPDR", "2000-01-01", "defensive"),
+    ("XLP", "必需消费精选行业 ETF", "Consumer Staples Select Sector SPDR",
+     "2000-01-01", "defensive"),
+]
+
 YAHOO_TIMEOUT = 30
 YAHOO_MAX_RETRY = 4
 
 
-def ensure_asset(symbol, name_zh, name_en):
+def ensure_asset(symbol, name_zh, name_en, sub_category="股票指数"):
     """注册指数资产，返回 asset_id"""
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -60,10 +74,10 @@ def ensure_asset(symbol, name_zh, name_en):
             cur.execute(
                 "INSERT INTO assets (symbol, name_zh, name_en, category_id, sub_category, "
                 "exchange, currency) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (symbol, name_zh, name_en, cat_id, "股票指数", "NYSE", "USD")
+                (symbol, name_zh, name_en, cat_id, sub_category, "NYSE", "USD")
             )
             conn.commit()
-            log.info("注册新资产: %s (%s)", symbol, name_zh)
+            log.info("注册新资产: %s (%s, sub=%s)", symbol, name_zh, sub_category)
             cur.execute("SELECT id FROM assets WHERE symbol = %s", (symbol,))
             return cur.fetchone()["id"]
 
@@ -229,39 +243,72 @@ def upsert_prices(asset_id, rows):
             )
 
 
-def sync_one(symbol, name_zh, name_en, start, stooq_symbol):
+def sync_one(symbol, name_zh, name_en, start, stooq_symbol, sub_category="股票指数"):
     """同步单个指数，返回写入行数"""
-    asset_id = ensure_asset(symbol, name_zh, name_en)
+    asset_id = ensure_asset(symbol, name_zh, name_en, sub_category=sub_category)
     log.info("asset_id(%s) = %d", symbol, asset_id)
     rows = fetch_index_history(symbol, stooq_symbol, start)
     return asset_id, upsert_prices(asset_id, rows)
 
 
+def sync_sector_etf(symbol, name_zh, name_en, start, bucket):
+    """同步单个行业 ETF（无 stooq 通道，仅 yfinance / curl_cffi）。"""
+    asset_id = ensure_asset(
+        symbol, name_zh, name_en,
+        sub_category="行业ETF·%s" % ("周期" if bucket == "cyclical" else "防御"),
+    )
+    rows = _fetch_via_yfinance(symbol, start)
+    if not rows:
+        rows = _fetch_via_curl(symbol, start)
+    return asset_id, upsert_prices(asset_id, rows)
+
+
 def main():
     log.info("=" * 60)
-    log.info("开始同步: 美股四大指数")
+    log.info("开始同步: 美股四大指数 + 行业 ETF")
 
     only = sys.argv[1] if len(sys.argv) > 1 else None
-    targets = [idx for idx in INDEXES if not only or idx[0] == only]
-    if not targets:
-        log.error("未知指数: %s", only)
-        write_sync_log("indices", "failed", 0, f"未知指数 {only}")
-        return
 
     total = 0
     errors = []
-    for symbol, name_zh, name_en, start, stooq_symbol in targets:
+
+    if only:
+        # 单 symbol 模式：既支持指数符号（^GSPC）也支持 ETF 符号（XLI）
+        idx_hit = [t for t in INDEXES if t[0] == only]
+        etf_hit = [t for t in SECTOR_ETFS if t[0] == only]
+        targets_idx = idx_hit
+        targets_etf = etf_hit
+    else:
+        targets_idx = INDEXES
+        targets_etf = SECTOR_ETFS
+
+    if not targets_idx and not targets_etf and only:
+        log.error("未知标的: %s", only)
+        write_sync_log("indices", "failed", 0, "未知标的 %s" % only)
+        return
+
+    for symbol, name_zh, name_en, start, stooq_symbol in targets_idx:
         try:
             _, n = sync_one(symbol, name_zh, name_en, start, stooq_symbol)
             total += n
             log.info("[%s] 写入 %d 条", symbol, n)
         except Exception as e:
             log.error("[%s] 同步失败: %s", symbol, e)
-            errors.append(f"{symbol}: {e}")
+            errors.append("%s: %s" % (symbol, e))
+        time.sleep(1)
+
+    for symbol, name_zh, name_en, start, bucket in targets_etf:
+        try:
+            _, n = sync_sector_etf(symbol, name_zh, name_en, start, bucket)
+            total += n
+            log.info("[%s/%s] 写入 %d 条", symbol, bucket, n)
+        except Exception as e:
+            log.error("[%s] 同步失败: %s", symbol, e)
+            errors.append("%s: %s" % (symbol, e))
         time.sleep(1)
 
     status = "success" if not errors and total > 0 else ("partial" if total > 0 else "failed")
-    msg = "indices 写入 %d 行；失败 %d 项" % (total, len(errors))
+    msg = "indices+etfs 写入 %d 行；失败 %d 项" % (total, len(errors))
     if errors:
         msg += "；" + "; ".join(errors[:3])
     log.info(msg)

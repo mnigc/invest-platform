@@ -3,8 +3,15 @@ export const prerender = false;
 import { query } from '../../../lib/db';
 import { withCache } from '../../../lib/cache';
 import { loadSeries } from '../../../lib/series';
-import { sahmRule } from '../../../lib/seriesMath';
-import type { LeadingResponse, LeadingSeries, LeadingCode, SahmSignal } from '../../../lib/core';
+import { sahmRule, yoySeries, asOfLookup } from '../../../lib/seriesMath';
+import type {
+  LeadingResponse,
+  LeadingSeries,
+  LeadingCode,
+  SahmSignal,
+  G7IpPoint,
+} from '../../../lib/core';
+import type { Point } from '../../../lib/seriesMath';
 
 const CODES: { code: LeadingCode; zh: string; en: string }[] = [
   { code: 'NFCI', zh: '芝加哥联储金融状况指数', en: 'Chicago Fed NFCI' },
@@ -16,7 +23,14 @@ const CODES: { code: LeadingCode; zh: string; en: string }[] = [
   { code: 'PERMIT', zh: '营建许可', en: 'Building Permits' },
   { code: 'CORE_CAPEX_ORDERS', zh: '核心资本品订单', en: 'Core Capital Goods Orders' },
   { code: 'CONSUMER_SENT', zh: '密歇根消费者信心', en: 'UoM Consumer Sentiment' },
+  // G7 工业产出（OECD via FRED；2024-03 后停止更新）
+  { code: 'DE_IP', zh: '德国工业产出', en: 'Germany IP' },
+  { code: 'JP_IP', zh: '日本工业产出', en: 'Japan IP' },
+  { code: 'GB_IP', zh: '英国工业产出', en: 'UK IP' },
+  { code: 'CA_IP', zh: '加拿大工业产出', en: 'Canada IP' },
 ];
+
+const G7_IP_CODES: LeadingCode[] = ['DE_IP', 'JP_IP', 'GB_IP', 'CA_IP'];
 
 const SAHM_THRESHOLD = 0.5;
 
@@ -83,11 +97,44 @@ export const GET = withCache(async () => {
     const unrate = results[CODES.findIndex((c) => c.code === 'UNRATE')] ?? [];
     const sahm = sahmRule(unrate);
 
+    // ── 派生：G7 IP 12 月同比等权平均 ──
+    // 各国产出索引基期不同（DE=2015、JP=2015、GB=2015、CA=2015），但同比是相对量，
+    // 直接相加后除以国家数即可。注意月频索引的国家发布节奏不同，
+    // 用「每个日期把有值的国家等权平均」避免数据缺漏国家导致断点。
+    const yoyByCode: Record<string, { date: string; value: number | null }[]> = {};
+    for (const code of G7_IP_CODES) {
+      const idx = CODES.findIndex((c) => c.code === code);
+      const points = results[idx] ?? [];
+      yoyByCode[code] = yoySeries(points as Point[]);
+    }
+
+    // 聚合所有日期
+    const dateSet = new Set<string>();
+    for (const code of G7_IP_CODES) {
+      for (const p of yoyByCode[code]) dateSet.add(p.date);
+    }
+    const allDates = Array.from(dateSet).sort();
+    const g7IpYoy: G7IpPoint[] = allDates.map((d) => {
+      const vals: number[] = [];
+      for (const code of G7_IP_CODES) {
+        const arr = yoyByCode[code];
+        const v = asOfLookup(
+          (arr.filter((p) => p.value != null) as { date: string; value: number }[]),
+          d,
+        );
+        if (v != null && Number.isFinite(v)) vals.push(v);
+      }
+      if (!vals.length) return { date: d, value: null, countries: 0 };
+      const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+      return { date: d, value: +mean.toFixed(2), countries: vals.length };
+    });
+
     const result: LeadingResponse = {
       series,
       updatedAt: updatedAt || new Date().toISOString(),
       sahm,
       sahmSignal: buildSahmSignal(sahm),
+      g7IpYoy,
     };
 
     return new Response(JSON.stringify({ success: true, data: result }), {

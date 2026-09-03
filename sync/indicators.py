@@ -155,9 +155,28 @@ INDICATORS = {
     ("COPPER", "GLOBAL"): dict(zh="全球铜价", en="Global Copper Price", cat="大宗商品",
                                sub="金属", unit="美元/吨", freq="monthly", source="fred",
                                series="PCOPPUSDM"),
-    ("IRON_ORE", "GLOBAL"): dict(zh="全球铁矿石价", en="Global Iron Ore Price", cat="大宗商品",
-                                 sub="金属", unit="美元/吨", freq="monthly", source="fred",
-                                 series="PIORECRUSDM"),
+("IRON_ORE", "GLOBAL"): dict(zh="全球铁矿石价", en="Global Iron Ore Price", cat="大宗商品",
+                                  sub="金属", unit="美元/吨", freq="monthly", source="fred",
+                                  series="PIORECRUSDM"),
+    ("GLOBAL_COMM_IDX", "GLOBAL"): dict(zh="全球商品综合价格指数", en="Global Commodity Price Index",
+                                         cat="大宗商品", sub="综合指数", unit="指数(2016=100)",
+                                         freq="monthly", source="fred", series="PALLFNFINDEXM"),
+
+    # ── 全球工业产出（G7 成员，OECD via FRED）──
+    # 实测 vintage 2024-03 起停止更新（OECD 数据源在 FRED 镜像滞后），
+    # 但历史回填可用，作为「2024 前全球景气」背景参考。UI 顶部明确标注口径。
+    ("DE_IP", "GLOBAL"): dict(zh="德国工业产出", en="Germany IP", cat="全球工业", sub="G7",
+                               unit="指数(2015=100)", freq="monthly", source="fred",
+                               series="DEUPROINDMISMEI"),
+    ("JP_IP", "GLOBAL"): dict(zh="日本工业产出", en="Japan IP", cat="全球工业", sub="G7",
+                               unit="指数(2015=100)", freq="monthly", source="fred",
+                               series="JPNPROINDMISMEI"),
+    ("GB_IP", "GLOBAL"): dict(zh="英国工业产出", en="UK IP", cat="全球工业", sub="G7",
+                               unit="指数(2015=100)", freq="monthly", source="fred",
+                               series="GBRPROINDMISMEI"),
+    ("CA_IP", "GLOBAL"): dict(zh="加拿大工业产出", en="Canada IP", cat="全球工业", sub="G7",
+                               unit="指数(2015=100)", freq="monthly", source="fred",
+                               series="CANPROINDMISMEI"),
 
     # ── 领先指标（FRED）──
     # 注：ISM 制造业 PMI（FRED: NAPM）已下架，实测返回 HTTP 400，故不纳入。

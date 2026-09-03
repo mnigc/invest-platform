@@ -272,7 +272,7 @@ export interface GlobalLiquidityResponse {
 }
 
 // ── 大宗商品 ──
-export type CommodityCode = 'WTI' | 'BRENT' | 'NATGAS' | 'COPPER' | 'IRON_ORE'
+export type CommodityCode = 'WTI' | 'BRENT' | 'NATGAS' | 'COPPER' | 'IRON_ORE' | 'GLOBAL_COMM_IDX'
 
 export interface CommoditySeries {
   code: CommodityCode
@@ -309,6 +309,10 @@ export type LeadingCode =
   | 'PERMIT'
   | 'CORE_CAPEX_ORDERS'
   | 'CONSUMER_SENT'
+  | 'DE_IP'
+  | 'JP_IP'
+  | 'GB_IP'
+  | 'CA_IP'
 
 export interface LeadingSeries {
   code: LeadingCode
@@ -317,6 +321,14 @@ export interface LeadingSeries {
   unit: string
   frequency: string
   data: { date: string; value: number | null }[]
+}
+
+/** G7（德/日/英/加）工业产出 12 月同比等权平均：全球景气共振代理 */
+export interface G7IpPoint {
+  date: string
+  value: number | null
+  /** 该月参与平均的国家数（1-4） */
+  countries: number
 }
 
 /** Sahm Rule 判定结果 */
@@ -333,6 +345,48 @@ export interface LeadingResponse {
   /** Sahm Rule：失业率 3 月均线 − 过去 12 个月该均线最低值 */
   sahm: { date: string; value: number | null }[]
   sahmSignal: SahmSignal
+  /** G7 IP 12 月同比等权平均（德国/日本/英国/加拿大） */
+  g7IpYoy?: G7IpPoint[]
+}
+
+// ── Nowcast ──
+export type NowcastSource = 'GDPNow' | 'NYFed'
+
+export interface NowcastSeries {
+  source: NowcastSource
+  data: { date: string; value: number | null }[]
+}
+
+export interface NowcastResponse {
+  gdpNow: { date: string; value: number | null }[]
+  nyFed: { date: string; value: number | null }[]
+  updatedAt: string
+}
+
+// ── 股票风险溢价 / 周期 vs 防御 ──
+export type EquityCode =
+  | 'BAMLC0A4CBBB'  // BBB OAS
+  | 'BAMLH0A0HYM2'  // HY OAS
+  | 'DFII10'         // 10Y TIPS 实际利率
+  | 'XLI' | 'XLY' | 'XLE' | 'XLB' | 'XLU' | 'XLP'
+
+export interface EquityCycleComponent {
+  code: string
+  nameZh: string
+  bucket: 'cyclical' | 'defensive'
+  /** 月末归一化（首期 = 100） */
+  data: { date: string; value: number | null }[]
+}
+
+export interface EquityCycleResponse {
+  /** BBB OAS − HY OAS（基点）；上行 → 信用下沉风险升温 */
+  bbbHySpread: { date: string; value: number | null }[]
+  /** 10Y TIPS 实际利率（%）；上行 → 贴现率压顶 */
+  realRate: { date: string; value: number | null }[]
+  /** 周期等权 / 防御等权（首日=100 归一化）；>1 偏周期 */
+  cyclicalDefensiveRatio: { date: string; value: number | null }[]
+  cyclicalComponents: EquityCycleComponent[]
+  updatedAt: string
 }
 
 // ── 信贷脉冲 ──

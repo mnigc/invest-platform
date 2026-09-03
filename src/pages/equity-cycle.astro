@@ -1,0 +1,57 @@
+---
+export const prerender = false
+
+import Layout from '../layouts/Layout.astro'
+import { PageHeader } from '../components/ui/PageHeader'
+import IndicatorGuide from '../components/ui/IndicatorGuide.astro'
+import EquityCycleDashboard from '../components/EquityCycleDashboard'
+---
+
+<Layout title="股票风险溢价与轮动 - MACRO EDGE">
+  <div class="animate-enter">
+    <PageHeader
+      title="股票风险溢价与轮动"
+      subtitle="BBB-HY 信用利差 · 10Y 实际利率 · 周期/防御 ETF 轮动"
+    />
+
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">判读规则：</strong>
+        BBB-HY 利差扩张（信用下沉）+ 实际利率上行（贴现率压顶）+ 周期/防御比下行
+        = 三共振，权益性价比最差；反之三者同向改善 = 风险偏好修复。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">股票风险溢价</strong> = 股票预期收益 − 无风险利率。FRED
+        没有现役的 SP500 盈利收益率 / Shiller CAPE，故本页面用两条替代信号拼出「高/低风险溢价环境」的代理：
+        <strong class="text-ink">BBB-HY 利差</strong>衡量市场对信用下沉要求的额外补偿，
+        <strong class="text-ink">DFII10</strong>是贴现率的真实利率底。
+        二者上行 = 风险溢价被推高，权益估值需要打折；反之估值环境宽松。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">周期/防御相对强弱</strong>用 6 个标普 11 大行业 ETF 月线归一化后
+        做等权合成：XLI/XLY/XLE/XLB（周期）与 XLU/XLP（防御）比值。比值 &gt; 1 偏周期，
+        市场愿意为顺周期盈利付钱；&lt; 1 偏防御，资金更看重现金流稳定性。
+        这是行业轮动最直观的单序列读数。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">BBB OAS</strong> — 投资级（BBB 评级）公司债期权调整利差；
+          <strong class="text-ink">HY OAS</strong> — 高收益债（垃圾级）利差。两者差（BBB − HY）
+          衡量<strong class="text-ink">信用下沉风险溢价</strong> —— 投资者为了多拿那点收益
+          而愿意承担的下行风险补偿。差值扩张说明市场对违约尾部风险的担忧抬升。
+        </li>
+        <li>
+          <strong class="text-ink">10Y TIPS 实际利率 (DFII10)</strong> — 扣除通胀预期后的真实利率。
+          直接影响 DCF 模型的分母；每升 100bp，理论上贴现因子压低估值 1/(1+r) ≈ 8-10%。
+        </li>
+        <li>
+          <strong class="text-ink">周期/防御比</strong> — 4 个周期性 ETF 等权 / 2 个防御性 ETF 等权。
+          月频足够平滑，<strong class="text-ink">建议看趋势而非单点</strong>。配合上文两个
+          风险溢价信号，做仓位切换（防御 → 周期 或 反向）的判断。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <EquityCycleDashboard client:load />
+  </div>
+</Layout>

@@ -198,6 +198,45 @@ function SpreadsChart({ spreads }: { spreads: CommoditySpreadPoint[] }) {
 
 /* --------------------------------------------------------------------------- */
 
+/** 全球商品综合指数（CRB/IMF 综合）：单线 + 同比磁贴，作为总水位锚定 */
+function GlobalCompositeChart({ series }: { series: CommoditySeries[] }) {
+  const t = useChartTheme()
+  const option = useMemo(() => {
+    const global = series.find((s) => s.code === 'GLOBAL_COMM_IDX')
+    if (!global?.data.length) return null
+    const pts = toPoints(global)
+    const yoyPts = yoySeries(pts)
+    const dates = global.data.map((p) => p.date)
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {}),
+      legend: chartLegend(t, ['全球商品综合', '同比 (右轴)']),
+      grid: chartGrid({ top: 32, bottom: 30 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: [
+        valueAxis(t, { name: '指数(2016=100)', nameTextStyle: axisNameStyle(t.text3) }),
+        rightValueAxis(t, { name: '%', nameTextStyle: axisNameStyle(t.text3) }),
+      ],
+      dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
+      series: [
+        lineSeries('全球商品综合', global.data.map((p) => p.value), t.series[0], {
+          lineStyle: { width: 1.4, color: t.series[0] },
+          areaStyle: { color: t.series[0], opacity: 0.06 },
+        }),
+        lineSeries('同比 (右轴)', dates.map((d) => asOfLookup(
+          yoyPts.filter((p) => p.value != null) as Point[],
+          d,
+        )), t.series[2], {
+          yAxisIndex: 1,
+          lineStyle: { width: 1.0, color: t.series[2], type: 'dashed' },
+        }),
+      ],
+    }
+  }, [series, t])
+  if (!option) return <EmptyState title="全球商品综合指数暂无数据" />
+  return <ResponsiveChartBox option={option} deps={[option]} />
+}
+
 const TILE_ORDER: { code: CommodityCode; label: string }[] = [
   { code: 'WTI', label: 'WTI 原油' },
   { code: 'BRENT', label: '布伦特原油' },
@@ -282,6 +321,16 @@ export default function CommodityDashboard() {
           )
         })}
       </div>
+
+      <MacroCard title="全球商品综合 — CRB/IMF 综合指数">
+        <GlobalCompositeChart series={data.series} />
+        <LegendNote
+          items={[
+            { color: t.series[0], label: '全球商品综合指数（左轴，2016=100）— IMF 编制，覆盖能源/金属/食品/农产品' },
+            { color: t.series[2], label: '同比 (右轴，虚线) — 反映综合通胀水位' },
+          ]}
+        />
+      </MacroCard>
 
       <MacroCard title="能源 — 原油与天然气">
         <EnergyChart series={data.series} />

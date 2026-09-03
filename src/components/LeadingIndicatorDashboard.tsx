@@ -21,7 +21,13 @@ import {
 } from '../lib/chartOptions'
 // 从 seriesMath 导入纯函数，避免把 lib/db（数据库驱动）打进浏览器包
 import { lastValue, yoySeries, type Point } from '../lib/seriesMath'
-import type { LeadingCode, LeadingResponse, LeadingSeries, SahmSignal } from '../lib/core'
+import type {
+  LeadingCode,
+  LeadingResponse,
+  LeadingSeries,
+  SahmSignal,
+  G7IpPoint,
+} from '../lib/core'
 
 function toPoints(series?: LeadingSeries): Point[] {
   return (series?.data ?? [])
@@ -289,6 +295,53 @@ function PropertyChart({ series }: { series: LeadingSeries[] }) {
   return <ResponsiveChartBox option={option} deps={[option]} />
 }
 
+/**
+ * G7 工业产出复合同比（德/日/英/加）。
+ * 数据源：OECD via FRED，月频。实测 2024-03 起停止更新，作「全球景气共振代理」参考。
+ */
+function G7IpChart({ points }: { points: G7IpPoint[] }) {
+  const t = useChartTheme()
+
+  const option = useMemo(() => {
+    if (!points.length) return null
+    const dates = points.map((p) => p.date)
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v != null ? `${Number(v).toFixed(2)}%` : '--'),
+      }),
+      grid: chartGrid({ top: 14, bottom: 30 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, {
+        name: '同比 %',
+        nameTextStyle: axisNameStyle(t.text3),
+        axisLabel: {
+          color: t.text3,
+          fontSize: 10,
+          fontFamily: t.fontMono,
+          formatter: '{value}%',
+        },
+      }),
+      dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
+      series: [
+        lineSeries(
+          'G7 IP 复合同比',
+          points.map((p) => p.value),
+          t.series[2],
+          {
+            lineStyle: { width: 1.3, color: t.series[2] },
+            areaStyle: { color: t.series[2], opacity: 0.08 },
+            markLine: markLine([thresholdLine(0, t.border, '零轴')]),
+          },
+        ),
+      ],
+    }
+  }, [points, t])
+
+  if (!option) return <EmptyState title="G7 IP 数据暂无" />
+  return <ResponsiveChartBox option={option} deps={[option]} />
+}
+
 /* --------------------------------------------------------------------------- */
 
 function SahmAlertCard({ signal, sahm }: { signal: SahmSignal; sahm: { date: string; value: number | null }[] }) {
@@ -460,6 +513,30 @@ export default function LeadingIndicatorDashboard() {
         <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
           地产是利率传导最灵敏的部门，营建许可又是地产里最领先的环节；
           密歇根消费者信心则前瞻居民消费意愿。两者同时走弱，通常意味着需求侧已明显降温。
+        </p>
+      </MacroCard>
+
+      <MacroCard
+        title="全球维度 — G7 工业产出复合同比"
+        badge={
+          data.g7IpYoy?.length ? (
+            <span className="num rounded-sm border border-line px-1.5 py-px text-2xs text-ink-2">
+              {(() => {
+                const last = [...(data.g7IpYoy ?? [])].reverse().find((p) => p.value != null)
+                if (!last || last.value == null) return '暂无'
+                const sign = last.value >= 0 ? '+' : ''
+                return `G7 ${sign}${last.value.toFixed(1)}% · ${last.countries}/4 国`
+              })()}
+            </span>
+          ) : undefined
+        }
+      >
+        <G7IpChart points={data.g7IpYoy ?? []} />
+        <p className="mt-1.5 text-2xs leading-relaxed text-ink-3">
+          德/日/英/加四国工业产出指数 12 月同比等权平均。数据源 OECD via FRED，
+          实测 2024-03 后停止更新（vintage 滞后）—— 仅作「2024 前全球景气」背景参考，
+          不要外推到 2024 之后。当 <strong className="text-ink">G7 复合同比 &lt; 0</strong>
+          与 Sahm Rule、NFCI 三共振时，全球衰退概率显著抬升。
         </p>
       </MacroCard>
     </div>

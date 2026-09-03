@@ -130,3 +130,68 @@ export function sahmRule(points: Point[]): { date: string; value: number | null 
     return { date: p.date, value: +(cur - low).toFixed(3) }
   })
 }
+
+/**
+ * 月末聚合日线：取每月最后一个有值交易日。
+ * 输入必须按日期升序。
+ */
+export function monthEndClose(points: { date: string; value: number | null }[]):
+  { date: string; value: number }[] {
+  const out: { date: string; value: number }[] = []
+  for (const p of points) {
+    if (p.value == null || !Number.isFinite(p.value)) continue
+    const month = p.date.slice(0, 7)
+    const last = out[out.length - 1]
+    if (!last || last.date.slice(0, 7) !== month) {
+      out.push({ date: p.date, value: p.value as number })
+    } else {
+      // 同月后续点替换月末（保持同月最后一条）
+      out[out.length - 1] = { date: p.date, value: p.value as number }
+    }
+  }
+  return out
+}
+
+/**
+ * 序列归一化到首期 = 100。
+ * 输入升序、首期必须有值；首期无效返回空。
+ */
+export function normalizeTo100(points: { date: string; value: number }[]):
+  { date: string; value: number | null }[] {
+  if (!points.length) return []
+  const base = points[0].value
+  if (!base) return []
+  return points.map((p) => ({ date: p.date, value: +(p.value / base * 100).toFixed(2) }))
+}
+
+/**
+ * 等权合成多条「已对齐到相同日期」的序列，按月对齐取交集后算术平均。
+ * 输入 monthly 列表逐条输出：所有序列都给出该日期的值才纳入（避免单条主导）。
+ */
+export function equalWeightComposite(
+  seriesList: { date: string; value: number }[][],
+): { date: string; value: number }[] {
+  if (!seriesList.length) return []
+  const dateMaps = seriesList.map((s) => {
+    const m = new Map<string, number>()
+    for (const p of s) m.set(p.date, p.value)
+    return m
+  })
+  // 交集日期
+  const dateSets: Set<string>[] = dateMaps.map((m) => new Set(m.keys()))
+  let common: Set<string> = dateSets[0] || new Set<string>()
+  for (let i = 1; i < dateSets.length; i++) {
+    const ds = dateSets[i]
+    const next = new Set<string>()
+    for (const d of common) {
+      if (ds.has(d)) next.add(d)
+    }
+    common = next
+  }
+  if (!common.size) return []
+  return Array.from(common).sort().map((d) => {
+    const vs = dateMaps.map((m) => m.get(d)!).filter((v) => Number.isFinite(v))
+    const mean = vs.reduce((s, v) => s + v, 0) / vs.length
+    return { date: d, value: +mean.toFixed(4) }
+  })
+}

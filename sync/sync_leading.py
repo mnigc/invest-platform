@@ -32,6 +32,11 @@ KEYS = [
     ("PERMIT", "US"),
     ("CORE_CAPEX_ORDERS", "US"),
     ("CONSUMER_SENT", "US"),
+    # 全球维度（G7 IP，OECD via FRED）—— vintage 2024-03 后停止更新
+    ("DE_IP", "GLOBAL"),
+    ("JP_IP", "GLOBAL"),
+    ("GB_IP", "GLOBAL"),
+    ("CA_IP", "GLOBAL"),
 ]
 
 
