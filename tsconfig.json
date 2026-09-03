@@ -4,6 +4,6 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react"
   },
-  "include": ["src/**/*", "*.config.mjs", "tailwind.config.mjs"],
+  "include": ["src/**/*", "*.config.mjs"],
   "exclude": ["dist", "node_modules", "sync"]
 }

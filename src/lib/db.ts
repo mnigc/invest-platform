@@ -1,8 +1,8 @@
 import { Pool } from '@neondatabase/serverless'
 
-// 运行时 env 注入点：由 src/middleware.ts 在每个请求开始时注入
-// （Cloudflare Workers 的 secret/vars 通过 Astro.locals.runtime.env 暴露）。
-// 本地 astro dev 不经过 Workers，回退到 Vite 注入的 import.meta.env（读 .env）。
+// 运行时 env 注入点：由 src/middleware.ts 在每个请求开始时注入，
+// 来源是 cloudflare:workers 的 env（secret 用 `wrangler secret put` 配置）。
+// 拿不到注入时回退到 Vite 的 import.meta.env（本地 .env），否则本地开发会连不上库。
 let _runtimeEnv: Record<string, string | undefined> | null = null
 let _pool: Pool | null = null
 
