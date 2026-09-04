@@ -167,12 +167,12 @@ def _build_residual_z(gold, dxy, dfii, horizon):
     complete = [s for s in samples if s["y"] is not None and s["x1"] is not None and s["x2"] is not None]
     tail = complete[-horizon:]
     if len(tail) < 60:
-        return []
+        return {"series": [], "b1": 0, "b2": 0}
 
     coef = _ols2([s["y"] for s in tail], [s["x1"] for s in tail], [s["x2"] for s in tail])
     resid = [s["y"] - (coef["b0"] + coef["b1"] * s["x1"] + coef["b2"] * s["x2"]) for s in complete]
 
-    out = []
+    series = []
     window = 250
     for i in range(len(resid)):
         start = max(0, i - window)
@@ -183,13 +183,109 @@ def _build_residual_z(gold, dxy, dfii, horizon):
                 z = 0
             else:
                 z = z_score(seg, resid[i])
-        out.append({
+        # 贡献分解：把 z 拆到两因子上（按回归系数 × 当前 x 与全样本均值差的乘积 / 当前 seg 标准差）
+        # 用于前端「实际利率 vs 美元谁在解释偏离」的可视化
+        seg_std = (sum((v - amean(seg)) ** 2 for v in seg) / len(seg)) ** 0.5 if len(seg) >= 2 else 0
+        if seg_std > 1e-9:
+            c_dfii = (coef["b1"] * (complete[i]["x1"] - amean([s["x1"] for s in tail]))) / seg_std
+            c_dxy = (coef["b2"] * (complete[i]["x2"] - amean([s["x2"] for s in tail]))) / seg_std
+        else:
+            c_dfii = 0
+            c_dxy = 0
+        series.append({
             "date": complete[i]["date"],
             "residualZ": round(z, 3) if z is not None else None,
+            "contribDfii": round(c_dfii, 3) if z is not None else None,
+            "contribDxy": round(c_dxy, 3) if z is not None else None,
             "fitted": None,
             "actualLog": None,
         })
+    return {"series": series, "b1": round(coef["b1"], 4), "b2": round(coef["b2"], 4)}
+
+
+def _ffill_indicator_to_dates(indicator, dates):
+    """把月度/不规则频率的指标（如 DFII10）FFILL 到金价的日级日期列表上，缺失位置填 None。"""
+    ind_map = {p["date"]: p["value"] for p in indicator}
+    sorted_ind = sorted(indicator, key=lambda p: p["date"])
+    out = []
+    last = None
+    j = 0
+    for d in dates:
+        while j < len(sorted_ind) and sorted_ind[j]["date"] <= d:
+            last = sorted_ind[j]["value"]
+            j += 1
+        out.append(last)
     return out
+
+
+def _scatter_dfii_vs_gold(gold, dfii, bin_size=0.25, recent_n=1300):
+    """实际利率（X，按 bin_size 分桶） vs 金价 60D 累计对数收益（Y）的散点数据。
+    返回 { bins: [{xMid, xMin, xMax, median, q25, q75, count}], latest: {x, y, date} }
+    """
+    from math import log as _log
+
+    dfii_daily = []
+    last = None
+    sorted_dfii = sorted(dfii, key=lambda p: p["date"])
+    j = 0
+    for p in gold:
+        d = p["date"]
+        while j < len(sorted_dfii) and sorted_dfii[j]["date"] <= d:
+            last = sorted_dfii[j]["value"]
+            j += 1
+        dfii_daily.append({"date": d, "value": last})
+
+    paired = []
+    for i in range(60, len(gold)):
+        if dfii_daily[i]["value"] is None or gold[i]["value"] is None or gold[i - 60]["value"] is None:
+            continue
+        if gold[i]["value"] <= 0 or gold[i - 60]["value"] <= 0:
+            continue
+        ret = _log(gold[i]["value"] / gold[i - 60]["value"])
+        paired.append({"date": gold[i]["date"], "x": dfii_daily[i]["value"], "y": ret})
+
+    if not paired:
+        return {"bins": [], "latest": None}
+
+    # 散点
+    pts = [{"date": p["date"], "x": round(p["x"], 3), "y": round(p["y"], 4)} for p in paired]
+
+    # 分桶：中位数 / q25 / q75
+    xs = [p["x"] for p in paired]
+    x_min = min(xs)
+    x_max = max(xs)
+    n_bins = max(8, int((x_max - x_min) / bin_size) + 1)
+    edges = [x_min + (x_max - x_min) * i / n_bins for i in range(n_bins + 1)]
+    bins = []
+    for k in range(n_bins):
+        lo, hi = edges[k], edges[k + 1]
+        seg = [p["y"] for p in paired if lo <= p["x"] < hi or (k == n_bins - 1 and p["x"] == hi)]
+        if not seg:
+            continue
+        seg_sorted = sorted(seg)
+        m = seg_sorted[len(seg_sorted) // 2]
+        q25 = seg_sorted[max(0, int(len(seg_sorted) * 0.25))]
+        q75 = seg_sorted[min(len(seg_sorted) - 1, int(len(seg_sorted) * 0.75))]
+        bins.append({
+            "xMid": round((lo + hi) / 2, 3),
+            "xMin": round(lo, 3),
+            "xMax": round(hi, 3),
+            "median": round(m, 4),
+            "q25": round(q25, 4),
+            "q75": round(q75, 4),
+            "count": len(seg),
+        })
+
+    latest_pair = paired[-1]
+    return {
+        "bins": bins,
+        "points": pts[-recent_n:],
+        "latest": {
+            "date": latest_pair["date"],
+            "x": round(latest_pair["x"], 3),
+            "y": round(latest_pair["y"], 4),
+        },
+    }
 
 
 
@@ -205,17 +301,34 @@ def sync():
         dfii = _load_indicator(conn, DFII_CODE)
         t10yie = _load_indicator(conn, T10YIE_CODE)
 
-        price_chart = [
-            {"date": p["date"], "gold": round(p["a"], 2),
-             "dxy": round(p["b"], 2) if p["b"] is not None else None}
-            for p in align_by_date(gold, dxy)
-        ]
+        # 把月度 DFII10 FFILL 到金价每日日期
+        gold_dates = [p["date"] for p in gold]
+        dfii_daily = _ffill_indicator_to_dates(dfii, gold_dates)
+        dfii_map_by_date = dict(zip(gold_dates, dfii_daily))
+
+        price_chart = []
+        for i, p in enumerate(gold):
+            d = p["date"]
+            dv = dxy_map.get(d) if (dxy_map := {x["date"]: x["value"] for x in dxy}) else None
+            fv = dfii_map_by_date.get(d)
+            price_chart.append({
+                "date": d,
+                "gold": round(p["value"], 2),
+                "dxy": round(dv, 2) if dv is not None else None,
+                "dfii10": round(fv, 2) if fv is not None else None,
+            })
 
         gold_ret = log_returns(gold)
         dxy_ret_all = log_returns(dxy)
+        dfii_ret_all = log_returns(dfii)
         corr20 = rolling_corr(gold_ret, dxy_ret_all, 20)
         corr60 = rolling_corr(gold_ret, dxy_ret_all, 60)
         corr120 = rolling_corr(gold_ret, dxy_ret_all, 120)
+
+        # 实际利率 vs 金价 收益率的滚动相关（与 DXY 同结构、不同含义）
+        corr_irr_20 = rolling_corr(gold_ret, dfii_ret_all, 20)
+        corr_irr_60 = rolling_corr(gold_ret, dfii_ret_all, 60)
+        corr_irr_120 = rolling_corr(gold_ret, dfii_ret_all, 120)
 
         momentum20 = []
         momentum60 = []
@@ -238,7 +351,8 @@ def sync():
         broken_events = [s["date"] for s in switches if s["to"] in ("broken", "positive")]
         broken_study = event_study(gold, broken_events, [20, 60, 120])
 
-        resid_series = _build_residual_z(gold, dxy, dfii, HORIZON)
+        resid_pack = _build_residual_z(gold, dxy, dfii, HORIZON)
+        resid_series = resid_pack["series"]
         latest_resid = resid_series[-1] if resid_series else None
         resid_vals = [r["residualZ"] for r in resid_series if r["residualZ"] is not None]
         latest_resid_z = latest_resid["residualZ"] if latest_resid and latest_resid["residualZ"] is not None else 0
@@ -262,6 +376,8 @@ def sync():
         extreme_under = [e["date"] for e in extreme_events if e["dir"] == "undervalued"]
         over_study = event_study(gold, extreme_over, [20, 60, 120])
         under_study = event_study(gold, extreme_under, [20, 60, 120])
+
+        scatter = _scatter_dfii_vs_gold(gold, dfii)
 
         evidence = []
         counter_evidence = []
@@ -368,8 +484,19 @@ def sync():
                 "s60": [{"date": p["date"], "value": round(p["value"], 3)} for p in corr60],
                 "s120": [{"date": p["date"], "value": round(p["value"], 3)} for p in corr120],
             },
+            "corrIrrChart": {
+                "s20": [{"date": p["date"], "value": round(p["value"], 3)} for p in corr_irr_20],
+                "s60": [{"date": p["date"], "value": round(p["value"], 3)} for p in corr_irr_60],
+                "s120": [{"date": p["date"], "value": round(p["value"], 3)} for p in corr_irr_120],
+            },
+            "scatterData": scatter,
             "bandSwitches": [{"date": s["date"], "from": s["from"], "to": s["to"]} for s in switches],
-            "residSeries": [{"date": r["date"], "z": r["residualZ"]} for r in resid_series],
+            "residSeries": [
+                {"date": r["date"], "z": r["residualZ"],
+                 "contribDfii": r.get("contribDfii"),
+                 "contribDxy": r.get("contribDxy")}
+                for r in resid_series
+            ],
             "momentumChart": {"m20": momentum20, "m60": momentum60},
             "extremes": extreme_events[-15:],
             "eventStudies": {

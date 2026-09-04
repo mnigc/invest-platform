@@ -59,14 +59,24 @@ interface Data {
     momentum20: number
     momentum60: number
   }
-  priceChart: { date: string; gold: number; dxy: number | null }[]
+  priceChart: { date: string; gold: number; dxy: number | null; dfii10: number | null }[]
   corrChart: {
     s20: { date: string; value: number }[]
     s60: { date: string; value: number }[]
     s120: { date: string; value: number }[]
   }
+  corrIrrChart: {
+    s20: { date: string; value: number }[]
+    s60: { date: string; value: number }[]
+    s120: { date: string; value: number }[]
+  }
+  scatterData: {
+    bins: { xMid: number; xMin: number; xMax: number; median: number; q25: number; q75: number; count: number }[]
+    points: { date: string; x: number; y: number }[]
+    latest: { date: string; x: number; y: number } | null
+  }
   bandSwitches: { date: string; from: string; to: string }[]
-  residSeries: { date: string; z: number | null }[]
+  residSeries: { date: string; z: number | null; contribDfii: number | null; contribDxy: number | null }[]
   momentumChart: {
     m20: { date: string; value: number }[]
     m60: { date: string; value: number }[]
@@ -488,7 +498,7 @@ export function GoldDecisionDashboard() {
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
-      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY', '高估区间', '低估区间']),
+      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY', '实际利率 DFII10 %', '高估区间', '低估区间']),
       grid: chartGrid({ top: 32, bottom: 32 }),
       xAxis: categoryAxis(t, dates),
       yAxis: [
@@ -499,6 +509,19 @@ export function GoldDecisionDashboard() {
         rightValueAxis(t, {
           name: 'DXY',
           nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
+        }),
+        rightValueAxis(t, {
+          name: 'DFII10 %',
+          nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
+          position: 'right',
+          offset: 48,
+          axisLabel: {
+            color: t.text3,
+            fontSize: 10,
+            fontFamily: t.fontMono,
+            formatter: (v: number) => `${v.toFixed(1)}%`,
+          },
+          splitLine: { show: false },
         }),
       ],
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
@@ -517,6 +540,19 @@ export function GoldDecisionDashboard() {
           data.priceChart.map((p) => p.dxy),
           t.series[1],
           { yAxisIndex: 1, lineStyle: { width: 1.2, color: t.series[1] } },
+        ),
+        lineSeries(
+          '实际利率 DFII10 %',
+          data.priceChart.map((p) => p.dfii10),
+          t.series[0],
+          {
+            yAxisIndex: 2,
+            lineStyle: { width: 1.1, color: t.series[0], type: 'dashed' },
+            markLine: markLine([
+              { yAxis: 0, lineStyle: { color: t.up, type: 'dashed', width: 1 }, symbol: ['none', 'none'], label: { show: true, position: 'insideEndTop', formatter: '0%', color: t.up, fontSize: 9, fontFamily: 'monospace' } },
+              { yAxis: 1, lineStyle: { color: t.down, type: 'dashed', width: 1 }, symbol: ['none', 'none'], label: { show: true, position: 'insideEndTop', formatter: '1%', color: t.down, fontSize: 9, fontFamily: 'monospace' } },
+            ]),
+          },
         ),
       ],
     } as EChartsOption
@@ -570,35 +606,201 @@ export function GoldDecisionDashboard() {
     } as EChartsOption
   }, [data, t])
 
+  const corrIrrOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.corrIrrChart?.s60?.length) return null
+    const total = data.corrIrrChart.s60.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(3)),
+      }),
+      legend: chartLegend(t, ['20 日', '60 日', '120 日']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, data.corrIrrChart.s60.map((p) => p.date)),
+      yAxis: valueAxis(t, { min: -1, max: 1, scale: false }),
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [
+        lineSeries(
+          '20 日',
+          data.corrIrrChart.s20.map((p) => p.value),
+          t.series[2],
+          { lineStyle: { width: 1.2, color: t.series[2] } },
+        ),
+        lineSeries(
+          '60 日',
+          data.corrIrrChart.s60.map((p) => p.value),
+          t.series[0],
+          {
+            lineStyle: { width: 1.4, color: t.series[0] },
+            markLine: markLine([
+              thresholdLine(-0.7, t.text3, '−0.7 长期均值'),
+              thresholdLine(-0.4, t.warn, '−0.4 失锚警戒'),
+              thresholdLine(0, t.up, '0'),
+            ]),
+          },
+        ),
+        lineSeries(
+          '120 日',
+          data.corrIrrChart.s120.map((p) => p.value),
+          t.series[1],
+          { lineStyle: { width: 1.2, color: t.series[1] } },
+        ),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
+  const scatterOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.scatterData?.bins?.length) return null
+    const sd = data.scatterData
+    const bins = sd.bins
+    const pts = sd.points ?? []
+
+    // 分位带：用 stackedBar（低-中-高）把每桶的 [q25, 中位, q75] 画出来
+    // ECharts 没有"区间带"原生，但用 bar + stack 可以做出"色块 + 中位线"
+    // 简化方案：每桶画两个 bar：q25→中位 (浅)、中位→q75 (浅)
+    const xLabels = bins.map((b) => b.xMid.toFixed(2))
+    const barLow = bins.map((b) => +(b.median - b.q25).toFixed(4))
+    const barLowBase = bins.map((b) => +b.q25.toFixed(4))
+    const barHigh = bins.map((b) => +(b.q75 - b.median).toFixed(4))
+    const barHighBase = bins.map((b) => +b.median.toFixed(4))
+    const medianLine = bins.map((b) => +b.median.toFixed(4))
+
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        trigger: 'axis',
+        valueFormatter: (v: any) => (v == null ? '--' : `${(Number(v) * 100).toFixed(2)}%`),
+      }),
+      legend: chartLegend(t, ['50% 分位带 (Q25–Q75)', '中位收益', '当前点 (60D 收益)']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, xLabels, {
+        name: '实际利率 DFII10 %',
+        nameLocation: 'middle',
+        nameGap: 24,
+        nameTextStyle: { color: t.text3, fontSize: 10 },
+      }),
+      yAxis: valueAxis(t, {
+        name: '金价 60D 收益',
+        nameTextStyle: { color: t.text3, fontSize: 10 },
+        axisLabel: {
+          color: t.text3,
+          fontSize: 10,
+          fontFamily: t.fontMono,
+          formatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+        },
+      }),
+      series: [
+        {
+          name: '下半分位',
+          type: 'bar',
+          stack: 'band',
+          data: barLow,
+          xAxisIndex: 0,
+          itemStyle: { color: 'transparent' },
+          emphasis: { itemStyle: { color: 'transparent' } },
+          tooltip: { show: false },
+        },
+        {
+          name: '上半分位',
+          type: 'bar',
+          stack: 'band',
+          data: barHigh,
+          itemStyle: { color: t.series[0], opacity: 0.18 },
+          emphasis: { focus: 'series' },
+        },
+        {
+          name: '中位收益',
+          type: 'line',
+          data: medianLine,
+          smooth: 0.3,
+          showSymbol: false,
+          connectNulls: true,
+          lineStyle: { width: 1.6, color: t.series[0] },
+          itemStyle: { color: t.series[0] },
+          z: 3,
+        },
+        {
+          name: '当前点 (60D 收益)',
+          type: 'scatter',
+          data: pts.map((p) => [p.x.toFixed(2), p.y]),
+          symbolSize: 4,
+          itemStyle: { color: t.text3, opacity: 0.5 },
+          z: 2,
+        },
+        ...(sd.latest
+          ? [
+              {
+                name: '当前',
+                type: 'scatter',
+                data: [[sd.latest.x.toFixed(2), sd.latest.y]],
+                symbolSize: 16,
+                itemStyle: { color: t.warn, borderColor: t.text, borderWidth: 1.5, shadowBlur: 8, shadowColor: t.warn },
+                z: 5,
+                label: {
+                  show: true,
+                  position: 'top' as const,
+                  formatter: () => `${sd.latest!.date}\n${(sd.latest!.y * 100).toFixed(2)}%`,
+                  color: t.warn,
+                  fontSize: 10,
+                  fontFamily: t.fontMono,
+                },
+              },
+            ]
+          : []),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
   const residOption = useMemo<EChartsOption | null>(() => {
     if (!data?.residSeries?.length) return null
     const total = data.residSeries.length
     const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const series = data.residSeries
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(2)),
       }),
-      grid: chartGrid({ top: 14, bottom: 32 }),
-      xAxis: categoryAxis(t, data.residSeries.map((p) => p.date)),
+      legend: chartLegend(t, ['残差 z（总）', 'DFII10 贡献', 'DXY 动量贡献']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, series.map((p) => p.date)),
       yAxis: valueAxis(t),
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
       series: [
+        lineSeries(
+          '残差 z（总）',
+          series.map((p) => p.z),
+          t.warn,
+          {
+            lineStyle: { width: 1.5, color: t.warn },
+            itemStyle: { color: t.warn },
+            z: 5,
+            markLine: markLine([
+              thresholdLine(2, t.down, '+2σ'),
+              thresholdLine(-2, t.up, '-2σ'),
+            ]),
+          },
+        ),
         {
-          name: '残差 z',
+          name: 'DFII10 贡献',
           type: 'bar',
-          data: data.residSeries.map((p) => {
-            const v = p.z
+          data: series.map((p) => {
+            const v = p.contribDfii
             if (v == null) return null
-            // 高估（z≥2）看空 → 跌色；低估（z≤-2）看多 → 涨色
-            const color =
-              v >= 2 ? t.down : v <= -2 ? t.up : v >= 0 ? t.downSoft : t.upSoft
-            return { value: v, itemStyle: { color } }
+            return { value: v, itemStyle: { color: v >= 0 ? t.downSoft : t.upSoft } }
           }),
-          markLine: markLine([
-            thresholdLine(2, t.down, '+2σ'),
-            thresholdLine(-2, t.up, '-2σ'),
-          ]),
+          barWidth: '40%',
+        },
+        {
+          name: 'DXY 动量贡献',
+          type: 'bar',
+          data: series.map((p) => {
+            const v = p.contribDxy
+            if (v == null) return null
+            return { value: v, itemStyle: { color: v >= 0 ? t.down : t.up } }
+          }),
+          barWidth: '40%',
         },
       ],
     } as EChartsOption
@@ -642,6 +844,15 @@ export function GoldDecisionDashboard() {
   const latest = data.latest
   const residTone =
     latest.residZ == null ? 'neutral' : latest.residZ >= 0 ? ('down' as const) : ('up' as const)
+  // 实际利率对黄金的"友好度"：<0 看多友好，>1 看空，0~1 中性
+  const dfiiTone: 'up' | 'warn' | 'down' =
+    latest.dfii10 == null
+      ? 'warn'
+      : latest.dfii10 < 0
+        ? 'up'
+        : latest.dfii10 > 1
+          ? 'down'
+          : 'warn'
 
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
@@ -675,8 +886,8 @@ export function GoldDecisionDashboard() {
             <StatTile
               label="实际利率 DFII10"
               value={latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--'}
-              sub="10Y TIPS"
-              tone="warn"
+              sub="10Y TIPS · <0 黄金友好 / >1 承压"
+              tone={dfiiTone}
             />
             <StatTile
               label="盈亏平衡 T10YIE"
@@ -708,11 +919,12 @@ export function GoldDecisionDashboard() {
 
       {/* 主列：图表与事件研究 */}
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
-        <MacroCard title="金价 vs 美元指数">
+        <MacroCard title="金价 vs 美元指数 vs 10Y 实际利率">
           <ResponsiveChartBox option={priceOption} deps={[priceOption]} />
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            背景色块：定价残差 z 持续偏离区间（<span className="text-down">浅红 = 高估 z≥2</span> /
-            <span className="text-up">浅绿 = 低估 z≤-2</span>，持续≥3 个交易日），可观察金价在极端估值期的后续走势。
+            三轴：左=金价、右1=DXY、右2=DFII10%。
+            实际利率虚线参考：<span className="text-up">0% 绿色</span>=零利率分水岭 / <span className="text-down">1% 红色</span>=紧缩警戒。
+            背景色块：定价残差 z 持续偏离区间（<span className="text-down">浅红=高估 z≥2</span> / <span className="text-up">浅绿=低估 z≤-2</span>，持续≥3 个交易日）。
           </p>
         </MacroCard>
 
@@ -731,10 +943,35 @@ export function GoldDecisionDashboard() {
           </p>
         </MacroCard>
 
-        <MacroCard title="定价残差 z（双因子模型：实际利率 DFII10 + DXY 20 日动量）">
+        <MacroCard title="黄金-实际利率收益率滚动相关（20 / 60 / 120 日）">
+          <ResponsiveChartBox option={corrIrrOption} deps={[corrIrrOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            实际利率与金价收益率的滚动相关。长期均值约 -0.7~-0.85，越深负值范式越稳固。
+            上穿 <span className="text-warn">-0.4</span> 视为「实际利率失锚」预警，
+            上穿 0 视为范式反转。
+          </p>
+        </MacroCard>
+
+        <MacroCard title="实际利率 vs 金价 60D 收益（散点 + 分位带）">
+          <ResponsiveChartBox option={scatterOption} deps={[scatterOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            X=当日实际利率，Y=当日金价相对 60 日前的对数收益。
+            <span className="text-info">蓝色带</span>=同一利率桶内金价 60D 收益的 25–75 分位，
+            <span className="text-info">蓝色线</span>=中位收益。
+            <span className="text-warn">橙色大点</span>=当前所在位置。
+            可直观判断「当前利率环境下，黄金历史表现是好是差」。
+          </p>
+        </MacroCard>
+
+        <MacroCard title="定价残差 z 贡献分解（双因子模型：DFII10 + DXY 20 日动量）">
           <ResponsiveChartBox option={residOption} deps={[residOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            <span className="text-warn">橙色线</span> = 残差 z 总值（±2σ 阈值）。
+            柱状=两个因子对 z 的贡献：<span className="text-down">红色</span> = 正向贡献（推高 z）/ <span className="text-up">绿色</span> = 负向贡献。
+            浅色柱=DFII10，深色柱=DXY 动量。可识别当前偏离主要由哪个因子解释。
+          </p>
           {data.extremes.length > 0 && (
-            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            <p className="mt-1 text-2xs leading-relaxed text-ink-3">
               历史极端点（<span className="num">{data.extremes.length}</span>）：
               {data.extremes
                 .slice(-8)
