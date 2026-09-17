@@ -112,14 +112,34 @@ function safeJson<T = any>(
 ): Promise<{ ok: boolean; data: T | null; error?: string }> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-  return fetch(url, { signal: ctrl.signal })
-    .then((r) => r.json())
-    .then((j: any) =>
-      j.success
+
+  // 只解析一次响应体：Worker / 网关崩溃时返回的是 HTML 错误页或
+  // "error code: 1101" 这类纯文本，r.json() 会抛 "Unexpected token '<'"。
+  // 这类瞬时故障按可重试错误处理；业务层错误（success: false）不重试。
+  const once = async (): Promise<{ ok: boolean; data: T | null; error?: string }> => {
+    const r = await fetch(url, { signal: ctrl.signal })
+    const text = await r.text()
+    try {
+      const j = JSON.parse(text)
+      return j.success
         ? { ok: true, data: j.data as T }
-        : { ok: false, data: null, error: j.error },
-    )
-    .catch((e: any) => ({ ok: false, data: null, error: e?.message ?? '请求失败' }))
+        : { ok: false, data: null, error: j.error }
+    } catch {
+      throw new Error(r.status >= 500 ? `数据源暂时不可用 (${r.status})` : '响应不是有效 JSON')
+    }
+  }
+
+  const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
+  const asAbort = (e: any) => e?.name === 'AbortError'
+  const failure = (error?: string) => ({ ok: false as const, data: null, error })
+
+  return once()
+    .catch((first: any) => {
+      if (asAbort(first)) return failure('请求超时')
+      return delay(800)
+        .then(once)
+        .catch((second: any) => failure(asAbort(second) ? '请求超时' : second?.message ?? '请求失败'))
+    })
     .finally(() => clearTimeout(timer))
 }
 

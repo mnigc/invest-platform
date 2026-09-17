@@ -3,7 +3,19 @@ export function withCache(
   ttlSeconds: number = 300
 ) {
   return async (context: any) => {
-    const response = await handler(context);
+    let response: Response;
+    try {
+      response = await handler(context);
+    } catch (err: any) {
+      // 兜底：业务层 try/catch 接不住的逃逸异常也返回 JSON，而不是让 Astro /
+      // Cloudflare 回 HTML 错误页——前端 r.json() 解析 HTML 会报
+      // "Unexpected token '<'"，且该响应会被当作接口失败而非可重试错误。
+      console.error('[withCache]', err?.message ?? err);
+      response = new Response(
+        JSON.stringify({ success: false, error: 'Internal error' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
     const headers = new Headers(response.headers);
     if (response.status === 200) {
       if (import.meta.env?.PROD) {

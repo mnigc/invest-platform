@@ -1,21 +1,15 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { Pool } from '@neondatabase/serverless'
 
 // 运行时 env 注入点：由 src/middleware.ts 在每个请求开始时注入，
 // 来源是 cloudflare:workers 的 env（secret 用 `wrangler secret put` 配置）。
 // 拿不到注入时回退到 Vite 的 import.meta.env（本地 .env），否则本地开发会连不上库。
 let _runtimeEnv: Record<string, string | undefined> | null = null
-let _pool: Pool | null = null
 
 export function setRuntimeEnv(env: Record<string, string | undefined> | null): void {
   _runtimeEnv = env
-  _pool = null
 }
 
-/**
- * 返回当前生效的 DATABASE_URL，供调用方判断「连接串是否真的变了」。
- * 用于避免中间件每请求都重建 Pool —— 那会让 10 路并发变成 10 次 WebSocket 握手，
- * 冷启动时直接拖垮首屏最重的几个分析接口。
- */
 export function getRuntimeDatabaseUrl(): string | undefined {
   return (_runtimeEnv ?? resolveEnv()).DATABASE_URL
 }
@@ -25,15 +19,62 @@ function resolveEnv(): Record<string, string | undefined> {
   return import.meta.env as unknown as Record<string, string | undefined>
 }
 
-function getPool(): Pool {
-  if (!_pool) {
-    const env = resolveEnv()
-    if (!env.DATABASE_URL) {
-      throw new Error('Database not configured: set DATABASE_URL (local .env or Cloudflare secret)')
+/**
+ * 连接必须「在单个请求内创建、使用、关闭」：
+ * @neondatabase/serverless 官方明确 WebSocket 连接 cannot outlive a single request
+ * （workerd 按请求隔离 I/O 上下文，跨请求复用已打开的 WebSocket 会触发
+ * "Cannot perform I/O on behalf of a different request"，isolate 级硬杀请求，
+ * 表现为随机 Cloudflare 1101 且请求内 try/catch / 全局监听都抓不到异常）。
+ * 这里用 AsyncLocalStorage 做请求作用域：同一请求内的多条查询共用一条连接，
+ * 并发请求各自独立，请求结束（含抛错）时统一 end() 回收。
+ * 代价是每次请求多一次 WebSocket 握手（约 1.2s），换取接口不再随机 1101。
+ */
+interface RequestDb {
+  pool?: Pool
+}
+
+const requestDb = new AsyncLocalStorage<RequestDb>()
+
+export function withRequestDb<T>(fn: () => Promise<T>): Promise<T> {
+  const scope: RequestDb = {}
+  return requestDb.run(scope, async () => {
+    try {
+      return await fn()
+    } finally {
+      const pool = scope.pool
+      scope.pool = undefined
+      if (pool) {
+        // end() 失败不影响响应，只需保证连接不越过请求作用域存活；
+        // 加超时兜底，避免端点无响应时把整个请求挂死。
+        await Promise.race([
+          pool.end().catch(() => {}),
+          new Promise((res) => setTimeout(res, 1500)),
+        ])
+      }
     }
-    _pool = new Pool({ connectionString: env.DATABASE_URL })
+  })
+}
+
+function getPool(): Pool {
+  const scope = requestDb.getStore()
+  if (scope?.pool) return scope.pool
+  const pool = makePool()
+  if (scope) scope.pool = pool
+  return pool
+}
+
+function makePool(): Pool {
+  const env = resolveEnv()
+  if (!env.DATABASE_URL) {
+    throw new Error('Database not configured: set DATABASE_URL (local .env or Cloudflare secret)')
   }
-  return _pool
+  const pool = new Pool({ connectionString: env.DATABASE_URL })
+  // 服务端（Supavisor）主动关闭空闲连接时 Pool 会 emit 'error'；不挂监听器会让该事件
+  // 升级为未捕获异常并打崩 isolate（表现为 Cloudflare 1101）。
+  pool.on('error', (err: Error) => {
+    console.error('[db] connection error:', err?.message ?? err)
+  })
+  return pool
 }
 
 function prepareSql(sqlStr: string): string {
