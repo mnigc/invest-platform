@@ -298,6 +298,23 @@ export interface CommodityResponse {
   spreads: CommoditySpreadPoint[]
 }
 
+// ── CPI / 通胀 ──
+export type CpiCode = 'CPI' | 'CPILFESL' | 'PCEPI' | 'PCEPILFE' | 'PPIACO'
+
+export interface CpiSeries {
+  code: CpiCode
+  nameZh: string
+  nameEn: string
+  unit: string
+  frequency: string
+  data: { date: string; value: number | null }[]
+}
+
+export interface CpiResponse {
+  series: CpiSeries[]
+  updatedAt: string
+}
+
 // ── 领先指标 ──
 export type LeadingCode =
   | 'NFCI'

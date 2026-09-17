@@ -4,10 +4,11 @@ export const prerender = true
 import Layout from '../../layouts/Layout.astro'
 import { PageHeader } from '../../components/ui/PageHeader'
 import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+import CpiDashboard from '../../components/CpiDashboard'
 
 const title = 'CPI 数据 · 通胀数据 · 美国 CPI / PCE / PPI - MACRO EDGE'
 const description =
-  '美国 CPI（消费者价格指数）数据监测：CPI 同比、核心 CPI 同比、PCE 同比、核心 PCE 同比、PPI 生产者价格指数、CPI vs PCE 差异、5Y5Y 通胀预期偏离。通胀温度计与联储反应函数。'
+  '美国 CPI（消费者价格指数）数据监测：CPI 同比、核心 CPI 同比、PCE 同比、核心 PCE 同比、PPI 同比历史曲线与最新值，CPI vs PCE 差异。通胀温度计与联储反应函数。'
 const canonical = '/indicators/cpi'
 
 const jsonLd = {
@@ -49,18 +50,17 @@ const relatedSearches = {
     {
       title: '其他',
       links: [
-        { href: '/indicators/fed-funds', label: '美联储利率' },
         { href: '/indicators/global-liquidity', label: '全球流动性' },
         { href: '/indicators/commodities', label: '大宗商品' },
         { href: '/indicators/leading', label: '衰退预警' },
+        { href: '/knowledge/interest-rate', label: '利率机制' },
       ],
     },
   ],
   universal: [
     { href: '/signals/gold', label: '黄金价格' },
-    { href: '/indicators/dxy', label: '美元指数' },
-    { href: '/indicators/cpi', label: 'CPI 通胀' },
-    { href: '/indicators/fed-funds', label: '美联储利率' },
+    { href: '/indicators/global-liquidity', label: '全球流动性' },
+    { href: '/indicators/commodities', label: '大宗商品' },
     { href: '/indicators/leading', label: '衰退预警' },
   ],
 }
@@ -116,46 +116,13 @@ const relatedSearches = {
         </li>
         <li>
           <strong class="text-ink">5Y5Y 远期通胀预期</strong> — 市场预期的"5 年后 5 年期"通胀，
-          > 2.5% 视为长期通胀预期脱锚信号。
+          <a href="/analysis/inflation-anchor" class="text-accent hover:underline">通胀预期锚定页</a>可查；
+          &gt; 2.5% 视为长期通胀预期脱锚信号。
         </li>
       </ul>
     </IndicatorGuide>
 
-    <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
-      <h2 class="text-md font-semibold text-ink">查看完整通胀曲线与历史</h2>
-      <p class="mt-1.5 text-xs leading-relaxed text-ink-3">
-        本页是 CPI 数据的入口与背景。完整曲线、Z-Score、与联储 2% 目标的偏离请到以下页面查看：
-      </p>
-      <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {
-          [
-            { href: '/knowledge/inflation', label: '通胀机制（知识图谱）' },
-            { href: '/analysis/inflation-anchor', label: '通胀预期锚定' },
-            { href: '/signals/regime', label: '宏观体制' },
-            { href: '/signals/gold', label: '黄金价格' },
-            { href: '/indicators/global-liquidity', label: '全球流动性' },
-            { href: '/analysis/credit-stress', label: '信用-利率压力' },
-          ].map((r) => (
-            <a
-              href={r.href}
-              class="group flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2 transition-colors duration-1 ease-terminal hover:border-accent/60 hover:bg-surface"
-            >
-              <span class="text-sm text-ink">{r.label}</span>
-              <svg
-                class="h-3.5 w-3.5 -translate-x-1 text-ink-3 opacity-0 transition-all duration-2 ease-terminal group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <path d="M5 12h14m-6-6 6 6-6 6" />
-              </svg>
-            </a>
-          ))
-        }
-      </div>
-    </section>
+    <CpiDashboard client:load />
 
     <section class="stagger mt-3 rounded-lg border border-line bg-surface p-4">
       <h2 class="text-2xs font-bold uppercase tracking-widest text-ink-3">常见问题</h2>

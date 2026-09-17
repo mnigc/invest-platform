@@ -53,6 +53,13 @@ TASKS = {
         "delay": 8,
         "args": [],
     },
+    "cpi": {
+        "name": "CPI 通胀（CPI/核心CPI/PCE/核心PCE/PPI）",
+        "script": "sync_cpi",
+        "group": "daily",
+        "delay": 8,
+        "args": [],
+    },
     "leading": {
         "name": "领先指标（金融状况/就业/生产/地产/需求/信心）",
         "script": "sync_leading",
@@ -156,6 +163,7 @@ TASK_ORDER = [
     "gold_decision",
     "global_liquidity",
     "commodities",
+    "cpi",
     "leading",
     "regime",
     "macro_analysis",
