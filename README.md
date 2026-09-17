@@ -42,10 +42,12 @@ npm run dev
 - Bing Webmaster：`https://www.bing.com/webmasters`
 - 百度站长平台：`https://ziyuan.baidu.com`
 
-`SITE_URL` 通过 `astro.config.mjs` 的 `site` 字段配置，构建时设环境变量：
+站点域名统一在 `astro.config.mjs` 的 `site` 配置，默认即生产域名
+`https://invest.soulcreator.cn`（sitemap / rss / canonical / JSON-LD 均由此派生）。
+预览环境等场景可用环境变量覆盖：
 
 ```bash
-SITE_URL=https://macroedge.example.com npm run build
+SITE_URL=https://preview.example.com npm run build
 ```
 
 ## 数据同步脚本
@@ -74,7 +76,7 @@ python run_sync.py --list         # 查看所有任务
 ### GitHub Actions
 
 数据同步通过 GitHub Actions 自动执行：
-- **触发时间**: 每交易日 23:30 北京时间（UTC 15:30）
+- **触发时间**: 每交易日 UTC 22:30（美东 18:30，北京时间次日 06:30）——必须在美国收盘与 FRED 当日数据发布之后，否则会把盘中价写成当日收盘
 - **手动触发**: GitHub Actions 页面点击 "Run workflow"
 - **日志**: 运行日志上传为 Artifact，保留 14 天
 

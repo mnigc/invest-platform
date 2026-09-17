@@ -40,4 +40,4 @@ Allow: /
 # 任何站点的爬虫一律禁止采集 API 端点（防止打爆数据库）
 Disallow: /api/
 
-Sitemap: https://macroedge.example.com/sitemap-index.xml
+Sitemap: https://invest.soulcreator.cn/sitemap-index.xml

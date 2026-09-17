@@ -2,7 +2,7 @@ import rss from '@astrojs/rss'
 import type { APIContext } from 'astro'
 
 export async function GET(context: APIContext) {
-  const site = context.site?.toString() ?? 'https://macroedge.example.com/'
+  const site = context.site?.toString() ?? 'https://invest.soulcreator.cn/'
   const pubDate = new Date()
 
   return rss({

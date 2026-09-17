@@ -7,17 +7,21 @@ import { SignalBoardDashboard } from '../components/signals/SignalBoardDashboard
 
 const description =
   '宏观资产配置综合信号板：黄金价格、宏观体制、风险异常、信用利差、收益率曲线、领先指标、跨资产联动等多源信号加权综合评分，给出当前宏观环境的资产配置研判。每日更新。'
+
+// 站点域名从 astro.config.mjs 的 site 取（构建注入），避免硬编码两处漂移
+const siteOrigin = Astro.site?.origin ?? 'https://invest.soulcreator.cn'
+
 const jsonLd = [
   {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'MACRO EDGE',
     alternateName: '宏观投资研究终端',
-    url: 'https://macroedge.example.com/',
+    url: siteOrigin + '/',
     inLanguage: 'zh-CN',
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://macroedge.example.com/signal-board',
+      target: siteOrigin + '/signal-board',
       'query-input': 'required name=search_term_string',
     },
   },

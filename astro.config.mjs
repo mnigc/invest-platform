@@ -5,7 +5,9 @@ import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 
-const SITE_URL = process.env.SITE_URL || 'https://macroedge.example.com';
+// 生产域名：sitemap / rss / canonical / JSON-LD 的唯一事实来源。
+// 可用环境变量 SITE_URL 覆盖（如预览环境），默认即生产域名。
+const SITE_URL = process.env.SITE_URL || 'https://invest.soulcreator.cn';
 
 export default defineConfig({
   site: SITE_URL,
