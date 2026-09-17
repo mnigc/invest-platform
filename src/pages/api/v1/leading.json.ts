@@ -2,8 +2,9 @@ export const prerender = false;
 
 import { query } from '../../../lib/db';
 import { withCache } from '../../../lib/cache';
+import { toDateStr } from '../../../lib/date';
 import { loadSeries } from '../../../lib/series';
-import { sahmRule, yoySeries, asOfLookup } from '../../../lib/seriesMath';
+import { sahmRule, yoySeries } from '../../../lib/seriesMath';
 import type {
   LeadingResponse,
   LeadingSeries,
@@ -88,7 +89,7 @@ export const GET = withCache(async () => {
       }
     }
     const updatedAt = meta
-      .map((r: any) => (r.last_update ? String(r.last_update) : null))
+      .map((r: any) => (r.last_update ? toDateStr(r.last_update) : null))
       .filter(Boolean)
       .sort()
       .pop();
@@ -108,21 +109,34 @@ export const GET = withCache(async () => {
       yoyByCode[code] = yoySeries(points as Point[]);
     }
 
-    // 聚合所有日期
+    // DE_IP 等序列可能停更（DE 自 2024-03 后无数据）：as-of 查找必须带时效上限，
+    // 否则停更前的旧值会被永远当作「当前值」参与等权平均，掩盖数据停滞。
+    const G7_IP_STALE_MS = 120 * 24 * 3600 * 1000;
+    const clean: Record<string, { date: string; value: number }[]> = {};
+    for (const code of G7_IP_CODES) {
+      clean[code] = yoyByCode[code].filter(
+        (p): p is { date: string; value: number } => p.value != null && Number.isFinite(p.value),
+      );
+    }
+
+    // 聚合所有日期（allDates 升序，各序列指针单调前进）
     const dateSet = new Set<string>();
     for (const code of G7_IP_CODES) {
       for (const p of yoyByCode[code]) dateSet.add(p.date);
     }
     const allDates = Array.from(dateSet).sort();
+    const ptr = new Map<string, number>(G7_IP_CODES.map((c) => [c, -1]));
     const g7IpYoy: G7IpPoint[] = allDates.map((d) => {
+      const t = new Date(d).getTime();
       const vals: number[] = [];
       for (const code of G7_IP_CODES) {
-        const arr = yoyByCode[code];
-        const v = asOfLookup(
-          (arr.filter((p) => p.value != null) as { date: string; value: number }[]),
-          d,
-        );
-        if (v != null && Number.isFinite(v)) vals.push(v);
+        const arr = clean[code];
+        let i = ptr.get(code)!;
+        while (i + 1 < arr.length && arr[i + 1].date <= d) i++;
+        ptr.set(code, i);
+        if (i < 0) continue;
+        if (t - new Date(arr[i].date).getTime() > G7_IP_STALE_MS) continue;
+        vals.push(arr[i].value);
       }
       if (!vals.length) return { date: d, value: null, countries: 0 };
       const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
@@ -142,8 +156,9 @@ export const GET = withCache(async () => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
+    console.error('[Leading]', e?.message || e);
     return new Response(
-      JSON.stringify({ success: false, error: e.message || '查询失败' }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }

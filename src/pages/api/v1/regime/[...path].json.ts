@@ -1,10 +1,12 @@
 export const prerender = false
 
-import type { APIRoute } from 'astro'
 import { query, queryOne } from '../../../../lib/db'
 import { toDateStr } from '../../../../lib/date'
 import { withCache } from '../../../../lib/cache'
 import type { Anomaly, BacktestSnapshot, BacktestSummary } from '../../../../lib/core'
+
+// 「一年前」基期的最大允许偏差：月频序列发布常滞后数周，超窗视为基期缺失
+const YoY_WINDOW_DAYS = 45
 
 async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
   try {
@@ -17,18 +19,16 @@ async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Pro
     )
     if (!rows || rows.length < 2) return null
     const current = Number(rows[0].value)
-    const asOfDate = String(rows[0].period_date)
-    const yearAgoTarget = new Date(asOfDate)
-    yearAgoTarget.setFullYear(new Date(asOfDate).getFullYear() - 1)
-    const yearAgoStr = yearAgoTarget.toISOString().slice(0, 10)
+    const asOfMs = new Date(toDateStr(rows[0].period_date)).getTime()
+    const yearAgoTargetMs = asOfMs - 365.25 * 24 * 3600 * 1000
     let yearAgo: number | null = null
     let minDiff = Number.POSITIVE_INFINITY
     for (const r of rows) {
-      const d = String(r.period_date)
-      const diff = Math.abs(new Date(d).getTime() - new Date(yearAgoStr).getTime())
+      const diff = Math.abs(new Date(toDateStr(r.period_date)).getTime() - yearAgoTargetMs)
       if (diff < minDiff) { minDiff = diff; yearAgo = Number(r.value) }
     }
-    if (yearAgo == null || yearAgo === 0) return null
+    // 基期距「一年前」过远（序列历史不足或断档）→ 不产出失真的同比
+    if (yearAgo == null || yearAgo === 0 || minDiff > YoY_WINDOW_DAYS * 24 * 3600 * 1000) return null
     return +(((current - yearAgo) / yearAgo) * 100).toFixed(2)
   } catch { return null }
 }
@@ -66,30 +66,24 @@ async function valNDaysAgo(code: string, offset: number, region: string = 'US'):
 async function detectAnomalies(): Promise<Anomaly[]> {
   const anomalies: Anomaly[] = []
 
-  const dgs10 = await latestVal('DGS10')
-  const dgs2 = await latestVal('DGS2')
-  const vix = await latestVal('VIXCLS')
-  const bbb = await latestVal('BAMLC0A4CBBB')
-  const cpi = await latestYoY('CPI')
-  const fedfunds = await latestVal('FEDFUNDS')
-  const cfnai = await latestVal('CFNAI')
-  const dfii10 = await latestVal('DFII10')
-  const t10yie = await latestVal('T10YIE')
-  const vixPrev = await valNDaysAgo('VIXCLS', 22)
+  // 全部查询互相独立，一次性并行发出（Neon WebSocket 每查询一个往返，串行链线性放大延迟）
+  const [dgs10, dgs2, vix, bbb, cpi, fedfunds, cfnai, dfii10, t10yie, vixPrev] = await Promise.all([
+    latestVal('DGS10'),
+    latestVal('DGS2'),
+    latestVal('VIXCLS'),
+    latestVal('BAMLC0A4CBBB'),
+    latestYoY('CPI'),
+    latestVal('FEDFUNDS'),
+    latestVal('CFNAI'),
+    latestVal('DFII10'),
+    latestVal('T10YIE'),
+    valNDaysAgo('VIXCLS', 22),
+  ])
 
-  const f = (v: number | null, fb: number) => v ?? fb
-  const gDgs10 = f(dgs10, 4.3)
-  const gDgs2 = f(dgs2, 4.7)
-  const gVix = f(vix, 14)
-  const gBbb = f(bbb, 1.2)
-  const gCpi = f(cpi, 3.0)
-  const gFedfunds = f(fedfunds, 5.25)
-  const gCfnai = f(cfnai, 0.05)
-  const gDfii10 = f(dfii10, 1.8)
-  const gT10yie = f(t10yie, 2.2)
-  const slope = gDgs10 - gDgs2
+  // 数据缺失的检查直接跳过，不再用硬编码默认值冒充真实数据触发/压制异常信号
+  const slope = dgs10 != null && dgs2 != null ? dgs10 - dgs2 : null
 
-  if (slope < -0.5) {
+  if (slope != null && slope < -0.5) {
     anomalies.push({
       id: 'yield-curve-deep-inversion',
       title: '深度收益率曲线倒挂',
@@ -99,79 +93,79 @@ async function detectAnomalies(): Promise<Anomaly[]> {
     })
   }
 
-  if (gBbb > 2.5 && gVix > 25) {
+  if (bbb != null && vix != null && bbb > 2.5 && vix > 25) {
     anomalies.push({
       id: 'credit-panic',
       title: '信用市场恐慌',
       description: '信用利差扩大 + 波动率飙升，系统性压力信号',
       severity: 'critical', indicator: 'BAMLC0A4CBBB, VIXCLS',
-      currentValue: `BBB ${gBbb.toFixed(2)}% / VIX ${gVix.toFixed(1)}`,
+      currentValue: `BBB ${bbb.toFixed(2)}% / VIX ${vix.toFixed(1)}`,
       threshold: 'BBB > 2.5% & VIX > 25',
     })
   }
 
-  if (gCpi > 5 && gCpi > gFedfunds) {
+  if (cpi != null && fedfunds != null && cpi > 5 && cpi > fedfunds) {
     anomalies.push({
       id: 'inflation-out-of-control',
       title: '通胀远超政策利率',
       description: '实际利率深度为负，央行滞后于通胀曲线',
       severity: 'high', indicator: 'CPI, FEDFUNDS',
-      currentValue: `CPI ${gCpi.toFixed(1)}% > Fed ${gFedfunds.toFixed(2)}%`,
+      currentValue: `CPI ${cpi.toFixed(1)}% > Fed ${fedfunds.toFixed(2)}%`,
       threshold: 'CPI > FedFunds',
     })
   }
 
-  if (gCfnai < -0.7) {
+  if (cfnai != null && cfnai < -0.7) {
     anomalies.push({
       id: 'cfnai-recession',
       title: '经济活动深度收缩',
       description: 'CFNAI 低于 -0.7，经济进入衰退区',
       severity: 'high', indicator: 'CFNAI',
-      currentValue: gCfnai.toFixed(3), threshold: '< -0.70',
+      currentValue: cfnai.toFixed(3), threshold: '< -0.70',
     })
   }
 
-  if (gCfnai < 0 && gCpi > 4) {
+  if (cfnai != null && cpi != null && cfnai < 0 && cpi > 4) {
     anomalies.push({
       id: 'stagflation-signal',
       title: '滞胀风险',
       description: '经济增长放缓 + 通胀高企，类1970s滞胀情景',
       severity: 'high', indicator: 'CFNAI, CPI',
-      currentValue: `CFNAI ${gCfnai.toFixed(3)} / CPI ${gCpi.toFixed(1)}%`,
+      currentValue: `CFNAI ${cfnai.toFixed(3)} / CPI ${cpi.toFixed(1)}%`,
       threshold: 'CFNAI < 0 & CPI > 4%',
     })
   }
 
-  if (gDfii10 > 2.5) {
+  if (dfii10 != null && dfii10 > 2.5) {
     anomalies.push({
       id: 'real-rate-spike',
       title: '实际利率偏高',
       description: 'TIPS 实际利率超过 2.5%，流动性收紧信号',
       severity: 'medium', indicator: 'DFII10',
-      currentValue: `${gDfii10.toFixed(2)}%`, threshold: '> 2.50%',
+      currentValue: `${dfii10.toFixed(2)}%`, threshold: '> 2.50%',
     })
   }
 
-  if (gT10yie > 3 && gCpi < 3) {
+  if (t10yie != null && cpi != null && t10yie > 3 && cpi < 3) {
     anomalies.push({
       id: 'expectation-deanchor',
       title: '通胀预期脱锚',
       description: '盈亏平衡通胀率高于实际CPI，市场预期远超现实',
       severity: 'medium', indicator: 'T10YIE, CPI',
-      currentValue: `T10YIE ${gT10yie.toFixed(2)}% / CPI ${gCpi.toFixed(1)}%`,
+      currentValue: `T10YIE ${t10yie.toFixed(2)}% / CPI ${cpi.toFixed(1)}%`,
       threshold: 'T10YIE > 3% & CPI < 3%',
     })
   }
 
-  if (gVix > 20 && vixPrev !== null && vixPrev > 0) {
-    const vixChange = (gVix - vixPrev) / vixPrev
+  if (vix != null && vix > 20 && vixPrev != null && vixPrev > 0) {
+    const vixChange = (vix - vixPrev) / vixPrev
     if (vixChange > 0.4) {
       anomalies.push({
         id: 'volatility-shock',
         title: '波动率冲击',
         description: `VIX 一月内飙升 ${(vixChange * 100).toFixed(0)}%，市场恐慌情绪急剧升温`,
         severity: 'medium', indicator: 'VIXCLS',
-        currentValue: `${gVix.toFixed(1)} (${(vixChange * 100).toFixed(0)}% MoM)`,
+        currentValue: `${vix.toFixed(1)} (${(vixChange * 100).toFixed(0)}% MoM)`,
         threshold: '月变化 > 40%',
       })
     }
@@ -215,7 +209,7 @@ async function handleAnomalies(): Promise<Response> {
   } catch (err: any) {
     console.error('[Anomaly]', err.message)
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
@@ -223,8 +217,16 @@ async function handleAnomalies(): Promise<Response> {
 
 async function handleBacktest(url: URL): Promise<Response> {
   try {
-    const startDate = url.searchParams.get('startDate') || '2010-01-01'
-    const endDate = url.searchParams.get('endDate') || new Date().toISOString().slice(0, 10)
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+    const startDate = DATE_RE.test(url.searchParams.get('startDate') || '') ? url.searchParams.get('startDate')! : '2010-01-01'
+    const endDateRaw = url.searchParams.get('endDate') || ''
+    const endDate = DATE_RE.test(endDateRaw) ? endDateRaw : new Date().toISOString().slice(0, 10)
+    if (startDate > endDate) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'startDate must be <= endDate' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
 
     // 直接读取预计算的回测数据（1次查询，替代原来1200+次查询）
     const snapshots = await query<any>(
@@ -410,7 +412,7 @@ async function handleBacktest(url: URL): Promise<Response> {
   } catch (err: any) {
     console.error('[RegimeBacktest]', err.message)
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }

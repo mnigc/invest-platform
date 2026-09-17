@@ -2,6 +2,7 @@ export const prerender = false;
 
 import { query } from '../../../lib/db';
 import { withCache } from '../../../lib/cache';
+import { toDateStr } from '../../../lib/date';
 import type { NowcastResponse } from '../../../lib/core';
 
 /**
@@ -34,7 +35,9 @@ export const GET = withCache(async () => {
     let maxDate: string | null = null;
 
     for (const r of rows) {
-      const d = String(r.snapshot_date).slice(0, 10);
+      // snapshot_date 是 date 列，驱动返回 Date 对象；String(Date).slice 会得到
+      // "Wed Sep 17" 这类损坏值，必须走 toDateStr
+      const d = toDateStr(r.snapshot_date);
       const v = Number(r.gdp_value);
       const target = r.source === 'GDPNow' ? gdpNow : nyFed;
       target.push({ date: d, value: Number.isFinite(v) ? +v.toFixed(2) : null });
@@ -52,8 +55,9 @@ export const GET = withCache(async () => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
+    console.error('[Nowcast]', e?.message || e);
     return new Response(
-      JSON.stringify({ success: false, error: e.message || '查询失败' }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }

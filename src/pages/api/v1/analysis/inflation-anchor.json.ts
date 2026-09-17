@@ -23,7 +23,8 @@ export const GET = withCache(async () => {
       meta: { computedAt: row.computed_at, validFrom: row.valid_from }
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message }),
+    console.error('[AnalysisInflationAnchor]', err?.message || err)
+    return new Response(JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } })
   }
 }, 300)

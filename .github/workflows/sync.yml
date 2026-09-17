@@ -14,7 +14,9 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 全量 16 个任务（含此前遗漏的 regime / nowcast / analysis_liquidity），
+    # 且各任务间有 5~25s 的 delay 节流，故比原先的 45 分钟留足余量。
+    timeout-minutes: 60
 
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -44,67 +46,15 @@ jobs:
           echo "== FRED 直连测试 =="
           curl -sS -m 15 -o /dev/null -w "fred http_code=%{http_code}\n" https://api.stlouisfed.org || echo "FRED 直连失败"
 
-      - name: "Run gold_decision sync (国际源: gold-api + Yahoo + FRED)"
+      - name: "Run full daily sync (按 run_sync.py 的 TASK_ORDER 顺序执行全部任务)"
         working-directory: sync
-        run: python run_sync.py gold_decision
-        # 说明：金价历史 + DXY 走 Yahoo，需境外网络，故在 GitHub Actions(海外) 跑。
-
-      - name: "Run indices sync (美股四大指数: stooq/Yahoo)"
-        working-directory: sync
-        run: python run_sync.py indices
-
-      - name: "Run regime_backtest sync (预计算回测)"
-        working-directory: sync
-        run: python run_sync.py regime_backtest
-        # 说明：基于指标数据预计算宏观体制回测（含多指数×体制回测矩阵）
-
-      - name: "Run macro_analysis sync (宏观分析交叉数据)"
-        working-directory: sync
-        run: python run_sync.py macro_analysis
-        # 说明：收益率曲线/通胀预期/信用利差等FRED指标同步
-
-      - name: "Run global_liquidity sync (全球流动性: 美联储资产负债表/SOFR/IORB/准备金/M1M2)"
-        working-directory: sync
-        run: python run_sync.py global_liquidity
-        # 说明：本轮扩充 IORB/WRESBAL/M1/M2，补齐「准备金→SOFR」传导链与货币剪刀差
-
-      - name: "Run commodities sync (大宗商品: WTI/布伦特/铜/铁矿/天然气)"
-        working-directory: sync
-        run: python run_sync.py commodities
-
-      - name: "Run leading sync (领先指标: NFCI/初请失业金/失业率/工业产出/产能利用率/营建许可/核心资本品订单/消费者信心)"
-        working-directory: sync
-        run: python run_sync.py leading
-        # 说明：Sahm Rule 由前端 API 层现算，无需预计算任务
-
-      # ===== 预计算层：必须在上面取数任务之后，读库计算后写 analysis_results =====
-      # 这些任务把原先在 Worker 里跑的重计算（滚动相关/事件研究/OLS 残差）离线化，
-      # 用于消除 Cloudflare "Worker exceeded CPU time limit"。顺序不可调整。
-
-      - name: "Run analysis_cross_asset sync (预计算: 跨资产相关性矩阵)"
-        working-directory: sync
-        run: python run_sync.py analysis_cross_asset
-
-      - name: "Run analysis_macro_consensus sync (预计算: 宏观信号一致性评分)"
-        working-directory: sync
-        run: python run_sync.py analysis_macro_consensus
-
-      - name: "Run analysis_credit_stress sync (预计算: 信用-利率交叉压力)"
-        working-directory: sync
-        run: python run_sync.py analysis_credit_stress
-
-      - name: "Run analysis_inflation_anchor sync (预计算: 通胀预期锚定分析)"
-        working-directory: sync
-        run: python run_sync.py analysis_inflation_anchor
-
-      - name: "Run analysis_yield_curve sync (预计算: 收益率曲线×宏观体制)"
-        working-directory: sync
-        run: python run_sync.py analysis_yield_curve
-        # 说明：依赖上一步 regime_backtest 产出的 regime_snapshots
-
-      - name: "Run analysis_gold_correlation sync (预计算: 黄金定价残差+美元关联)"
-        working-directory: sync
-        run: python run_sync.py analysis_gold_correlation
+        run: python run_sync.py --group daily
+        # 说明：统一走调度入口，任务清单与执行顺序由 run_sync.py 的
+        #       TASKS / TASK_ORDER 单一维护。此前 CI 逐个显式调用 run_sync.py <task>，
+        #       新增任务时容易忘记同步 workflow，导致 analysis_liquidity / regime /
+        #       nowcast 三个任务从未在 CI 执行（全球流动性卡片因此恒失效）。
+        #       取数层与预计算层的先后顺序由 TASK_ORDER 保证，不可随意调整。
+        #       单个任务失败会被记录并继续执行剩余任务，最终以退出码 1 让 CI 感知。
 
       - name: Upload sync logs
         if: always()

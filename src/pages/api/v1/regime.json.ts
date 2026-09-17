@@ -1,9 +1,9 @@
 export const prerender = false
 
-import type { APIRoute } from 'astro'
 import { query, queryOne } from '../../../lib/db'
 import { withCache } from '../../../lib/cache'
-import type { RegimeType, RegimeSignal, RegimeResponse } from '../../../lib/core'
+import { toDateStr } from '../../../lib/date'
+import type { RegimeType, RegimeSignal } from '../../../lib/core'
 
 const SIGNAL_NAMES: Record<string, string> = {
   cfnai: 'CFNAI 景气', cpi: 'CPI 通胀', fedfunds: '联邦利率',
@@ -40,19 +40,25 @@ async function sparklineData(code: string, months: number = 12): Promise<{ date:
   try {
     const fredCode = INDICATOR_CODE_MAP[code]
     if (!fredCode) return []
+    // 按时间窗取数而非 LIMIT 行数：日频与月频序列「12 个月」对应的行数差一个量级
+    const since = new Date()
+    since.setMonth(since.getMonth() - months)
     const rows = await query<any>(
       `SELECT d.period_date, d.value FROM indicator_data d
        JOIN indicators i ON i.id = d.indicator_id
-       WHERE i.code = ? AND i.region = 'US' AND d.value IS NOT NULL
-       ORDER BY d.period_date DESC LIMIT ?`,
-      [fredCode, months]
+       WHERE i.code = ? AND i.region = 'US' AND d.value IS NOT NULL AND d.period_date >= ?
+       ORDER BY d.period_date DESC`,
+      [fredCode, toDateStr(since)]
     )
     return rows.reverse().map((r: any) => ({
-      date: String(r.period_date).slice(0, 10),
+      date: toDateStr(r.period_date),
       value: Number(r.value),
     }))
   } catch { return [] }
 }
+
+// 「一年前」基期的最大允许偏差：月频序列发布常滞后数周，超窗视为基期缺失
+const YoY_WINDOW_DAYS = 45
 
 async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Promise<number | null> {
   try {
@@ -65,19 +71,16 @@ async function yoyAtDate(code: string, asOf: string, region: string = 'US'): Pro
     )
     if (!rows || rows.length < 2) return null
     const current = Number(rows[0].value)
-    const asOfDate = rows[0].period_date
-    const asOfYear = new Date(String(asOfDate)).getFullYear()
-    const yearAgoTarget = new Date(asOfDate)
-    yearAgoTarget.setFullYear(asOfYear - 1)
-    const yearAgoStr = yearAgoTarget.toISOString().slice(0, 10)
+    const asOfMs = new Date(toDateStr(rows[0].period_date)).getTime()
+    const yearAgoTargetMs = asOfMs - 365.25 * 24 * 3600 * 1000
     let yearAgo: number | null = null
     let minDiff = Number.POSITIVE_INFINITY
     for (const r of rows) {
-      const d = String(r.period_date)
-      const diff = Math.abs(new Date(d).getTime() - new Date(yearAgoStr).getTime())
+      const diff = Math.abs(new Date(toDateStr(r.period_date)).getTime() - yearAgoTargetMs)
       if (diff < minDiff) { minDiff = diff; yearAgo = Number(r.value) }
     }
-    if (yearAgo == null || yearAgo === 0) return null
+    // 基期距「一年前」过远（序列历史不足或断档）→ 不产出失真的同比
+    if (yearAgo == null || yearAgo === 0 || minDiff > YoY_WINDOW_DAYS * 24 * 3600 * 1000) return null
     return +(((current - yearAgo) / yearAgo) * 100).toFixed(2)
   } catch { return null }
 }
@@ -110,18 +113,20 @@ const LABELS: Record<RegimeType, string> = {
 
 async function detectRegime(asOf?: string) {
   const asOfDate = asOf ?? new Date().toISOString().slice(0, 10)
-  const cfnai = await valAtDate('CFNAI', asOfDate, 'US')
-  const cpi = await yoyAtDate('CPI', asOfDate, 'US')
-  const fedfunds = await valAtDate('FEDFUNDS', asOfDate, 'US')
-  const dgs10 = await valAtDate('DGS10', asOfDate, 'US')
-  const dgs2 = await valAtDate('DGS2', asOfDate, 'US')
-  const t10yie = await valAtDate('T10YIE', asOfDate, 'US')
-  const vix = await valAtDate('VIXCLS', asOfDate, 'US')
-  const bbb = await valAtDate('BAMLC0A4CBBB', asOfDate, 'US')
-  const dfii10 = await valAtDate('DFII10', asOfDate, 'US')
 
-  // 并行获取所有指标的走势数据（12个月）
-  const [sparkCfnai, sparkCpi, sparkFedfunds, sparkT10yie, sparkVix, sparkBbb, sparkDfii10] = await Promise.all([
+  // 全部 16 个查询互相独立，一次性并行发出（Neon WebSocket 每查询一个往返，
+  // 串行链在冷启动时会线性放大首屏延迟）
+  const [cfnai, cpi, fedfunds, dgs10, dgs2, t10yie, vix, bbb, dfii10,
+    sparkCfnai, sparkCpi, sparkFedfunds, sparkT10yie, sparkVix, sparkBbb, sparkDfii10] = await Promise.all([
+    valAtDate('CFNAI', asOfDate, 'US'),
+    yoyAtDate('CPI', asOfDate, 'US'),
+    valAtDate('FEDFUNDS', asOfDate, 'US'),
+    valAtDate('DGS10', asOfDate, 'US'),
+    valAtDate('DGS2', asOfDate, 'US'),
+    valAtDate('T10YIE', asOfDate, 'US'),
+    valAtDate('VIXCLS', asOfDate, 'US'),
+    valAtDate('BAMLC0A4CBBB', asOfDate, 'US'),
+    valAtDate('DFII10', asOfDate, 'US'),
     sparklineData('cfnai', 12),
     sparklineData('cpi', 12),
     sparklineData('fedfunds', 12),
@@ -131,54 +136,63 @@ async function detectRegime(asOf?: string) {
     sparklineData('dfii10', 12),
   ])
 
-  const f = (v: number | null, fallback: number) => v ?? fallback
-  const gCfnai = f(cfnai, 0.05)
-  const gCpi = f(cpi, 3.0)
-  const gFedfunds = f(fedfunds, 5.25)
-  const gDgs10 = f(dgs10, 4.30)
-  const gDgs2 = f(dgs2, 4.70)
-  const gT10yie = f(t10yie, 2.20)
-  const gVix = f(vix, 14.0)
-  const gBbb = f(bbb, 1.20)
-  const gDfii10 = f(dfii10, 1.80)
-  const slope = +(gDgs10 - gDgs2).toFixed(4)
-
-  // 用 code 作为 key，与 decideRegime 中的查找键一致
+  // 数据缺失的信号保持「中性」并标注，不再用硬编码默认值冒充真实数据参与判定
   const signalMap = new Map<string, RegimeSignal>()
   const sig = (code: string, val: number | string, score: -1 | 0 | 1, detail?: string, sparkline?: { date: string; value: number }[]): RegimeSignal => {
     const s: RegimeSignal = { name: SIGNAL_NAMES[code] || code, value: val, score, detail, sparkline }
     signalMap.set(code, s)
     return s
   }
+  const missing = (code: string, sparkline?: { date: string; value: number }[]) =>
+    sig(code, '—', 0, '数据缺失', sparkline)
+
+  const slope = dgs10 != null && dgs2 != null ? +(dgs10 - dgs2).toFixed(4) : null
 
   const signals: RegimeSignal[] = [
-    sig('cfnai', gCfnai.toFixed(3), gCfnai > 0 ? 1 : gCfnai < -0.5 ? -1 : 0,
-      gCfnai > 0 ? '高于零，经济扩张' : '低于零，经济收缩', sparkCfnai),
-    sig('cpi', `${gCpi.toFixed(1)}%`, gCpi < 3 ? 1 : gCpi < 5 ? 0 : -1,
-      gCpi < 3 ? '通胀受控' : gCpi < 5 ? '通胀偏高' : '通胀严重', sparkCpi),
-    sig('fedfunds', `${gFedfunds.toFixed(2)}%`, gFedfunds > 5 ? 0 : gFedfunds > 2 ? 1 : gFedfunds > 0 ? 0 : -1,
-      gFedfunds > 5 ? '紧缩周期' : '正常或宽松', sparkFedfunds),
-    sig('t10yie', `${gT10yie.toFixed(2)}%`, gT10yie < 2.5 ? 1 : gT10yie < 3.5 ? 0 : -1,
-      gT10yie < 2.5 ? '通胀预期温和' : '通胀预期偏高', sparkT10yie),
-    sig('vix', gVix.toFixed(2), gVix < 20 ? 1 : gVix < 30 ? 0 : -1,
-      gVix < 20 ? '低波动，市场平静' : gVix < 30 ? '波动偏高' : '恐慌水平', sparkVix),
-    sig('bbb', `${gBbb.toFixed(2)}%`, gBbb < 1.5 ? 1 : gBbb < 2.5 ? 0 : -1,
-      gBbb < 1.5 ? '信用市场宽松' : gBbb < 2.5 ? '信用正常' : '信用紧张', sparkBbb),
-    sig('slope', `${slope.toFixed(2)}%`, slope > 0 ? 1 : slope > -0.5 ? 0 : -1,
-      slope > 0 ? '曲线正常陡峭' : slope > -0.5 ? '平坦' : '深度倒挂，衰退信号'),
-    sig('dfii10', `${gDfii10.toFixed(2)}%`, gDfii10 < 2 ? 1 : gDfii10 < 3 ? 0 : -1,
-      gDfii10 < 2 ? '实际利率偏低，流动性宽松' : '实际利率偏高', sparkDfii10),
+    cfnai != null
+      ? sig('cfnai', cfnai.toFixed(3), cfnai > 0 ? 1 : cfnai < -0.5 ? -1 : 0,
+          cfnai > 0 ? '高于零，经济扩张' : '低于零，经济收缩', sparkCfnai)
+      : missing('cfnai', sparkCfnai),
+    cpi != null
+      ? sig('cpi', `${cpi.toFixed(1)}%`, cpi < 3 ? 1 : cpi < 5 ? 0 : -1,
+          cpi < 3 ? '通胀受控' : cpi < 5 ? '通胀偏高' : '通胀严重', sparkCpi)
+      : missing('cpi', sparkCpi),
+    fedfunds != null
+      ? sig('fedfunds', `${fedfunds.toFixed(2)}%`, fedfunds > 5 ? 0 : fedfunds > 2 ? 1 : fedfunds > 0 ? 0 : -1,
+          fedfunds > 5 ? '紧缩周期' : '正常或宽松', sparkFedfunds)
+      : missing('fedfunds', sparkFedfunds),
+    t10yie != null
+      ? sig('t10yie', `${t10yie.toFixed(2)}%`, t10yie < 2.5 ? 1 : t10yie < 3.5 ? 0 : -1,
+          t10yie < 2.5 ? '通胀预期温和' : '通胀预期偏高', sparkT10yie)
+      : missing('t10yie', sparkT10yie),
+    vix != null
+      ? sig('vix', vix.toFixed(2), vix < 20 ? 1 : vix < 30 ? 0 : -1,
+          vix < 20 ? '低波动，市场平静' : vix < 30 ? '波动偏高' : '恐慌水平', sparkVix)
+      : missing('vix', sparkVix),
+    bbb != null
+      ? sig('bbb', `${bbb.toFixed(2)}%`, bbb < 1.5 ? 1 : bbb < 2.5 ? 0 : -1,
+          bbb < 1.5 ? '信用市场宽松' : bbb < 2.5 ? '信用正常' : '信用紧张', sparkBbb)
+      : missing('bbb', sparkBbb),
+    slope != null
+      ? sig('slope', `${slope.toFixed(2)}%`, slope > 0 ? 1 : slope > -0.5 ? 0 : -1,
+          slope > 0 ? '曲线正常陡峭' : slope > -0.5 ? '平坦' : '深度倒挂，衰退信号')
+      : missing('slope'),
+    dfii10 != null
+      ? sig('dfii10', `${dfii10.toFixed(2)}%`, dfii10 < 2 ? 1 : dfii10 < 3 ? 0 : -1,
+          dfii10 < 2 ? '实际利率偏低，流动性宽松' : '实际利率偏高', sparkDfii10)
+      : missing('dfii10', sparkDfii10),
   ]
 
   const { regime, score } = decideRegime(signalMap)
 
-  const signalCount = signals.filter(s => s.score !== 0).length
-  const maxScore = signalCount * 0.15
-  const confidence = signalCount > 0
-    ? clamp(Math.abs(score) / Math.max(maxScore, 0.01) * 100, 0, 100)
-    : 0
+  // confidence = 体制得分强度（0~10 尺度）× 输入数据完整度：
+  // score 是各体制的固定量级分，旧实现按 0~1 量纲设分母导致恒为 0/100；
+  // 完整度因子让「数据缺失被中性化」的判定相应降低置信度而非虚高。
+  const inputs = [cfnai, cpi, fedfunds, dgs10, dgs2, t10yie, vix, bbb, dfii10]
+  const completeness = inputs.filter(v => v != null).length / inputs.length
+  const confidence = clamp(Math.round((Math.abs(score) / 10) * 100 * completeness), 0, 100)
 
-  return { signals, confidence: Math.round(confidence), regime, label: LABELS[regime] }
+  return { signals, confidence, regime, label: LABELS[regime] }
 }
 
 export const GET = withCache(async () => {
@@ -194,7 +208,7 @@ export const GET = withCache(async () => {
   } catch (err: any) {
     console.error('[Regime]', err.message)
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }

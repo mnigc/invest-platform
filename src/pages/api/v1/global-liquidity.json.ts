@@ -2,6 +2,7 @@ export const prerender = false;
 
 import { query } from '../../../lib/db';
 import { withCache } from '../../../lib/cache';
+import { toDateStr } from '../../../lib/date';
 import { loadSeries } from '../../../lib/series';
 import { asOfLookup, yoySeries, mergeByDate } from '../../../lib/seriesMath';
 import type {
@@ -24,16 +25,6 @@ const CODES: { code: LiquidityIndicatorCode; zh: string; en: string }[] = [
   { code: 'M1', zh: 'M1 货币供应', en: 'M1 Money Stock' },
   { code: 'M2', zh: 'M2 货币供应', en: 'M2 Money Stock' },
 ];
-
-function ffillMap(points: { date: string; value: number }[]): Map<string, number> {
-  const out = new Map<string, number>();
-  let last: number | null = null;
-  for (const p of points) {
-    last = p.value;
-    out.set(p.date, last);
-  }
-  return out;
-}
 
 export const GET = withCache(async () => {
   try {
@@ -64,7 +55,7 @@ export const GET = withCache(async () => {
       }
     }
     const updatedAt = meta
-      .map((r: any) => (r.last_update ? String(r.last_update) : null))
+      .map((r: any) => (r.last_update ? toDateStr(r.last_update) : null))
       .filter(Boolean)
       .sort()
       .pop();
@@ -82,13 +73,12 @@ export const GET = withCache(async () => {
     const m2Data = pick('M2');
 
     // ── 净流动性 = 美联储总资产 - RRP - TGA ──
-    const rrpMap = ffillMap(rrpData);
-    const tgaMap = ffillMap(tgaData);
-
+    // RRP/TGA 发布节奏与总资产不完全同日，用 as-of 对齐（取 ≤ 当日最近值），
+    // 而不是只保留恰好同日的点，否则序列会出现成段缺失。
     const netLiquidity: { date: string; value: number }[] = [];
     for (const p of fedData) {
-      const rrp = rrpMap.get(p.date);
-      const tga = tgaMap.get(p.date);
+      const rrp = asOfLookup(rrpData, p.date);
+      const tga = asOfLookup(tgaData, p.date);
       if (rrp == null || tga == null) continue;
       netLiquidity.push({
         date: p.date,
@@ -130,8 +120,9 @@ export const GET = withCache(async () => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
+    console.error('[GlobalLiquidity]', e?.message || e);
     return new Response(
-      JSON.stringify({ success: false, error: e.message || '查询失败' }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

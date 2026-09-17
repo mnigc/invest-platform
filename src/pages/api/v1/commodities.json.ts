@@ -75,7 +75,7 @@ export const GET = withCache(async () => {
       }
     }
     const updatedAt = meta
-      .map((r: any) => (r.last_update ? String(r.last_update) : null))
+      .map((r: any) => (r.last_update ? toDateStr(r.last_update) : null))
       .filter(Boolean)
       .sort()
       .pop();
@@ -110,8 +110,9 @@ export const GET = withCache(async () => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
+    console.error('[Commodities]', e?.message || e);
     return new Response(
-      JSON.stringify({ success: false, error: e.message || '查询失败' }),
+      JSON.stringify({ success: false, error: 'Internal error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }

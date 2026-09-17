@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from 'astro'
-import { setRuntimeEnv } from './lib/db'
+import { setRuntimeEnv, getRuntimeDatabaseUrl } from './lib/db'
 import { env } from 'cloudflare:workers'
 
 /**
@@ -12,7 +12,10 @@ import { env } from 'cloudflare:workers'
  */
 export const onRequest: MiddlewareHandler = (_context, next) => {
   const runtimeEnv = env as Record<string, string | undefined>
-  if (runtimeEnv?.DATABASE_URL) {
+  // 仅当连接串确实变化时才重建 Pool。
+  // 若无条件 setRuntimeEnv → _pool = null，同一 isolate 内每个请求都会新建
+  // Neon Pool（重新 WebSocket 握手），首页 10 路并发在冷启动时必然超时。
+  if (runtimeEnv?.DATABASE_URL && runtimeEnv.DATABASE_URL !== getRuntimeDatabaseUrl()) {
     setRuntimeEnv(runtimeEnv)
   }
   return next()
