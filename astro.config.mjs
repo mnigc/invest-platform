@@ -17,6 +17,10 @@ export default defineConfig({
       changefreq: 'daily',
       priority: 0.7,
       lastmod: new Date(),
+      // 301 重定向路由不进 sitemap：重定向 URL 不应提交给搜索引擎
+      filter: (page) =>
+        !page.startsWith(SITE_URL + '/indicators/dxy') &&
+        !page.startsWith(SITE_URL + '/indicators/fed-funds'),
     }),
   ],
   // 本项目是 SSR：index.astro 与 api/v1/* 路由用 prerender = false 走服务端渲染
