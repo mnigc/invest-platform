@@ -42,6 +42,12 @@ interface Study {
   horizons: Record<string, HorizonStat>
 }
 
+interface ScatterData {
+  bins: { xMid: number; xMin: number; xMax: number; median: number; q25: number; q75: number; count: number }[]
+  points: { date: string; x: number; y: number }[]
+  latest: { date: string; x: number; y: number } | null
+}
+
 interface Data {
   latest: {
     gold: number | null
@@ -70,11 +76,10 @@ interface Data {
     s60: { date: string; value: number }[]
     s120: { date: string; value: number }[]
   }
-  scatterData: {
-    bins: { xMid: number; xMin: number; xMax: number; median: number; q25: number; q75: number; count: number }[]
-    points: { date: string; x: number; y: number }[]
-    latest: { date: string; x: number; y: number } | null
-  }
+  scatterData: ScatterData
+  // 美元指数版散点（DXY 水平分桶 vs 金价 60D 收益）。
+  // 字段可选：旧 payload（sync 尚未重跑）没有该字段，前端需容忍缺失。
+  scatterDxy?: ScatterData
   bandSwitches: { date: string; from: string; to: string }[]
   residSeries: { date: string; z: number | null; contribDfii: number | null; contribDxy: number | null }[]
   momentumChart: {
@@ -452,6 +457,21 @@ function StudyTable({
 
 /* --------------------------------------------------------------------------- */
 
+/** 小节标题：把「黄金×美元」「黄金×实际利率」「双因子综合」三块分析分开 */
+function SectionTitle({ no, title, desc }: { no: string; title: string; desc: string }) {
+  return (
+    <div className="mt-3 border-l-2 border-line-strong pl-3">
+      <h2 className="flex items-baseline gap-2 text-sm font-semibold text-ink">
+        <span className="num text-2xs font-normal text-ink-3">{no}</span>
+        {title}
+      </h2>
+      <p className="mt-0.5 text-2xs leading-relaxed text-ink-3">{desc}</p>
+    </div>
+  )
+}
+
+/* --------------------------------------------------------------------------- */
+
 export function GoldDecisionDashboard() {
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
@@ -477,30 +497,17 @@ export function GoldDecisionDashboard() {
     }
   }, [reloadKey])
 
-  const priceOption = useMemo<EChartsOption | null>(() => {
+  // ── ① 黄金 × 美元指数：双轴价格对比（不做多因子叠加，保持这条关系独立可读）──
+  const priceDxyOption = useMemo<EChartsOption | null>(() => {
     if (!data?.priceChart?.length) return null
     const total = data.priceChart.length
     const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
-    const dates = data.priceChart.map((p) => p.date)
-
-    // 从残差序列中切出"持续高估 / 持续低估"区间，避免依赖 data.extremes 离散点
-    // 过滤掉持续 < 3 个交易日的过窄尖峰
-    const residSpans = buildResidSpans(data.residSeries ?? [], 3)
-    const residAreas: unknown[][] = []
-    for (const s of residSpans) {
-      const color = s.dir === 'overvalued' ? t.downBg : t.upBg
-      residAreas.push([
-        { xAxis: s.start, itemStyle: { color } },
-        { xAxis: s.end },
-      ])
-    }
-
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
-      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY', '实际利率 DFII10 %', '高估区间', '低估区间']),
+      legend: chartLegend(t, ['金价 (USD/oz)', 'DXY']),
       grid: chartGrid({ top: 32, bottom: 32 }),
-      xAxis: categoryAxis(t, dates),
+      xAxis: categoryAxis(t, data.priceChart.map((p) => p.date)),
       yAxis: [
         valueAxis(t, {
           name: 'Gold',
@@ -510,18 +517,50 @@ export function GoldDecisionDashboard() {
           name: 'DXY',
           nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
         }),
+      ],
+      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
+      series: [
+        lineSeries(
+          '金价 (USD/oz)',
+          data.priceChart.map((p) => p.gold),
+          t.series[2],
+          { lineStyle: { width: 1.3, color: t.series[2] } },
+        ),
+        lineSeries(
+          'DXY',
+          data.priceChart.map((p) => p.dxy),
+          t.series[1],
+          { yAxisIndex: 1, lineStyle: { width: 1.2, color: t.series[1] } },
+        ),
+      ],
+    } as EChartsOption
+  }, [data, t])
+
+  // ── ② 黄金 × 实际利率：双轴价格对比 ──
+  const priceDfiiOption = useMemo<EChartsOption | null>(() => {
+    if (!data?.priceChart?.length) return null
+    const total = data.priceChart.length
+    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t),
+      legend: chartLegend(t, ['金价 (USD/oz)', '实际利率 DFII10 %']),
+      grid: chartGrid({ top: 32, bottom: 32 }),
+      xAxis: categoryAxis(t, data.priceChart.map((p) => p.date)),
+      yAxis: [
+        valueAxis(t, {
+          name: 'Gold',
+          nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
+        }),
         rightValueAxis(t, {
           name: 'DFII10 %',
           nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
-          position: 'right',
-          offset: 48,
           axisLabel: {
             color: t.text3,
             fontSize: 10,
             fontFamily: t.fontMono,
             formatter: (v: number) => `${v.toFixed(1)}%`,
           },
-          splitLine: { show: false },
         }),
       ],
       dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
@@ -530,24 +569,15 @@ export function GoldDecisionDashboard() {
           '金价 (USD/oz)',
           data.priceChart.map((p) => p.gold),
           t.series[2],
-          {
-            lineStyle: { width: 1.3, color: t.series[2] },
-            markArea: markArea(residAreas),
-          },
-        ),
-        lineSeries(
-          'DXY',
-          data.priceChart.map((p) => p.dxy),
-          t.series[1],
-          { yAxisIndex: 1, lineStyle: { width: 1.2, color: t.series[1] } },
+          { lineStyle: { width: 1.3, color: t.series[2] } },
         ),
         lineSeries(
           '实际利率 DFII10 %',
           data.priceChart.map((p) => p.dfii10),
           t.series[0],
           {
-            yAxisIndex: 2,
-            lineStyle: { width: 1.1, color: t.series[0], type: 'dashed' },
+            yAxisIndex: 1,
+            lineStyle: { width: 1.2, color: t.series[0], type: 'dashed' },
             markLine: markLine([
               { yAxis: 0, lineStyle: { color: t.up, type: 'dashed', width: 1 }, symbol: ['none', 'none'], label: { show: true, position: 'insideEndTop', formatter: '0%', color: t.up, fontSize: 9, fontFamily: 'monospace' } },
               { yAxis: 1, lineStyle: { color: t.down, type: 'dashed', width: 1 }, symbol: ['none', 'none'], label: { show: true, position: 'insideEndTop', formatter: '1%', color: t.down, fontSize: 9, fontFamily: 'monospace' } },
@@ -650,20 +680,22 @@ export function GoldDecisionDashboard() {
     } as EChartsOption
   }, [data, t])
 
-  const scatterOption = useMemo<EChartsOption | null>(() => {
-    if (!data?.scatterData?.bins?.length) return null
-    const sd = data.scatterData
+  // 散点图工厂：X 分桶分位带 + 中位线 + 历史散点 + 当前位置。
+  // 两个因子小节共用同一结构，只有 X 含义与配色不同。
+  const buildScatterOption = (
+    sd: ScatterData,
+    xName: string,
+    accentColor: string,
+  ): EChartsOption | null => {
+    if (!sd?.bins?.length) return null
     const bins = sd.bins
     const pts = sd.points ?? []
 
     // 分位带：用 stackedBar（低-中-高）把每桶的 [q25, 中位, q75] 画出来
     // ECharts 没有"区间带"原生，但用 bar + stack 可以做出"色块 + 中位线"
-    // 简化方案：每桶画两个 bar：q25→中位 (浅)、中位→q75 (浅)
     const xLabels = bins.map((b) => b.xMid.toFixed(2))
     const barLow = bins.map((b) => +(b.median - b.q25).toFixed(4))
-    const barLowBase = bins.map((b) => +b.q25.toFixed(4))
     const barHigh = bins.map((b) => +(b.q75 - b.median).toFixed(4))
-    const barHighBase = bins.map((b) => +b.median.toFixed(4))
     const medianLine = bins.map((b) => +b.median.toFixed(4))
 
     return {
@@ -672,10 +704,10 @@ export function GoldDecisionDashboard() {
         trigger: 'axis',
         valueFormatter: (v: any) => (v == null ? '--' : `${(Number(v) * 100).toFixed(2)}%`),
       }),
-      legend: chartLegend(t, ['50% 分位带 (Q25–Q75)', '中位收益', '当前点 (60D 收益)']),
+      legend: chartLegend(t, ['50% 分位带 (Q25–Q75)', '中位收益', '历史点 (60D 收益)']),
       grid: chartGrid({ top: 32, bottom: 32 }),
       xAxis: categoryAxis(t, xLabels, {
-        name: '实际利率 DFII10 %',
+        name: xName,
         nameLocation: 'middle',
         nameGap: 24,
         nameTextStyle: { color: t.text3, fontSize: 10 },
@@ -706,7 +738,7 @@ export function GoldDecisionDashboard() {
           type: 'bar',
           stack: 'band',
           data: barHigh,
-          itemStyle: { color: t.series[0], opacity: 0.18 },
+          itemStyle: { color: accentColor, opacity: 0.18 },
           emphasis: { focus: 'series' },
         },
         {
@@ -716,12 +748,12 @@ export function GoldDecisionDashboard() {
           smooth: 0.3,
           showSymbol: false,
           connectNulls: true,
-          lineStyle: { width: 1.6, color: t.series[0] },
-          itemStyle: { color: t.series[0] },
+          lineStyle: { width: 1.6, color: accentColor },
+          itemStyle: { color: accentColor },
           z: 3,
         },
         {
-          name: '当前点 (60D 收益)',
+          name: '历史点 (60D 收益)',
           type: 'scatter',
           data: pts.map((p) => [p.x.toFixed(2), p.y]),
           symbolSize: 4,
@@ -750,13 +782,39 @@ export function GoldDecisionDashboard() {
           : []),
       ],
     } as EChartsOption
-  }, [data, t])
+  }
+
+  const scatterDfiiOption = useMemo<EChartsOption | null>(
+    () => (data ? buildScatterOption(data.scatterData, '实际利率 DFII10 %', t.series[0]) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, t],
+  )
+
+  const scatterDxyOption = useMemo<EChartsOption | null>(
+    () => (data?.scatterDxy ? buildScatterOption(data.scatterDxy, '美元指数 DXY', t.series[1]) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, t],
+  )
 
   const residOption = useMemo<EChartsOption | null>(() => {
     if (!data?.residSeries?.length) return null
     const total = data.residSeries.length
     const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
     const series = data.residSeries
+
+    // 从残差序列中切出"持续高估 / 持续低估"区间（z 跨 ±2 进入、回落离场，
+    // 过滤持续 < 3 个交易日的尖峰），作为背景色块叠在本图——
+    // 残差区间属于双因子综合视图，不再叠加到单因子价格图上
+    const residSpans = buildResidSpans(series, 3)
+    const residAreas: unknown[][] = []
+    for (const s of residSpans) {
+      const color = s.dir === 'overvalued' ? t.downBg : t.upBg
+      residAreas.push([
+        { xAxis: s.start, itemStyle: { color } },
+        { xAxis: s.end },
+      ])
+    }
+
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
@@ -780,6 +838,7 @@ export function GoldDecisionDashboard() {
               thresholdLine(2, t.down, '+2σ'),
               thresholdLine(-2, t.up, '-2σ'),
             ]),
+            markArea: markArea(residAreas),
           },
         ),
         {
@@ -856,82 +915,123 @@ export function GoldDecisionDashboard() {
 
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-      {/* 关键指标 — 顶部全宽 */}
+      {/* 关键指标 — 顶部全宽，按「黄金自身 / ×美元 / ×利率 / 双因子综合」分组 */}
       <div className="lg:col-span-2">
-        <MacroCard padding="sm">
-          <div className="stagger grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">
-            <StatTile
-              label="金价"
-              value={latest.gold != null ? latest.gold.toFixed(2) : '--'}
-              sub="USD / oz"
-              tone="warn"
-            />
-            <StatTile
-              label="美元指数 DXY"
-              value={latest.dxy != null ? latest.dxy.toFixed(2) : '--'}
-              tone="info"
-            />
-            <StatTile
-              label="相关 20/60/120"
-              value={`${latest.corr20.toFixed(2)} / ${latest.corr60.toFixed(2)} / ${latest.corr120.toFixed(2)}`}
-              sub="收益率口径"
-            />
-            <StatTile
-              label="关联状态"
-              value={latest.bandLabel}
-              sub={`60日相关 ${latest.corr60.toFixed(2)}`}
-              tone="info"
-              tooltip={latest.bandDesc}
-            />
-            <StatTile
-              label="实际利率 DFII10"
-              value={latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--'}
-              sub="10Y TIPS · <0 黄金友好 / >1 承压"
-              tone={dfiiTone}
-            />
-            <StatTile
-              label="盈亏平衡 T10YIE"
-              value={latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--'}
-              sub="10Y Breakeven"
-              tone="warn"
-            />
-            <StatTile
-              label="定价残差 z"
-              value={signed(latest.residZ)}
-              sub={`5Y 分位 ${latest.residPercentile.toFixed(0)}`}
-              tone={residTone}
-            />
-            <StatTile
-              label="金价动量 20D"
-              value={`${(latest.momentum20 * 100).toFixed(2)}%`}
-              sub="近20日对数收益"
-              tone={latest.momentum20 >= 0 ? 'up' : 'down'}
-            />
-            <StatTile
-              label="金价动量 60D"
-              value={`${(latest.momentum60 * 100).toFixed(2)}%`}
-              sub="近60日对数收益"
-              tone={latest.momentum60 >= 0 ? 'up' : 'down'}
-            />
+        <MacroCard padding="sm" title="关键指标（按因子分组）">
+          <div className="stagger grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">黄金自身</p>
+              <div className="flex flex-col gap-2">
+                <StatTile
+                  label="金价"
+                  value={latest.gold != null ? latest.gold.toFixed(2) : '--'}
+                  sub="USD / oz"
+                  tone="warn"
+                />
+                <StatTile
+                  label="金价动量 20D"
+                  value={`${(latest.momentum20 * 100).toFixed(2)}%`}
+                  sub="近20日对数收益"
+                  tone={latest.momentum20 >= 0 ? 'up' : 'down'}
+                />
+                <StatTile
+                  label="金价动量 60D"
+                  value={`${(latest.momentum60 * 100).toFixed(2)}%`}
+                  sub="近60日对数收益"
+                  tone={latest.momentum60 >= 0 ? 'up' : 'down'}
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">黄金 × 美元指数</p>
+              <div className="flex flex-col gap-2">
+                <StatTile
+                  label="美元指数 DXY"
+                  value={latest.dxy != null ? latest.dxy.toFixed(2) : '--'}
+                  tone="info"
+                />
+                <StatTile
+                  label="相关 20/60/120"
+                  value={`${latest.corr20.toFixed(2)} / ${latest.corr60.toFixed(2)} / ${latest.corr120.toFixed(2)}`}
+                  sub="vs DXY · 收益率口径"
+                />
+                <StatTile
+                  label="关联状态"
+                  value={latest.bandLabel}
+                  sub={`60日相关 ${latest.corr60.toFixed(2)}`}
+                  tone="info"
+                  tooltip={latest.bandDesc}
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">黄金 × 实际利率</p>
+              <div className="flex flex-col gap-2">
+                <StatTile
+                  label="实际利率 DFII10"
+                  value={latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--'}
+                  sub="10Y TIPS · <0 黄金友好 / >1 承压"
+                  tone={dfiiTone}
+                />
+                <StatTile
+                  label="盈亏平衡 T10YIE"
+                  value={latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--'}
+                  sub="10Y Breakeven"
+                  tone="warn"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">双因子综合</p>
+              <div className="flex flex-col gap-2">
+                <StatTile
+                  label="定价残差 z"
+                  value={signed(latest.residZ)}
+                  sub={`5Y 分位 ${latest.residPercentile.toFixed(0)}`}
+                  tone={residTone}
+                />
+                <StatTile
+                  label="综合信号"
+                  value={DIR_LABEL[data.signal.direction]}
+                  sub={`置信度 ${data.signal.confidence}% · ${STRENGTH_LABEL[data.signal.strength]}`}
+                  tone={
+                    data.signal.direction === 'bullish'
+                      ? 'up'
+                      : data.signal.direction === 'bearish'
+                        ? 'down'
+                        : 'neutral'
+                  }
+                />
+              </div>
+            </div>
           </div>
         </MacroCard>
       </div>
 
-      {/* 主列：图表与事件研究 */}
+      {/* 主列：三个小节各自独立成链 */}
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
-        <MacroCard title="金价 vs 美元指数 vs 10Y 实际利率">
-          <ResponsiveChartBox option={priceOption} deps={[priceOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            三轴：左=金价、右1=DXY、右2=DFII10%。
-            实际利率虚线参考：<span className="text-up">0% 绿色</span>=零利率分水岭 / <span className="text-down">1% 红色</span>=紧缩警戒。
-            背景色块：定价残差 z 持续偏离区间（<span className="text-down">浅红=高估 z≥2</span> / <span className="text-up">浅绿=低估 z≤-2</span>，持续≥3 个交易日）。
-          </p>
-        </MacroCard>
-
+        {/* 黄金自身总览（不属于任何因子小节） */}
         <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
           <ResponsiveChartBox option={momentumOption} deps={[momentumOption]} />
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
             说明：正值表示上涨趋势，负值表示下跌趋势。20D 反映短期，60D 反映中期动量。
+          </p>
+        </MacroCard>
+
+        <SectionTitle
+          no="①"
+          title="黄金 × 美元指数"
+          desc="美元是黄金的计价货币，也是替代储备资产：美元走强通常压制金价。本节单独评估这条关系的有效性（相关性区间）与当前美元环境的历史含义。"
+        />
+
+        <MacroCard title="金价 vs 美元指数">
+          <ResponsiveChartBox option={priceDxyOption} deps={[priceDxyOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            双轴：左=金价、右=DXY。观察两条线的反向镜像关系——美元走强阶段金价是否承压，
+            以及近年的背离（央行购金等结构性买盘会削弱该关系）。
           </p>
         </MacroCard>
 
@@ -940,6 +1040,41 @@ export function GoldDecisionDashboard() {
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
             说明：越向下越负相关（经典范式）；高于 -0.15 即「失效区间」。
             <span className="text-warn">黄色竖线</span>：相关性失效/正相关切换事件。
+          </p>
+        </MacroCard>
+
+        {scatterDxyOption && (
+          <MacroCard title="美元指数 vs 金价 60D 收益（散点 + 分位带）">
+            <ResponsiveChartBox option={scatterDxyOption} deps={[scatterDxyOption]} />
+            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+              X=当日美元指数，Y=当日金价相对 60 日前的对数收益。
+              分位带=同一美元水平桶内金价 60D 收益的 25–75 分位，
+              <span className="text-warn">橙色大点</span>=当前所在位置。
+              可直观判断「当前美元环境下，黄金历史表现是好是差」。
+            </p>
+          </MacroCard>
+        )}
+
+        <MacroCard title="事件研究：美元关系失效后的黄金后市收益">
+          <StudyTable
+            title="① 相关性失效/正相关切换后"
+            study={data.eventStudies.broken}
+            expected="neutral"
+            triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
+          />
+        </MacroCard>
+
+        <SectionTitle
+          no="②"
+          title="黄金 × 实际利率"
+          desc="实际利率是持有黄金的机会成本：利率上行抬升持金成本、通常压制金价。本节单独评估利率-黄金范式是否稳固，以及当前利率环境下的历史表现。"
+        />
+
+        <MacroCard title="金价 vs 10Y 实际利率">
+          <ResponsiveChartBox option={priceDfiiOption} deps={[priceDfiiOption]} />
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            双轴：左=金价、右=DFII10%（虚线）。
+            实际利率参考线：<span className="text-up">0% 绿色</span>=零利率分水岭 / <span className="text-down">1% 红色</span>=紧缩警戒。
           </p>
         </MacroCard>
 
@@ -953,7 +1088,7 @@ export function GoldDecisionDashboard() {
         </MacroCard>
 
         <MacroCard title="实际利率 vs 金价 60D 收益（散点 + 分位带）">
-          <ResponsiveChartBox option={scatterOption} deps={[scatterOption]} />
+          <ResponsiveChartBox option={scatterDfiiOption} deps={[scatterDfiiOption]} />
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
             X=当日实际利率，Y=当日金价相对 60 日前的对数收益。
             <span className="text-info">蓝色带</span>=同一利率桶内金价 60D 收益的 25–75 分位，
@@ -963,12 +1098,19 @@ export function GoldDecisionDashboard() {
           </p>
         </MacroCard>
 
+        <SectionTitle
+          no="③"
+          title="双因子定价残差（综合）"
+          desc="把美元与实际利率两个因子合成为一个「金价公允度」度量：残差 z 偏高=金价相对两因子基准偏高。本节回答「当前价格偏离由哪个因子解释、两条关系是否共振指向极端状态」。"
+        />
+
         <MacroCard title="定价残差 z 贡献分解（双因子模型：DFII10 + DXY 20 日动量）">
           <ResponsiveChartBox option={residOption} deps={[residOption]} />
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
             <span className="text-warn">橙色线</span> = 残差 z 总值（±2σ 阈值）。
             柱状=两个因子对 z 的贡献：<span className="text-down">红色</span> = 正向贡献（推高 z）/ <span className="text-up">绿色</span> = 负向贡献。
-            浅色柱=DFII10，深色柱=DXY 动量。可识别当前偏离主要由哪个因子解释。
+            背景色块：残差持续偏离区间（<span className="text-down">浅红=高估 z≥2</span> / <span className="text-up">浅绿=低估 z≤-2</span>，持续≥3 个交易日）。
+            可识别当前偏离主要由哪个因子解释。
           </p>
           {data.extremes.length > 0 && (
             <p className="mt-1 text-2xs leading-relaxed text-ink-3">
@@ -981,13 +1123,7 @@ export function GoldDecisionDashboard() {
           )}
         </MacroCard>
 
-        <MacroCard title="事件研究：信号出现后的黄金后市收益">
-          <StudyTable
-            title="① 相关性失效/正相关切换后"
-            study={data.eventStudies.broken}
-            expected="neutral"
-            triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
-          />
+        <MacroCard title="事件研究：定价残差极值后的黄金后市收益">
           <StudyTable
             title="② 残差高估（z ≥ 2）后"
             study={data.eventStudies.overvalued}
@@ -1000,8 +1136,7 @@ export function GoldDecisionDashboard() {
             expected="bullish"
             triggerHint="双因子定价残差 z 首次向下突破 -2σ"
           />
-          {data.eventStudies.broken.nEvents === 0 &&
-            data.eventStudies.overvalued.nEvents === 0 &&
+          {data.eventStudies.overvalued.nEvents === 0 &&
             data.eventStudies.undervalued.nEvents === 0 && (
               <p className="py-3 text-xs text-ink-3">
                 历史事件不足，样本积累后自动生成验证统计。
