@@ -118,19 +118,19 @@ cd /opt/macro
 
 ```
 任务名称: 数据同步-每日
-执行周期: 自定义 cron  30 23 * * 1-5
+执行周期: 自定义 cron  30 6 * * 2-6
 命令: cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py --group daily
 ```
 
-> 时间以服务器时区为准，`1-5` = 周一到周五。
+> 时间以服务器时区为准。示例按北京时间（UTC+8）：UTC 22:30（美东 18:30，美国收盘且 FRED 当日数据发布后）= 北京次日 06:30，即周二至周六早上 `2-6`。不要早于美国收盘跑，否则会把盘中价写成当日收盘。
 
 ### 3.1 GitHub Actions（补充，非主用）
 
 项目内置 `.github/workflows/sync.yml`，可用 GitHub 托管 runner 定时同步：
 
-- **定时**：每个交易日 23:30（北京时间）执行（GitHub cron 用 UTC，即 `30 15 * * 1-5`）
-- **执行内容**：4 个取数任务（`gold_decision` / `indices` / `regime_backtest` / `macro_analysis`）
-  + 6 个预计算任务（`analysis_*`），按依赖顺序排列
+- **定时**：每个交易日 UTC 22:30 执行（`30 22 * * 1-5`，美东 18:30，收盘后）
+- **执行内容**：`run_sync.py --group daily` 全量任务（取数层 + 预计算层），
+  清单与顺序由 run_sync.py 的 TASKS / TASK_ORDER 单一维护
 - **手动触发**：Actions 页面 → run workflow → 可随时补跑
 
 需要在仓库 **Settings → Secrets and variables → Actions** 配置两个 secret：

@@ -12,11 +12,11 @@
     python sync_regime_backtest.py [--years N]
 """
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from collections import defaultdict
 
-from sync_base import _setup_logger, get_conn, write_sync_log
+from sync_base import _setup_logger, get_conn, write_sync_log, SyncError
 
 log = _setup_logger("sync_regime_backtest")
 
@@ -155,13 +155,15 @@ def decide_regime(scores: dict) -> tuple[str, int]:
     return "UNKNOWN", 0
 
 
-def compute_confidence(scores: dict, score_val: int) -> int:
-    """计算置信度 0-100"""
-    count = sum(1 for v in scores.values() if v != 0)
-    if count == 0:
+def compute_confidence(scores: dict, score_val: int, completeness: float = 1.0) -> int:
+    """计算置信度 0-100：体制得分强度（0-10 尺度）× 输入数据完整度。
+
+    旧实现分母按 0~1 量纲设 count*0.15，任何非零得分都会 clamp 到 100，
+    置信度实际只有 0/100 两态，失去区分度。
+    """
+    if score_val <= 0:
         return 0
-    max_score = count * 0.15
-    return min(100, round(abs(score_val) / max(max_score, 0.01) * 100))
+    return max(0, min(100, round(abs(score_val) / 10 * 100 * max(0.0, min(1.0, completeness)))))
 
 
 def get_month_ends(start: str, end: str) -> list[str]:
@@ -208,8 +210,8 @@ def add_months(date_str: str, months: int) -> str:
 
 def sync_backtest(years: int = 10):
     """执行回测同步"""
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=years * 365)).strftime("%Y-%m-%d")
+    end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=years * 365)).strftime("%Y-%m-%d")
     log.info(f"开始回测同步: {start_date} ~ {end_date}")
 
     with get_conn() as conn:
@@ -220,8 +222,9 @@ def sync_backtest(years: int = 10):
         sp500 = load_sp500_prices(conn, start_date)
 
         if not sp500:
-            log.warning("无 S&P500 数据，跳过")
-            return
+            log.error("无 S&P500 数据，无法回测")
+            write_sync_log("regime_backtest", "failed", 0, "无 S&P500 数据", "regime_snapshots")
+            raise SyncError("regime_backtest: 无 S&P500 数据")
 
         # 2. 获取所有月末日期
         month_ends = get_month_ends(start_date, end_date)
@@ -245,32 +248,36 @@ def sync_backtest(years: int = 10):
             bbb = get_latest_value(indicator_data.get("BAMLC0A4CBBB", []), me)
             dfii10 = get_latest_value(indicator_data.get("DFII10", []), me)
 
-            # 使用默认值填充
-            f = lambda v, fb: v if v is not None else fb
-            g_cfnai = f(cfnai, 0.05)
-            g_cpi = f(cpi_yoy, 3.0)
-            g_fedfunds = f(fedfunds, 5.25)
-            g_dgs10 = f(dgs10, 4.30)
-            g_dgs2 = f(dgs2, 4.70)
-            g_t10yie = f(t10yie, 2.20)
-            g_vix = f(vix, 14.0)
-            g_bbb = f(bbb, 1.20)
-            g_dfii10 = f(dfii10, 1.80)
-            slope = round(g_dgs10 - g_dgs2, 4)
+            # 缺失指标不再用硬编码默认值伪造当月真实值（上游失败日的快照
+            # 会变成合成数据）：缺失项中性评分 0 分、快照列写 NULL
+            vals = {
+                "cfnai": cfnai, "cpi_yoy": cpi_yoy, "fedfunds": fedfunds,
+                "dgs10": dgs10, "dgs2": dgs2, "t10yie": t10yie,
+                "vix": vix, "bbb_spread": bbb, "dfii10": dfii10,
+            }
+            present = sum(1 for v in vals.values() if v is not None)
+            # 超过一半指标缺失（上游大面积失败）时整月跳过，不产垃圾快照
+            if present * 2 < len(vals):
+                log.warning("%s 指标缺失过多（%d/9），跳过该月", me, present)
+                continue
 
-            # 评分
+            slope = round(dgs10 - dgs2, 4) if (dgs10 is not None and dgs2 is not None) else None
+
+            def _score(code, v):
+                return score_indicator(code, v) if v is not None else 0
+
             scores = {
-                "CFNAI": score_indicator("CFNAI", g_cfnai),
-                "CPI": score_indicator("CPI", g_cpi),
-                "FEDFUNDS": score_indicator("FEDFUNDS", g_fedfunds),
-                "T10YIE": score_indicator("T10YIE", g_t10yie),
-                "VIXCLS": score_indicator("VIXCLS", g_vix),
-                "BAMLC0A4CBBB": score_indicator("BAMLC0A4CBBB", g_bbb),
-                "DFII10": score_indicator("DFII10", g_dfii10),
-                "slope": 1 if slope > 0 else (0 if slope > -0.5 else -1),
+                "CFNAI": _score("CFNAI", cfnai),
+                "CPI": _score("CPI", cpi_yoy),
+                "FEDFUNDS": _score("FEDFUNDS", fedfunds),
+                "T10YIE": _score("T10YIE", t10yie),
+                "VIXCLS": _score("VIXCLS", vix),
+                "BAMLC0A4CBBB": _score("BAMLC0A4CBBB", bbb),
+                "DFII10": _score("DFII10", dfii10),
+                "slope": (1 if slope > 0 else (0 if slope > -0.5 else -1)) if slope is not None else 0,
             }
             regime, score = decide_regime(scores)
-            confidence = compute_confidence(scores, score)
+            confidence = compute_confidence(scores, score, present / len(vals))
 
             # 前向收益
             fwd = {}
@@ -285,14 +292,16 @@ def sync_backtest(years: int = 10):
             snapshots.append({
                 "date": me, "regime": regime, "label": LABELS.get(regime, regime),
                 "confidence": confidence, "sp500_price": sp_price,
-                "cfnai": g_cfnai, "cpi_yoy": g_cpi, "fedfunds": g_fedfunds,
-                "dgs10": g_dgs10, "dgs2": g_dgs2, "t10yie": g_t10yie,
-                "vix": g_vix, "bbb_spread": g_bbb, "dfii10": g_dfii10,
+                "cfnai": cfnai, "cpi_yoy": cpi_yoy, "fedfunds": fedfunds,
+                "dgs10": dgs10, "dgs2": dgs2, "t10yie": t10yie,
+                "vix": vix, "bbb_spread": bbb, "dfii10": dfii10,
                 "fwd_return_1m": fwd[1], "fwd_return_3m": fwd[3],
                 "fwd_return_6m": fwd[6], "fwd_return_12m": fwd[12],
             })
 
         log.info(f"计算完成: {len(snapshots)} 个月度快照")
+        if not snapshots:
+            raise SyncError("regime_backtest: 未产出任何快照（价格/指标数据不足）")
 
         # 4. 写入 regime_snapshots
         _upsert_snapshots(conn, snapshots)
@@ -303,7 +312,7 @@ def sync_backtest(years: int = 10):
         # 6. 按指数 × 体制写入 regime_index_summaries（多指数对比）
         _compute_and_upsert_index_summaries(conn, snapshots, start_date, end_date)
 
-        write_sync_log("regime_backtest", "ok", len(snapshots), "", "regime_snapshots")
+        write_sync_log("regime_backtest", "success", len(snapshots), "", "regime_snapshots")
 
 
 def _upsert_snapshots(conn, snapshots: list):
@@ -319,7 +328,7 @@ def _upsert_snapshots(conn, snapshots: list):
                 s["cfnai"], s["cpi_yoy"], s["fedfunds"], s["dgs10"], s["dgs2"],
                 s["t10yie"], s["vix"], s["bbb_spread"], s["dfii10"],
                 s["fwd_return_1m"], s["fwd_return_3m"], s["fwd_return_6m"], s["fwd_return_12m"],
-                datetime.now(),
+                datetime.now(timezone.utc),
             )
             for s in snapshots
         ]
@@ -395,7 +404,7 @@ def _compute_and_upsert_summaries(conn, snapshots: list, start_date: str, end_da
                 s["count"], s["avg_confidence"],
                 s["avg_return_1m"], s["avg_return_3m"], s["avg_return_6m"], s["avg_return_12m"],
                 s["win_rate_1m"], s["win_rate_3m"], s["win_rate_6m"], s["win_rate_12m"],
-                datetime.now(),
+                datetime.now(timezone.utc),
             )
             for s in summaries
         ]
@@ -473,7 +482,7 @@ def _compute_and_upsert_index_summaries(conn, snapshots: list, start_date: str, 
                 round(sum(x["confidence"] for x in snaps) / n / 100, 3),
                 avg(1), avg(3), avg(6), avg(12),
                 win_rate(1), win_rate(3), win_rate(6), win_rate(12),
-                datetime.now(),
+                datetime.now(timezone.utc),
             ))
 
         if not rows:

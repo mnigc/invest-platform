@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta
 import requests
 
 from sync_base import (
+    SyncError,
     _setup_logger, get_conn, write_sync_log, with_retry, safe_dec,
     patch_cn_proxy, bulk_upsert,
 )
@@ -35,7 +36,9 @@ FRED_URL = "https://api.stlouisfed.org/fred/series/observations"
 
 SLEEP_BETWEEN = 0.5          # 每次请求之间的间隔（FRED 限流保护）
 DEFAULT_START = "2000-01-01"  # 库里无数据时的全量起点
-OVERLAP_DAYS = 30            # 增量拉取时向前重叠的天数（吸收历史数据修订）
+OVERLAP_DAYS = 32            # 增量拉取时向前重叠的天数（吸收历史数据修订；
+                             #  需 >31：月频序列 stamp 在每月 1 号，31 天月份的
+                             #  上一观测距 last 恰好 31 天，30 天窗口会漏掉它）
 
 log = _setup_logger("indicators")
 
@@ -280,6 +283,9 @@ def ensure_defs(keys):
                 cur.executemany(sql, params)
             except Exception as e:
                 log.warning("批量注册指标失败，退化为逐行: %s", e)
+                # executemany 失败会中止当前事务，不 rollback 的话
+                # 后续每行 execute 都会抛 InFailedSqlTransaction
+                conn.rollback()
                 for p in params:
                     try:
                         cur.execute(sql, p)
@@ -325,8 +331,13 @@ def fetch_fred(series_id, start_date=DEFAULT_START):
         "sort_order": "asc",
         "observation_start": start_date,
     }
-    r = with_retry(requests.get, FRED_URL, params=params, timeout=30, max_retry=3)
-    r.raise_for_status()
+    def _get_with_status():
+        # raise_for_status 放进重试体：429/5xx 属于暂时性错误，应参与重试
+        resp = requests.get(FRED_URL, params=params, timeout=30)
+        resp.raise_for_status()
+        return resp
+
+    r = with_retry(_get_with_status, timeout=30, max_retry=3)
     rows = []
     for o in (r.json() or {}).get("observations", []):
         raw = str(o.get("value", "")).strip()
@@ -420,10 +431,15 @@ def sync_indicators(task, keys, full=False):
             errors.append("%s: %s" % (key_str(key), e))
         time.sleep(SLEEP_BETWEEN)
 
-    status = "success" if not errors and total > 0 else ("partial" if total > 0 else "failed")
+    # 全部序列都无新观测（如节假日）是正常情形，不算 failed
+    status = "failed" if errors and total == 0 else ("partial" if errors else "success")
     msg = "共写入 %d 行；失败 %d 个；%s" % (total, len(errors), "; ".join(errors[:5]))
     log.info(msg)
     write_sync_log(task, status, total, msg)
+    if errors:
+        # 数据源失败必须让 run_sync / CI 以退出码感知，
+        # 否则 FRED 全挂时任务仍显示成功（吞错误路径）
+        raise SyncError("%s 有 %d 个指标同步失败: %s" % (task, len(errors), "; ".join(errors[:5])))
     return total, errors
 
 

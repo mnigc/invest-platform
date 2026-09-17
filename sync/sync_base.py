@@ -17,11 +17,19 @@ import socket
 import logging
 import threading
 from urllib.parse import urlparse
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
+
+
+class SyncError(RuntimeError):
+    """任务级失败：数据源错误 / 批次写入失败等必须让 CI 感知的场景。
+
+    各任务 main 在「错误被收集但未抛出」的路径上必须把它抛出，
+    否则 run_sync 只把「异常」视为失败，数据源全挂时 CI 仍然全绿。
+    """
 
 
 # ============== 读取 .env（项目根目录 + sync 目录，不覆盖已有环境变量）==============
@@ -278,7 +286,9 @@ def write_sync_log(sync_type, status, records_count, error_message="", target_co
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                # 用 UTC aware 时间写 TIMESTAMPTZ：naive 本地时间在非 UTC 宿主
+                # （如 Asia/Shanghai 的 1Panel）会偏移时区，影响新鲜度判断
+                now = datetime.now(timezone.utc)
                 cur.execute(
                     "INSERT INTO data_sync_logs (sync_type, target_code, status, records_count, error_message, started_at, finished_at) "
                     "VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -502,10 +512,13 @@ def bulk_upsert(conn, cur, table, columns, rows, conflict_cols, update_cols=None
         f"INSERT INTO {table} ({cols_str}) VALUES %s "
         f"ON CONFLICT ({', '.join(conflict_cols)}) DO UPDATE SET " + ", ".join(sets)
     )
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     values = [tuple(r) + (now,) for r in rows]
 
     total = 0
+    failed_rows = 0
+    failed_ranges = []
+    _log = _setup_logger("sync_base")
     for i in range(0, len(values), page_size):
         chunk = values[i:i + page_size]
         last_err = None
@@ -522,9 +535,17 @@ def bulk_upsert(conn, cur, table, columns, rows, conflict_cols, update_cols=None
                     conn.rollback()
                 except Exception:
                     pass
-                log = _setup_logger("sync_base")
-                log.warning("批量写入 %s %d-%d 失败(第%d/3次): %s", table, i, i + len(chunk), attempt + 1, e)
+                _log.warning("批量写入 %s %d-%d 失败(第%d/3次): %s", table, i, i + len(chunk), attempt + 1, e)
                 time.sleep(3)
         if last_err is not None:
-            _setup_logger("sync_base").warning("批次 %s %d-%d 放弃", table, i, i + len(chunk))
+            # 静默放弃会让这段数据永久缺失且任务仍记 success，
+            # 必须计数并在收尾时抛出让上层感知
+            failed_rows += len(chunk)
+            failed_ranges.append("%d-%d" % (i, i + len(chunk)))
+            _log.error("批次 %s %d-%d 重试 3 次仍失败: %s", table, i, i + len(chunk), last_err)
+    if failed_rows:
+        raise SyncError(
+            "bulk_upsert %s 有 %d 行写入失败（行区间 %s），数据不完整"
+            % (table, failed_rows, ", ".join(failed_ranges))
+        )
     return total

@@ -16,7 +16,7 @@
 """
 import sys
 
-from sync_base import _setup_logger, write_sync_log
+from sync_base import _setup_logger, write_sync_log, SyncError
 from indicators import sync_indicators
 
 
@@ -73,10 +73,12 @@ def main():
         log.error("同步宏观分析指标失败: %s", e)
         errors.append(str(e))
 
-    status = "success" if not errors and total > 0 else ("partial" if total > 0 else "failed")
+    status = "failed" if errors and total == 0 else ("partial" if errors else "success")
     msg = "macro_analysis 写入 %d 行；失败 %d 项；%s" % (total, len(errors), "; ".join(errors[:5]))
     log.info(msg)
     write_sync_log("macro_analysis", status, total, msg)
+    if errors:
+        raise SyncError("macro_analysis 有 %d 项失败: %s" % (len(errors), "; ".join(errors[:5])))
 
 
 if __name__ == "__main__":

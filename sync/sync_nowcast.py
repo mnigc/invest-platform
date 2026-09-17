@@ -19,7 +19,8 @@
 
 写入表：nowcast_snapshots（首次同步时自建），data_sync_logs
 
-降级：任一源拉取/解析失败只记 warning，不让任务整体失败。
+失败口径：任一源失败会记入 data_sync_logs 并在 main 末尾抛 SyncError，
+让 run_sync / CI 以退出码感知（此前只记 warning，失败被静默吞掉）。
 
 用法:
     python3 sync_nowcast.py
@@ -32,6 +33,7 @@ import requests
 
 from sync_base import (
     _setup_logger, get_conn, write_sync_log, with_retry, patch_cn_proxy,
+    SyncError,
 )
 from indicators import sync_indicators
 
@@ -119,15 +121,25 @@ def _upsert(source, rows):
         "updated_at = now()"
     )
     n = 0
+    failed = 0
     with get_conn() as conn:
         with conn.cursor() as cur:
             for d, v, payload in rows:
+                # 单行失败会中止整个事务：不用 SAVEPOINT 的话，后续所有行都会
+                # 抛 InFailedSqlTransaction，且 commit 时把之前"成功"的行一并回滚，
+                # 造成日志计数虚报、库里 0 行
+                cur.execute("SAVEPOINT nowcast_row")
                 try:
                     cur.execute(sql, (source, d, v, json.dumps(payload)))
+                    cur.execute("RELEASE SAVEPOINT nowcast_row")
                     n += 1
                 except Exception as e:
+                    cur.execute("ROLLBACK TO SAVEPOINT nowcast_row")
+                    failed += 1
                     log.warning("写入 %s/%s 失败: %s", source, d, e)
         conn.commit()
+    if failed:
+        raise RuntimeError("nowcast %s 有 %d 行写入失败" % (source, failed))
     return n
 
 
@@ -161,17 +173,17 @@ def main():
     ensure_tables()
 
     total = 0
-    try:
-        total += sync_one("GDPNow", "GDPNOW")
-    except Exception as e:
-        log.warning("GDPNow 整体失败: %s", e)
+    errors = []
+    for label, series in (("GDPNow", "GDPNOW"), ("NYFed", "STLENI")):
+        try:
+            total += sync_one(label, series)
+        except Exception as e:
+            log.error("%s 同步失败: %s", label, e)
+            errors.append("%s: %s" % (label, e))
 
-    try:
-        total += sync_one("NYFed", "STLENI")  # 第二源对照，圣路易斯联储 ENI
-    except Exception as e:
-        log.warning("STLENI 整体失败: %s", e)
-
-    log.info("Nowcast 同步完成，共写入 %d 条", total)
+    log.info("Nowcast 同步完成，共写入 %d 条；失败 %d 项", total, len(errors))
+    if errors:
+        raise SyncError("nowcast 有 %d 个源失败: %s" % (len(errors), "; ".join(errors)))
 
 
 if __name__ == "__main__":

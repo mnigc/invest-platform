@@ -150,7 +150,10 @@ def _calc_forward_returns(net_points, price_points):
     sorted_net = sorted(net_points, key=lambda p: p["date"])
 
     # 周频（Fed 数据本身就是 weekly）数据，TREND_WINDOW 周即 TREND_WINDOW 个点
-    buckets = {"expansion": [], "contraction": [], "neutral": []}
+    # 按期限分别分桶：此前把 4 个期限 append 进同一扁平列表再按 [0::4] 切片，
+    # 一旦某基准日缺任一期限（数据尾部的前瞻收益必然逐个缺席），切片就整体错位
+    buckets = {r: {i: [] for i in range(len(HORIZONS))} for r in ("expansion", "contraction", "neutral")}
+    base_counts = {r: 0 for r in buckets}
     for i in range(TREND_WINDOW, len(sorted_net)):
         cur = sorted_net[i]["value"]
         prev = sorted_net[i - TREND_WINDOW]["value"]
@@ -165,7 +168,8 @@ def _calc_forward_returns(net_points, price_points):
         base_price = price_map.get(base_date)
         if not base_price or base_price <= 0:
             continue
-        for days, _ in HORIZONS:
+        appended = False
+        for hi, (days, _) in enumerate(HORIZONS):
             target = _add_days(base_date, days)
             tp = None
             for d, v in sorted_prices:
@@ -173,12 +177,18 @@ def _calc_forward_returns(net_points, price_points):
                     tp = v
                     break
             if tp is not None:
-                buckets[regime].append((tp / base_price - 1) * 100)
+                buckets[regime][hi].append((tp / base_price - 1) * 100)
+                appended = True
+        if appended:
+            base_counts[regime] += 1
+
+    def _stat(vals, fn):
+        return round(fn(vals), 2) if vals else None
 
     out = []
     for regime in ("expansion", "contraction", "neutral"):
-        vals = buckets[regime]
-        if not vals:
+        per = buckets[regime]
+        if base_counts[regime] == 0:
             out.append({
                 "regime": regime,
                 "n": 0,
@@ -188,15 +198,16 @@ def _calc_forward_returns(net_points, price_points):
             continue
         out.append({
             "regime": regime,
-            "n": len(vals) // len(HORIZONS),
-            "avgReturn1m": round(mean(vals[0::4]), 2) if len(vals) >= 1 else None,
-            "avgReturn3m": round(mean(vals[1::4]), 2) if len(vals) >= 2 else None,
-            "avgReturn6m": round(mean(vals[2::4]), 2) if len(vals) >= 3 else None,
-            "avgReturn12m": round(mean(vals[3::4]), 2) if len(vals) >= 4 else None,
-            "winRate1m": round(sum(1 for v in vals[0::4] if v > 0) / max(1, len(vals[0::4])), 3) if len(vals) >= 1 else None,
-            "winRate3m": round(sum(1 for v in vals[1::4] if v > 0) / max(1, len(vals[1::4])), 3) if len(vals) >= 2 else None,
-            "winRate6m": round(sum(1 for v in vals[2::4] if v > 0) / max(1, len(vals[2::4])), 3) if len(vals) >= 3 else None,
-            "winRate12m": round(sum(1 for v in vals[3::4] if v > 0) / max(1, len(vals[3::4])), 3) if len(vals) >= 4 else None,
+            # n = 该体制下有效基准日数量（各期限样本因前瞻窗口递减是正常现象）
+            "n": base_counts[regime],
+            "avgReturn1m": _stat(per[0], mean),
+            "avgReturn3m": _stat(per[1], mean),
+            "avgReturn6m": _stat(per[2], mean),
+            "avgReturn12m": _stat(per[3], mean),
+            "winRate1m": round(sum(1 for v in per[0] if v > 0) / len(per[0]), 3) if per[0] else None,
+            "winRate3m": round(sum(1 for v in per[1] if v > 0) / len(per[1]), 3) if per[1] else None,
+            "winRate6m": round(sum(1 for v in per[2] if v > 0) / len(per[2]), 3) if per[2] else None,
+            "winRate12m": round(sum(1 for v in per[3] if v > 0) / len(per[3]), 3) if per[3] else None,
         })
     return out
 

@@ -8,7 +8,7 @@ import sys
 from math import isfinite
 from datetime import datetime
 
-from sync_base import _setup_logger, get_conn, write_sync_log, upsert_analysis_result
+from sync_base import _setup_logger, get_conn, write_sync_log, upsert_analysis_result, SyncError
 from analysis import corr, align_by_date, rolling_corr
 
 
@@ -93,6 +93,12 @@ def sync():
         dgs10_dates = {p["date"] for p in series_map["DGS10"]}
         bbb_dates = {p["date"] for p in series_map["BAMLC0A4CBBB"]}
         all_dates = sorted(dgs10_dates & bbb_dates)
+        # 上游取数失败时直接报错，而不是写一份"空数组 + 退化分数"的成功结果
+        # （空数据会算出 diversificationScore=100 的假象）
+        if len(all_dates) < 60:
+            raise SyncError(
+                "cross_asset 共同交易日仅 %d 天（需 >= 60），上游数据疑似缺失" % len(all_dates)
+            )
 
         series_maps = [{p["date"]: p["value"] for p in series_map[c]} for c in INDICATORS]
         series_data = [

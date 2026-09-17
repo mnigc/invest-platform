@@ -16,8 +16,10 @@ import calendar
 import pandas as pd
 
 from sync_base import (
+    SyncError,
     _setup_logger, get_conn, write_sync_log, with_retry,
     bulk_upsert,
+
 )
 
 log = _setup_logger("sync_indexes")
@@ -87,7 +89,8 @@ def _fetch_via_yfinance(symbol, start):
     try:
         import yfinance as yf
         df = yf.download(symbol, start=start, progress=False,
-                         auto_adjust=False, prepost=False, threads=False)
+                         auto_adjust=False, prepost=False, threads=False,
+                         timeout=30)  # 不传 timeout 会依赖 yf 内部默认，挂起时最坏烧到 job 级超时
     except Exception as e:
         log.warning("yfinance %s 拉取异常: %s", symbol, e)
         return []
@@ -307,12 +310,14 @@ def main():
             errors.append("%s: %s" % (symbol, e))
         time.sleep(1)
 
-    status = "success" if not errors and total > 0 else ("partial" if total > 0 else "failed")
+    status = "failed" if errors and total == 0 else ("partial" if errors else "success")
     msg = "indices+etfs 写入 %d 行；失败 %d 项" % (total, len(errors))
     if errors:
         msg += "；" + "; ".join(errors[:3])
     log.info(msg)
     write_sync_log("indices", status, total, msg)
+    if errors:
+        raise SyncError("indices 有 %d 项失败: %s" % (len(errors), "; ".join(errors[:3])))
 
 
 if __name__ == "__main__":

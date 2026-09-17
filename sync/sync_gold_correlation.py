@@ -218,31 +218,32 @@ def _ffill_indicator_to_dates(indicator, dates):
     return out
 
 
-def _scatter_dfii_vs_gold(gold, dfii, bin_size=0.25, recent_n=1300):
-    """实际利率（X，按 bin_size 分桶） vs 金价 60D 累计对数收益（Y）的散点数据。
+def _scatter_vs_gold(gold, x_series, bin_size, recent_n=1300):
+    """任意日频因子（X，按 bin_size 分桶，缺失日前向填充） vs 金价 60D 累计对数
+    收益（Y）的散点数据。美元指数与实际利率两个小节共用同一结构。
     返回 { bins: [{xMid, xMin, xMax, median, q25, q75, count}], latest: {x, y, date} }
     """
     from math import log as _log
 
-    dfii_daily = []
+    x_daily = []
     last = None
-    sorted_dfii = sorted(dfii, key=lambda p: p["date"])
+    sorted_x = sorted(x_series, key=lambda p: p["date"])
     j = 0
     for p in gold:
         d = p["date"]
-        while j < len(sorted_dfii) and sorted_dfii[j]["date"] <= d:
-            last = sorted_dfii[j]["value"]
+        while j < len(sorted_x) and sorted_x[j]["date"] <= d:
+            last = sorted_x[j]["value"]
             j += 1
-        dfii_daily.append({"date": d, "value": last})
+        x_daily.append({"date": d, "value": last})
 
     paired = []
     for i in range(60, len(gold)):
-        if dfii_daily[i]["value"] is None or gold[i]["value"] is None or gold[i - 60]["value"] is None:
+        if x_daily[i]["value"] is None or gold[i]["value"] is None or gold[i - 60]["value"] is None:
             continue
         if gold[i]["value"] <= 0 or gold[i - 60]["value"] <= 0:
             continue
         ret = _log(gold[i]["value"] / gold[i - 60]["value"])
-        paired.append({"date": gold[i]["date"], "x": dfii_daily[i]["value"], "y": ret})
+        paired.append({"date": gold[i]["date"], "x": x_daily[i]["value"], "y": ret})
 
     if not paired:
         return {"bins": [], "latest": None}
@@ -340,7 +341,13 @@ def sync():
                 s = sum(r["value"] for r in gold_ret[i - 59:i + 1])
                 momentum60.append({"date": gold_ret[i]["date"], "value": round(s, 4)})
 
-        latest_60 = corr60[-1]["value"] if corr60 else 0
+        # corr60 为空说明金价/DXY 上游数据缺失——按 0 处理会把 band 判成
+        # "broken"（相关性失效）并当成功写库，直接报错更安全
+        latest_60 = corr60[-1]["value"] if corr60 else None
+        if latest_60 is None:
+            raise SyncError(
+                "gold_correlation 滚动相关为空（gold=%d 行, dxy=%d 行），上游数据不足" % (len(gold), len(dxy))
+            )
         latest_20 = corr20[-1]["value"] if corr20 else 0
         latest_120 = corr120[-1]["value"] if corr120 else 0
         band = _band_of(latest_60)
@@ -377,7 +384,9 @@ def sync():
         over_study = event_study(gold, extreme_over, [20, 60, 120])
         under_study = event_study(gold, extreme_under, [20, 60, 120])
 
-        scatter = _scatter_dfii_vs_gold(gold, dfii)
+        scatter = _scatter_vs_gold(gold, dfii, bin_size=0.25)
+        # 美元指数版散点：让「黄金×美元」小节拥有与利率小节对称的证据链
+        scatter_dxy = _scatter_vs_gold(gold, dxy, bin_size=0.5)
 
         evidence = []
         counter_evidence = []
@@ -490,6 +499,7 @@ def sync():
                 "s120": [{"date": p["date"], "value": round(p["value"], 3)} for p in corr_irr_120],
             },
             "scatterData": scatter,
+            "scatterDxy": scatter_dxy,
             "bandSwitches": [{"date": s["date"], "from": s["from"], "to": s["to"]} for s in switches],
             "residSeries": [
                 {"date": r["date"], "z": r["residualZ"],
@@ -507,7 +517,9 @@ def sync():
             "signal": signal,
         }
 
-        valid_from = data["latest"]["gold"] and datetime.utcnow().strftime("%Y-%m-%d") or datetime.utcnow().strftime("%Y-%m-%d")
+        # valid_from 取金价最新数据日（原两分支完全相同的死逻辑恒返回今天，
+        # 金价陈旧时新鲜度标记失真）
+        valid_from = gold[-1]["date"] if gold else datetime.utcnow().strftime("%Y-%m-%d")
         upsert_analysis_result(conn, ENDPOINT, valid_from, data)
         log.info("写入 analysis_results[%s]: valid_from=%s", ENDPOINT, valid_from)
         write_sync_log("analysis_gold_correlation", "success", 1, "", ENDPOINT)

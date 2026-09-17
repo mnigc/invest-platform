@@ -3,7 +3,7 @@
 """预计算：宏观信号一致性评分（API: /api/v1/analysis/macro-consensus.json）"""
 from datetime import datetime
 
-from sync_base import _setup_logger, get_conn, write_sync_log, upsert_analysis_result
+from sync_base import _setup_logger, get_conn, write_sync_log, upsert_analysis_result, SyncError
 from analysis import mean, z_score, percentile_rank
 
 
@@ -98,6 +98,11 @@ def sync():
         vix_dates = {p["date"] for p in series_map[("VIXCLS", "US")]}
         t10y_dates = {p["date"] for p in series_map[("DGS10", "US")]}
         all_dates = sorted(vix_dates & t10y_dates)
+        # 上游取数失败时直接报错，否则会写一份全中性/50 分的"成功"结果
+        if len(all_dates) < 60:
+            raise SyncError(
+                "macro_consensus 共同交易日仅 %d 天（需 >= 60），上游数据疑似缺失" % len(all_dates)
+            )
 
         maps = {k: {p["date"]: p["value"] for p in v} for k, v in series_map.items()}
 

@@ -26,7 +26,9 @@ import pandas
 import yfinance as yf
 
 from sync_base import (
+    SyncError,
     _setup_logger, get_conn, write_sync_log, with_retry, safe_dec, bulk_upsert,
+
 )
 from indicators import sync_indicators
 
@@ -126,7 +128,8 @@ def _yahoo_via_yfinance(symbol, start):
     """用 yfinance 拉取 Yahoo 日线收盘价 -> [(date, close)]；拉空/异常返回 []（不抛）"""
     try:
         df = yf.download(symbol, start=start, progress=False,
-                         auto_adjust=False, prepost=False, threads=False)
+                         auto_adjust=False, prepost=False, threads=False,
+                         timeout=30)  # 不传 timeout 会依赖 yf 内部默认，挂起时最坏烧到 job 级超时
     except Exception as e:
         log.warning("yfinance %s 拉取异常: %s", symbol, e)
         return []
@@ -314,13 +317,19 @@ def main():
             errors.append("%s: %s" % (name, e))
 
     # 双因子模型用到的实际利率与通胀预期（FRED）
-    _, ind_errors = sync_indicators("gold_decision", [("DFII10", "US"), ("T10YIE", "US")])
-    errors.extend(ind_errors)
+    # sync_indicators 在有指标失败时会抛 SyncError，这里接住汇总，
+    # 保证末尾的 write_sync_log 与 raise 都能执行
+    try:
+        sync_indicators("gold_decision", [("DFII10", "US"), ("T10YIE", "US")])
+    except Exception as e:
+        errors.append("sync_indicators: %s" % e)
 
-    status = "success" if not errors and total > 0 else ("partial" if total > 0 else "failed")
+    status = "failed" if errors and total == 0 else ("partial" if errors else "success")
     msg = "gold_decision 写入 %d 行；失败 %d 项；%s" % (total, len(errors), "; ".join(errors[:5]))
     log.info(msg)
     write_sync_log("gold_decision", status, total, msg)
+    if errors:
+        raise SyncError("gold_decision 有 %d 项失败: %s" % (len(errors), "; ".join(errors[:5])))
 
 
 if __name__ == "__main__":
