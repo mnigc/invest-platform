@@ -457,26 +457,34 @@ function StudyTable({
 
 /* --------------------------------------------------------------------------- */
 
-/** 小节标题：把「黄金×美元」「黄金×实际利率」「双因子综合」三块分析分开 */
-function SectionTitle({ no, title, desc }: { no: string; title: string; desc: string }) {
-  return (
-    <div className="mt-3 border-l-2 border-line-strong pl-3">
-      <h2 className="flex items-baseline gap-2 text-sm font-semibold text-ink">
-        <span className="num text-2xs font-normal text-ink-3">{no}</span>
-        {title}
-      </h2>
-      <p className="mt-0.5 text-2xs leading-relaxed text-ink-3">{desc}</p>
-    </div>
-  )
-}
+/** 三个分析视图：综合定价是两因子的合成结论（默认视图），
+ *  美元 / 利率两个单因子视图结构平行、消费场景互斥，用 tab 切换。 */
+type TabKey = 'both' | 'usd' | 'rate'
 
-/* --------------------------------------------------------------------------- */
+const TABS: { key: TabKey; label: string; desc: string }[] = [
+  {
+    key: 'both',
+    label: '综合定价',
+    desc: '把美元与实际利率两个因子合成为一个「金价公允度」度量：残差 z 偏高 = 金价相对两因子基准偏高。本视图回答「当前价格偏离由哪个因子解释、两条关系是否共振指向极端状态」，并以金价动量作为趋势背景。',
+  },
+  {
+    key: 'usd',
+    label: '美元因子',
+    desc: '美元是黄金的计价货币，也是替代储备资产：美元走强通常压制金价。本视图单独评估这条关系的有效性（相关性区间）与当前美元环境的历史含义。',
+  },
+  {
+    key: 'rate',
+    label: '利率因子',
+    desc: '实际利率是持有黄金的机会成本：利率上行抬升持金成本、通常压制金价。本视图单独评估利率-黄金范式是否稳固，以及当前利率环境下的历史表现。',
+  },
+]
 
 export function GoldDecisionDashboard() {
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [tab, setTab] = useState<TabKey>('both')
   const t = useChartTheme()
 
   useEffect(() => {
@@ -913,239 +921,273 @@ export function GoldDecisionDashboard() {
           ? 'down'
           : 'warn'
 
+  // tab 标签上的状态速览：不切 tab 也能扫完三个因子的当前状态
+  const tabBadges: Record<TabKey, { text: string; cls: string }> = {
+    both: {
+      text: `z ${signed(latest.residZ)} · P${latest.residPercentile.toFixed(0)}`,
+      cls:
+        latest.residZ == null
+          ? 'text-ink-3'
+          : latest.residZ >= 0
+            ? 'text-down'
+            : 'text-up',
+    },
+    usd: { text: latest.bandLabel, cls: 'text-info' },
+    rate: {
+      text: latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--',
+      cls: dfiiTone === 'up' ? 'text-up' : dfiiTone === 'down' ? 'text-down' : 'text-warn',
+    },
+  }
+  const activeTab = TABS.find((tb) => tb.key === tab) ?? TABS[0]
+
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-      {/* 关键指标 — 顶部全宽，按「黄金自身 / ×美元 / ×利率 / 双因子综合」分组 */}
+      {/* 结论层常驻 — 只留「黄金自身 + 综合结论」，因子专属指标移入各自 tab */}
       <div className="lg:col-span-2">
-        <MacroCard padding="sm" title="关键指标（按因子分组）">
-          <div className="stagger grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div>
-              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">黄金自身</p>
-              <div className="flex flex-col gap-2">
-                <StatTile
-                  label="金价"
-                  value={latest.gold != null ? latest.gold.toFixed(2) : '--'}
-                  sub="USD / oz"
-                  tone="warn"
-                />
-                <StatTile
-                  label="金价动量 20D"
-                  value={`${(latest.momentum20 * 100).toFixed(2)}%`}
-                  sub="近20日对数收益"
-                  tone={latest.momentum20 >= 0 ? 'up' : 'down'}
-                />
-                <StatTile
-                  label="金价动量 60D"
-                  value={`${(latest.momentum60 * 100).toFixed(2)}%`}
-                  sub="近60日对数收益"
-                  tone={latest.momentum60 >= 0 ? 'up' : 'down'}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">黄金 × 美元指数</p>
-              <div className="flex flex-col gap-2">
-                <StatTile
-                  label="美元指数 DXY"
-                  value={latest.dxy != null ? latest.dxy.toFixed(2) : '--'}
-                  tone="info"
-                />
-                <StatTile
-                  label="相关 20/60/120"
-                  value={`${latest.corr20.toFixed(2)} / ${latest.corr60.toFixed(2)} / ${latest.corr120.toFixed(2)}`}
-                  sub="vs DXY · 收益率口径"
-                />
-                <StatTile
-                  label="关联状态"
-                  value={latest.bandLabel}
-                  sub={`60日相关 ${latest.corr60.toFixed(2)}`}
-                  tone="info"
-                  tooltip={latest.bandDesc}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">黄金 × 实际利率</p>
-              <div className="flex flex-col gap-2">
-                <StatTile
-                  label="实际利率 DFII10"
-                  value={latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--'}
-                  sub="10Y TIPS · <0 黄金友好 / >1 承压"
-                  tone={dfiiTone}
-                />
-                <StatTile
-                  label="盈亏平衡 T10YIE"
-                  value={latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--'}
-                  sub="10Y Breakeven"
-                  tone="warn"
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">双因子综合</p>
-              <div className="flex flex-col gap-2">
-                <StatTile
-                  label="定价残差 z"
-                  value={signed(latest.residZ)}
-                  sub={`5Y 分位 ${latest.residPercentile.toFixed(0)}`}
-                  tone={residTone}
-                />
-                <StatTile
-                  label="综合信号"
-                  value={DIR_LABEL[data.signal.direction]}
-                  sub={`置信度 ${data.signal.confidence}% · ${STRENGTH_LABEL[data.signal.strength]}`}
-                  tone={
-                    data.signal.direction === 'bullish'
-                      ? 'up'
-                      : data.signal.direction === 'bearish'
-                        ? 'down'
-                        : 'neutral'
-                  }
-                />
-              </div>
-            </div>
+        <MacroCard padding="sm" title="当前状态">
+          <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            <StatTile
+              label="金价"
+              value={latest.gold != null ? latest.gold.toFixed(2) : '--'}
+              sub="USD / oz"
+              tone="warn"
+            />
+            <StatTile
+              label="金价动量 20D"
+              value={`${(latest.momentum20 * 100).toFixed(2)}%`}
+              sub="近20日对数收益"
+              tone={latest.momentum20 >= 0 ? 'up' : 'down'}
+            />
+            <StatTile
+              label="金价动量 60D"
+              value={`${(latest.momentum60 * 100).toFixed(2)}%`}
+              sub="近60日对数收益"
+              tone={latest.momentum60 >= 0 ? 'up' : 'down'}
+            />
+            <StatTile
+              label="定价残差 z"
+              value={signed(latest.residZ)}
+              sub={`5Y 分位 ${latest.residPercentile.toFixed(0)}`}
+              tone={residTone}
+            />
+            <StatTile
+              label="综合信号"
+              value={DIR_LABEL[data.signal.direction]}
+              sub={`置信度 ${data.signal.confidence}% · ${STRENGTH_LABEL[data.signal.strength]}`}
+              tone={
+                data.signal.direction === 'bullish'
+                  ? 'up'
+                  : data.signal.direction === 'bearish'
+                    ? 'down'
+                    : 'neutral'
+              }
+            />
           </div>
         </MacroCard>
       </div>
 
-      {/* 主列：三个小节各自独立成链 */}
+      {/* 主列：tab 切换综合定价 / 美元因子 / 利率因子 */}
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:row-start-2">
-        {/* 黄金自身总览（不属于任何因子小节） */}
-        <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
-          <ResponsiveChartBox option={momentumOption} deps={[momentumOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            说明：正值表示上涨趋势，负值表示下跌趋势。20D 反映短期，60D 反映中期动量。
+        <div className="flex flex-col gap-2">
+          <div
+            role="tablist"
+            aria-label="黄金分析视图"
+            className="flex flex-wrap gap-2"
+          >
+            {TABS.map((tb) => {
+              const active = tab === tb.key
+              const badge = tabBadges[tb.key]
+              return (
+                <button
+                  key={tb.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(tb.key)}
+                  className={`flex items-baseline gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
+                    active
+                      ? 'border-accent bg-accent/15 text-ink'
+                      : 'border-line bg-surface-2 text-ink-2 hover:border-line-strong hover:text-ink'
+                  }`}
+                >
+                  <span>{tb.label}</span>
+                  <span className={`num text-2xs font-normal ${badge.cls}`}>
+                    {badge.text}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="border-l-2 border-line-strong pl-3 text-2xs leading-relaxed text-ink-3">
+            {activeTab.desc}
           </p>
-        </MacroCard>
+        </div>
 
-        <SectionTitle
-          no="①"
-          title="黄金 × 美元指数"
-          desc="美元是黄金的计价货币，也是替代储备资产：美元走强通常压制金价。本节单独评估这条关系的有效性（相关性区间）与当前美元环境的历史含义。"
-        />
+        {/* ── 综合定价（默认）：残差分解 → 残差事件研究 → 动量背景 ── */}
+        {tab === 'both' && (
+          <div role="tabpanel" className="flex flex-col gap-4">
+            <MacroCard title="定价残差 z 贡献分解">
+              <ResponsiveChartBox option={residOption} deps={[residOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                双因子模型：DFII10 + DXY 20 日动量。
+                <span className="text-warn">橙色线</span> = 残差 z 总值（±2σ 阈值）。
+                柱状=两个因子对 z 的贡献：<span className="text-down">红色</span> = 正向贡献（推高 z）/ <span className="text-up">绿色</span> = 负向贡献。
+                背景色块：残差持续偏离区间（<span className="text-down">浅红=高估 z≥2</span> / <span className="text-up">浅绿=低估 z≤-2</span>，持续≥3 个交易日）。
+                可识别当前偏离主要由哪个因子解释。
+              </p>
+              {data.extremes.length > 0 && (
+                <p className="mt-1 text-2xs leading-relaxed text-ink-3">
+                  历史极端点（<span className="num">{data.extremes.length}</span>）：
+                  {data.extremes
+                    .slice(-8)
+                    .map((e) => `${e.date}(${e.dir === 'overvalued' ? '高估' : '低估'})`)
+                    .join(' · ')}
+                </p>
+              )}
+            </MacroCard>
 
-        <MacroCard title="金价 vs 美元指数">
-          <ResponsiveChartBox option={priceDxyOption} deps={[priceDxyOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            双轴：左=金价、右=DXY。观察两条线的反向镜像关系——美元走强阶段金价是否承压，
-            以及近年的背离（央行购金等结构性买盘会削弱该关系）。
-          </p>
-        </MacroCard>
+            <MacroCard title="事件研究：定价残差极值后的黄金后市收益">
+              <StudyTable
+                title="残差高估（z ≥ 2）后"
+                study={data.eventStudies.overvalued}
+                expected="bearish"
+                triggerHint="双因子定价残差 z 首次向上突破 +2σ"
+              />
+              <StudyTable
+                title="残差低估（z ≤ -2）后"
+                study={data.eventStudies.undervalued}
+                expected="bullish"
+                triggerHint="双因子定价残差 z 首次向下突破 -2σ"
+              />
+              {data.eventStudies.overvalued.nEvents === 0 &&
+                data.eventStudies.undervalued.nEvents === 0 && (
+                  <p className="py-3 text-xs text-ink-3">
+                    历史事件不足，样本积累后自动生成验证统计。
+                  </p>
+                )}
+            </MacroCard>
 
-        <MacroCard title="黄金-美元收益率滚动相关（20 / 60 / 120 日）">
-          <ResponsiveChartBox option={corrOption} deps={[corrOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            说明：越向下越负相关（经典范式）；高于 -0.15 即「失效区间」。
-            <span className="text-warn">黄色竖线</span>：相关性失效/正相关切换事件。
-          </p>
-        </MacroCard>
-
-        {scatterDxyOption && (
-          <MacroCard title="美元指数 vs 金价 60D 收益（散点 + 分位带）">
-            <ResponsiveChartBox option={scatterDxyOption} deps={[scatterDxyOption]} />
-            <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-              X=当日美元指数，Y=当日金价相对 60 日前的对数收益。
-              分位带=同一美元水平桶内金价 60D 收益的 25–75 分位，
-              <span className="text-warn">橙色大点</span>=当前所在位置。
-              可直观判断「当前美元环境下，黄金历史表现是好是差」。
-            </p>
-          </MacroCard>
+            <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
+              <ResponsiveChartBox option={momentumOption} deps={[momentumOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                说明：正值表示上涨趋势，负值表示下跌趋势。20D 反映短期，60D 反映中期动量。
+              </p>
+            </MacroCard>
+          </div>
         )}
 
-        <MacroCard title="事件研究：美元关系失效后的黄金后市收益">
-          <StudyTable
-            title="① 相关性失效/正相关切换后"
-            study={data.eventStudies.broken}
-            expected="neutral"
-            triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
-          />
-        </MacroCard>
+        {/* ── 美元因子 ── */}
+        {tab === 'usd' && (
+          <div role="tabpanel" className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <StatTile
+                label="美元指数 DXY"
+                value={latest.dxy != null ? latest.dxy.toFixed(2) : '--'}
+                tone="info"
+              />
+              <StatTile
+                label="相关 20/60/120"
+                value={`${latest.corr20.toFixed(2)} / ${latest.corr60.toFixed(2)} / ${latest.corr120.toFixed(2)}`}
+                sub="vs DXY · 收益率口径"
+              />
+              <StatTile
+                label="关联状态"
+                value={latest.bandLabel}
+                sub={`60日相关 ${latest.corr60.toFixed(2)}`}
+                tone="info"
+                tooltip={latest.bandDesc}
+              />
+            </div>
 
-        <SectionTitle
-          no="②"
-          title="黄金 × 实际利率"
-          desc="实际利率是持有黄金的机会成本：利率上行抬升持金成本、通常压制金价。本节单独评估利率-黄金范式是否稳固，以及当前利率环境下的历史表现。"
-        />
-
-        <MacroCard title="金价 vs 10Y 实际利率">
-          <ResponsiveChartBox option={priceDfiiOption} deps={[priceDfiiOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            双轴：左=金价、右=DFII10%（虚线）。
-            实际利率参考线：<span className="text-up">0% 绿色</span>=零利率分水岭 / <span className="text-down">1% 红色</span>=紧缩警戒。
-          </p>
-        </MacroCard>
-
-        <MacroCard title="黄金-实际利率收益率滚动相关（20 / 60 / 120 日）">
-          <ResponsiveChartBox option={corrIrrOption} deps={[corrIrrOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            实际利率与金价收益率的滚动相关。长期均值约 -0.7~-0.85，越深负值范式越稳固。
-            上穿 <span className="text-warn">-0.4</span> 视为「实际利率失锚」预警，
-            上穿 0 视为范式反转。
-          </p>
-        </MacroCard>
-
-        <MacroCard title="实际利率 vs 金价 60D 收益（散点 + 分位带）">
-          <ResponsiveChartBox option={scatterDfiiOption} deps={[scatterDfiiOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            X=当日实际利率，Y=当日金价相对 60 日前的对数收益。
-            <span className="text-info">蓝色带</span>=同一利率桶内金价 60D 收益的 25–75 分位，
-            <span className="text-info">蓝色线</span>=中位收益。
-            <span className="text-warn">橙色大点</span>=当前所在位置。
-            可直观判断「当前利率环境下，黄金历史表现是好是差」。
-          </p>
-        </MacroCard>
-
-        <SectionTitle
-          no="③"
-          title="双因子定价残差（综合）"
-          desc="把美元与实际利率两个因子合成为一个「金价公允度」度量：残差 z 偏高=金价相对两因子基准偏高。本节回答「当前价格偏离由哪个因子解释、两条关系是否共振指向极端状态」。"
-        />
-
-        <MacroCard title="定价残差 z 贡献分解（双因子模型：DFII10 + DXY 20 日动量）">
-          <ResponsiveChartBox option={residOption} deps={[residOption]} />
-          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            <span className="text-warn">橙色线</span> = 残差 z 总值（±2σ 阈值）。
-            柱状=两个因子对 z 的贡献：<span className="text-down">红色</span> = 正向贡献（推高 z）/ <span className="text-up">绿色</span> = 负向贡献。
-            背景色块：残差持续偏离区间（<span className="text-down">浅红=高估 z≥2</span> / <span className="text-up">浅绿=低估 z≤-2</span>，持续≥3 个交易日）。
-            可识别当前偏离主要由哪个因子解释。
-          </p>
-          {data.extremes.length > 0 && (
-            <p className="mt-1 text-2xs leading-relaxed text-ink-3">
-              历史极端点（<span className="num">{data.extremes.length}</span>）：
-              {data.extremes
-                .slice(-8)
-                .map((e) => `${e.date}(${e.dir === 'overvalued' ? '高估' : '低估'})`)
-                .join(' · ')}
-            </p>
-          )}
-        </MacroCard>
-
-        <MacroCard title="事件研究：定价残差极值后的黄金后市收益">
-          <StudyTable
-            title="② 残差高估（z ≥ 2）后"
-            study={data.eventStudies.overvalued}
-            expected="bearish"
-            triggerHint="双因子定价残差 z 首次向上突破 +2σ"
-          />
-          <StudyTable
-            title="③ 残差低估（z ≤ -2）后"
-            study={data.eventStudies.undervalued}
-            expected="bullish"
-            triggerHint="双因子定价残差 z 首次向下突破 -2σ"
-          />
-          {data.eventStudies.overvalued.nEvents === 0 &&
-            data.eventStudies.undervalued.nEvents === 0 && (
-              <p className="py-3 text-xs text-ink-3">
-                历史事件不足，样本积累后自动生成验证统计。
+            <MacroCard title="金价 vs 美元指数">
+              <ResponsiveChartBox option={priceDxyOption} deps={[priceDxyOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                双轴：左=金价、右=DXY。观察两条线的反向镜像关系——美元走强阶段金价是否承压，
+                以及近年的背离（央行购金等结构性买盘会削弱该关系）。
               </p>
+            </MacroCard>
+
+            <MacroCard title="黄金-美元收益率滚动相关（20 / 60 / 120 日）">
+              <ResponsiveChartBox option={corrOption} deps={[corrOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                说明：越向下越负相关（经典范式）；高于 -0.15 即「失效区间」。
+                <span className="text-warn">黄色竖线</span>：相关性失效/正相关切换事件。
+              </p>
+            </MacroCard>
+
+            {scatterDxyOption && (
+              <MacroCard title="美元指数 vs 金价 60D 收益（散点 + 分位带）">
+                <ResponsiveChartBox option={scatterDxyOption} deps={[scatterDxyOption]} />
+                <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                  X=当日美元指数，Y=当日金价相对 60 日前的对数收益。
+                  分位带=同一美元水平桶内金价 60D 收益的 25–75 分位，
+                  <span className="text-warn">橙色大点</span>=当前所在位置。
+                  可直观判断「当前美元环境下，黄金历史表现是好是差」。
+                </p>
+              </MacroCard>
             )}
-        </MacroCard>
+
+            <MacroCard title="事件研究：美元关系失效后的黄金后市收益">
+              <StudyTable
+                title="相关性失效/正相关切换后"
+                study={data.eventStudies.broken}
+                expected="neutral"
+                triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
+              />
+            </MacroCard>
+          </div>
+        )}
+
+        {/* ── 利率因子 ── */}
+        {tab === 'rate' && (
+          <div role="tabpanel" className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <StatTile
+                label="实际利率 DFII10"
+                value={latest.dfii10 != null ? `${latest.dfii10.toFixed(2)}%` : '--'}
+                sub="10Y TIPS · <0 黄金友好 / >1 承压"
+                tone={dfiiTone}
+              />
+              <StatTile
+                label="盈亏平衡 T10YIE"
+                value={latest.t10yie != null ? `${latest.t10yie.toFixed(2)}%` : '--'}
+                sub="10Y Breakeven"
+                tone="warn"
+              />
+            </div>
+
+            <MacroCard title="金价 vs 10Y 实际利率">
+              <ResponsiveChartBox option={priceDfiiOption} deps={[priceDfiiOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                双轴：左=金价、右=DFII10%（虚线）。
+                实际利率参考线：<span className="text-up">0% 绿色</span>=零利率分水岭 / <span className="text-down">1% 红色</span>=紧缩警戒。
+              </p>
+            </MacroCard>
+
+            <MacroCard title="黄金-实际利率收益率滚动相关（20 / 60 / 120 日）">
+              <ResponsiveChartBox option={corrIrrOption} deps={[corrIrrOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                实际利率与金价收益率的滚动相关。长期均值约 -0.7~-0.85，越深负值范式越稳固。
+                上穿 <span className="text-warn">-0.4</span> 视为「实际利率失锚」预警，
+                上穿 0 视为范式反转。
+              </p>
+            </MacroCard>
+
+            <MacroCard title="实际利率 vs 金价 60D 收益（散点 + 分位带）">
+              <ResponsiveChartBox option={scatterDfiiOption} deps={[scatterDfiiOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                X=当日实际利率，Y=当日金价相对 60 日前的对数收益。
+                <span className="text-info">蓝色带</span>=同一利率桶内金价 60D 收益的 25–75 分位，
+                <span className="text-info">蓝色线</span>=中位收益。
+                <span className="text-warn">橙色大点</span>=当前所在位置。
+                可直观判断「当前利率环境下，黄金历史表现是好是差」。
+              </p>
+            </MacroCard>
+          </div>
+        )}
       </div>
 
-      {/* 右栏：信号 */}
+      {/* 右栏：信号（结论常驻，不随 tab 切换） */}
       <aside className="flex flex-col gap-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:sticky lg:top-[calc(var(--topbar-height)+16px)]">
         <SignalPanel signal={data.signal} />
       </aside>
