@@ -16,7 +16,8 @@ export default defineConfig({
     sitemap({
       changefreq: 'daily',
       priority: 0.7,
-      lastmod: new Date(),
+      // 不设置 lastmod：内容更新发生在 Python 同步侧，构建时刻当 lastmod
+      // 是假信号，搜索引擎会学着忽略它；宁缺毋滥
       // 301 重定向路由不进 sitemap：重定向 URL 不应提交给搜索引擎
       filter: (page) =>
         !page.startsWith(SITE_URL + '/indicators/dxy') &&
@@ -28,6 +29,11 @@ export default defineConfig({
   // 用 output: 'server'，各页面靠 export const prerender = true 静态预渲染。
   output: 'server',
   adapter: cloudflare(),
+  // 本项目不用 src/fetch.ts 自定义入口。Astro 7 默认会探测该文件；dev 环境下
+  // 解析结果不稳定——一旦被误判为存在自定义 handler，内置 pipeline（含
+  // src/middleware.ts 的请求作用域 env/DB 注入）会被整体跳过，dev 全部 DB
+  // 接口报 "Database not configured"。显式置 null 关闭该入口，杜绝此坑。
+  fetchFile: null,
   // Astro 7 把默认值从 true 改成了 'jsx'，会吃掉行内元素之间跨行书写的空格
   // （面包屑分隔符、相关搜索等处依赖这个空格）。显式设回 true 保持既有排版。
   compressHTML: true,

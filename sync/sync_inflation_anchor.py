@@ -71,10 +71,13 @@ def _load_gold(conn):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT price_date, close_price FROM gold_price_history
+            -- 跨源按日去重：gold-api 是盘中价，优先取结算源，避免伪日间收益
+            SELECT DISTINCT ON (price_date) price_date, close_price FROM gold_price_history
             WHERE currency = 'USD' AND unit = 'OZ'
               AND source IN ('yfinance', 'gold-api', 'LOCAL-XLSX', 'FRED')
-            ORDER BY price_date ASC
+            ORDER BY price_date ASC,
+              CASE source WHEN 'yfinance' THEN 0 WHEN 'FRED' THEN 1
+                          WHEN 'LOCAL-XLSX' THEN 2 ELSE 3 END ASC
             """
         )
         rows = cur.fetchall()

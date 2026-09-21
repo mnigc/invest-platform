@@ -2,7 +2,6 @@
 import '../styles/tokens.css'
 import '../styles/global.css'
 import Sidebar from '../components/Sidebar.astro'
-import ClientRoot from '../components/ClientRoot'
 import RelatedSearches from '../components/RelatedSearches.astro'
 import { DataFreshness } from '../components/ui/DataFreshness'
 import { DonateButton } from '../components/ui/DonateButton'
@@ -102,8 +101,7 @@ const jsonLdArr = [
     <meta name="application-name" content="MACRO EDGE" />
     <meta property="og:site_name" content="MACRO EDGE" />
     <meta property="og:locale" content="zh_CN" />
-    <meta property="og:locale:alternate" content="en_US" />
-    <meta property="og:type" content={ogType} />
+        <meta property="og:type" content={ogType} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalHref} />
@@ -192,7 +190,7 @@ const jsonLdArr = [
       </header>
 
       <main class="content">
-        <ClientRoot client:load>
+        <Fragment>
           {breadcrumb && breadcrumb.length > 0 && (
             <nav aria-label="面包屑" class="mb-3 flex flex-wrap items-center gap-1 text-2xs text-ink-3">
               {breadcrumb.map((item, i) => (
@@ -216,7 +214,7 @@ const jsonLdArr = [
           {relatedSearches && relatedSearches.groups.length > 0 && (
             <RelatedSearches groups={relatedSearches.groups} universal={relatedSearches.universal} />
           )}
-        </ClientRoot>
+        </Fragment>
       </main>
     </div>
   </body>

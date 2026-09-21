@@ -3,7 +3,7 @@ import type { ChartTheme } from '../components/ui/theme'
 import type { BacktestSnapshot } from './core'
 import { REGIME_BG, REGIME_LABELS } from './regimeMeta'
 import {
-  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartTooltip, valueAxis,
+  categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartTooltip, valueAxis, defaultZoomStart,
 } from './chartOptions'
 
 export interface RegimeSegment {
@@ -60,7 +60,7 @@ export function buildSp500RegimeOption(
   const snapByDate = new Map(valid.map((s) => [s.date, s] as const))
   const seriesName = priceOverride?.name || 'S&P500'
   const total = dates.length
-  const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+  const defaultStart = defaultZoomStart(total)
   return {
     ...chartAnimation,
     tooltip: chartTooltip(t, {

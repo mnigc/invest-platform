@@ -4,18 +4,26 @@ import { Pool } from '@neondatabase/serverless'
 // 运行时 env 注入点：由 src/middleware.ts 在每个请求开始时注入，
 // 来源是 cloudflare:workers 的 env（secret 用 `wrangler secret put` 配置）。
 // 拿不到注入时回退到 Vite 的 import.meta.env（本地 .env），否则本地开发会连不上库。
-let _runtimeEnv: Record<string, string | undefined> | null = null
+// env 优先放在请求作用域（ALS）里，避免 isolate 级模块变量被并发请求互相覆盖。
+let _fallbackEnv: Record<string, string | undefined> | null = null
 
 export function setRuntimeEnv(env: Record<string, string | undefined> | null): void {
-  _runtimeEnv = env
+  const scope = requestDb.getStore()
+  if (scope) scope.env = env ?? undefined
+  else _fallbackEnv = env
 }
 
 export function getRuntimeDatabaseUrl(): string | undefined {
-  return (_runtimeEnv ?? resolveEnv()).DATABASE_URL
+  return resolveEnv().DATABASE_URL
 }
 
 function resolveEnv(): Record<string, string | undefined> {
-  if (_runtimeEnv) return _runtimeEnv
+  const scope = requestDb.getStore()
+  // 只认「真正带 DATABASE_URL 的那一层」：workerd 的 env 对象在本地开发时
+  // 非空但缺 DATABASE_URL（只有系统环境变量透传），若按 truthy 短路就会
+  // 把后面的回退层全部遮住，本地永远报 Database not configured。
+  if (scope?.env?.DATABASE_URL) return scope.env
+  if (_fallbackEnv?.DATABASE_URL) return _fallbackEnv
   return import.meta.env as unknown as Record<string, string | undefined>
 }
 
@@ -31,6 +39,7 @@ function resolveEnv(): Record<string, string | undefined> {
  */
 interface RequestDb {
   pool?: Pool
+  env?: Record<string, string | undefined>
 }
 
 const requestDb = new AsyncLocalStorage<RequestDb>()
@@ -57,10 +66,13 @@ export function withRequestDb<T>(fn: () => Promise<T>): Promise<T> {
 
 function getPool(): Pool {
   const scope = requestDb.getStore()
-  if (scope?.pool) return scope.pool
-  const pool = makePool()
-  if (scope) scope.pool = pool
-  return pool
+  // 作用域外建池 = 该 WebSocket 永远不会被 end() 回收，
+  // 正是请求作用域改造要消灭的对象；宁可显式失败也不静默泄漏。
+  if (!scope) {
+    throw new Error('[db] 查询必须在请求作用域（withRequestDb）内执行，作用域外拒绝创建连接池')
+  }
+  if (!scope.pool) scope.pool = makePool()
+  return scope.pool
 }
 
 function makePool(): Pool {

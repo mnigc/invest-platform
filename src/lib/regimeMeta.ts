@@ -34,7 +34,8 @@ export const REGIME_BG: Record<string, string> = {
   GOLDILOCKS: 'rgba(34,197,94,0.22)',
   RISK_ON: 'rgba(59,130,246,0.22)',
   OVERHEAT: 'rgba(245,158,11,0.25)',
-  STAGFLATION: 'rgba(239,68,68,0.28)',
+  // 滞胀与风险规避曾用同一 rgba(239,68,68,.28)，图上两种体制底色无法区分
+  STAGFLATION: 'rgba(168,85,247,0.25)',
   RISK_OFF: 'rgba(239,68,68,0.28)',
   RECOVERY: 'rgba(6,182,212,0.22)',
   UNKNOWN: 'rgba(156,163,175,0.15)',

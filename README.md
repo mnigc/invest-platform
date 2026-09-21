@@ -4,8 +4,9 @@
 
 ## 技术栈
 
-- **前端/服务**: Astro + React + ECharts
+- **前端/服务**: Astro + React + ECharts，部署在 Cloudflare Workers
 - **数据库**: Supabase (PostgreSQL) — 建表执行 [sync/supabase_schema.sql](sync/supabase_schema.sql)
+  - 读写通路是混合的：运行时（SSR API）经 Supavisor 连接池用 `@neondatabase/serverless` 的 WebSocket 协议；`sync/` 脚本用 psycopg2 直连。两者共用同一套表。
 - **数据同步**: `sync/` Python 脚本（yfinance / FRED / gold-api），自动写入 Supabase
 - **CI/CD**: GitHub Actions 每交易日自动同步数据
 
@@ -56,13 +57,9 @@ SITE_URL=https://preview.example.com npm run build
 
 ### 同步任务
 
-| 任务 | 说明 | 数据源 |
-|------|------|--------|
-| `gold_decision` | 金价/DXY/实际利率 | Yahoo Finance, gold-api, FRED |
-| `sp500` | S&P500 指数（宏观体制回测） | Yahoo Finance / stooq.com |
-| `gold_reserves` | 全球央行黄金储备变动 | FRED API |
-| `global_liquidity` | 全球央行资产负债表/SOFR | FRED |
-| `regime` | 宏观体制与风险异常 | FRED |
+任务清单以调度入口为单一事实来源（当前共 17 个：10 个取数 + 7 个预计算）。
+各任务的名称、说明、数据源与执行顺序均由 `run_sync.py` 的 `TASKS / TASK_ORDER` 维护，
+本文档不再重复罗列，以免漂移。
 
 ### 运行方式
 
@@ -76,8 +73,8 @@ python run_sync.py --list         # 查看所有任务
 ### GitHub Actions
 
 数据同步通过 GitHub Actions 自动执行：
-- **触发时间**: 每交易日 UTC 22:30（美东 18:30，北京时间次日 06:30）——必须在美国收盘与 FRED 当日数据发布之后，否则会把盘中价写成当日收盘
+- **触发时间**: 每交易日 UTC 23:30（美东冬令时 18:30 / 夏令时 19:30，北京时间次日 07:30）——必须在美国收盘与 FRED 当日数据发布之后，否则会把盘中价写成当日收盘
 - **手动触发**: GitHub Actions 页面点击 "Run workflow"
-- **日志**: 运行日志上传为 Artifact，保留 14 天
+- **日志**: 运行日志上传为 Artifact，保留 14 天；同步失败时自动开 GitHub issue 提醒
 
 详见 [sync/README.md](sync/README.md) 获取更多配置说明。

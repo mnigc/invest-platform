@@ -36,11 +36,16 @@ def _load(conn, sql, params=()):
 
 
 def _load_gold(conn):
+    # 同一自然日可能有多源行：gold-api 写的是盘中实时价，
+    # 与 yfinance 结算价并存会产生伪日间收益。
+    # DISTINCT ON 按源优先级去重，盘中价只在当日无结算价时兜底。
     rows = _load(conn, """
-        SELECT price_date, close_price FROM gold_price_history
+        SELECT DISTINCT ON (price_date) price_date, close_price FROM gold_price_history
         WHERE source IN ('yfinance', 'gold-api', 'LOCAL-XLSX', 'FRED')
           AND currency = 'USD' AND unit = 'OZ'
-        ORDER BY price_date ASC
+        ORDER BY price_date ASC,
+          CASE source WHEN 'yfinance' THEN 0 WHEN 'FRED' THEN 1
+                      WHEN 'LOCAL-XLSX' THEN 2 ELSE 3 END ASC
     """)
     return [
         {"date": _to_date(r["price_date"]), "value": float(r["close_price"])}
@@ -484,8 +489,8 @@ def sync():
                 "t10yie": _round_or_none(t10yie[-1]["value"]) if t10yie else None,
                 "residZ": _round_or_none(latest_resid["residualZ"]) if latest_resid else None,
                 "residPercentile": resid_percentile,
-                "momentum20": momentum20[-1]["value"] if momentum20 else 0,
-                "momentum60": momentum60[-1]["value"] if momentum60 else 0,
+                "momentum20": momentum20[-1]["value"] if momentum20 else None,
+                "momentum60": momentum60[-1]["value"] if momentum60 else None,
             },
             "priceChart": price_chart,
             "corrChart": {

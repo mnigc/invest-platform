@@ -53,3 +53,12 @@ export function relatedTopics(excludeSlug: string) {
 export function findTopic(slug: string) {
   return KNOWLEDGE_TOPICS.find((t) => t.slug === slug)
 }
+
+/** JSON 已新增但未在 RAW 登记时给出明确构建期报错，而不是 `!` 后面的难懂崩溃 */
+export function mustTopic(slug: string): KnowledgeTopicEntry {
+  const entry = findTopic(slug)
+  if (!entry) {
+    throw new Error(`知识主题 "${slug}" 未在 topics.ts 登记（检查 src/content/knowledge/${slug}.json 与 RAW 清单）`)
+  }
+  return entry
+}

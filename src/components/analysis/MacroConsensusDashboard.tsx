@@ -6,9 +6,10 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState, ErrorState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
+import { NowcastCard } from './NowcastCard'
 import {
   categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, valueAxis,
+  chartTooltip, lineSeries, valueAxis, defaultZoomStart,
 } from '../../lib/chartOptions'
 
 interface Data {
@@ -20,8 +21,11 @@ interface Data {
 }
 
 const DIR_ACCENT: Record<string, 'green' | 'red' | 'none'> = { bullish: 'green', bearish: 'red', neutral: 'none' }
-const DIR_COLORS: Record<string, string> = { bullish: 'text-up', bearish: 'text-down', neutral: 'text-ink-3' }
-const CAT_COLORS: Record<string, string> = { growth: 'text-info', inflation: 'text-warn', risk: 'text-down', liquidity: 'text-accent' }
+const DIR_TONE: Record<string, 'up' | 'down' | 'neutral'> = { bullish: 'up', bearish: 'down', neutral: 'neutral' }
+const CAT_TONE: Record<string, 'info' | 'warn' | 'down' | 'accent'> = { growth: 'info', inflation: 'warn', risk: 'down', liquidity: 'accent' }
+// z 高低的好坏语义按指标而定：扩表 / 曲线变陡 z>0 是利好，VIX / 信用利差 z>0 是利空，
+// 通胀预期方向存歧义不着色。统一按 z 符号着色会把两类指标画反。
+const Z_BAD_WHEN_HIGH: Record<string, number> = { liquidity: -1, spread: -1, vix: 1, credit: 1 }
 
 export default function MacroConsensusDashboard() {
   const [data, setData] = useState<Data | null>(null)
@@ -43,7 +47,7 @@ export default function MacroConsensusDashboard() {
     if (!data?.historicalConsensus) return null
     const { dates, overall, liquidity, inflation, risk } = data.historicalConsensus
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
@@ -65,20 +69,27 @@ export default function MacroConsensusDashboard() {
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const dirTone = DIR_COLORS[data.signal.direction] || 'text-ink-3'
+  const dirTone = DIR_TONE[data.signal.direction] || 'neutral'
+  const dirClass = dirTone === 'up' ? 'text-up' : dirTone === 'down' ? 'text-down' : 'text-ink-3'
+  const zTone = (s: Data['signals'][number]) => {
+    const badHigh = Z_BAD_WHEN_HIGH[s.id]
+    if (s.zScore == null || !badHigh) return 'text-ink-3'
+    const risk = s.zScore * badHigh
+    return risk > 1 ? 'text-down' : risk < -1 ? 'text-up' : 'text-ink-3'
+  }
 
   return (
     <div className="space-y-4">
       <MacroCard accent={DIR_ACCENT[data.signal.direction] || 'none'}>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatTile label="综合评分" value={data.consensusScore.overall != null ? `${data.consensusScore.overall}` : '--'} className={dirTone} />
-          <StatTile label="增长" value={data.consensusScore.growth != null ? `${data.consensusScore.growth}` : '--'} className={CAT_COLORS.growth} />
-          <StatTile label="通胀" value={data.consensusScore.inflation != null ? `${data.consensusScore.inflation}` : '--'} className={CAT_COLORS.inflation} />
-          <StatTile label="风险" value={data.consensusScore.risk != null ? `${data.consensusScore.risk}` : '--'} className={CAT_COLORS.risk} />
-          <StatTile label="流动性" value={data.consensusScore.liquidity != null ? `${data.consensusScore.liquidity}` : '--'} className={CAT_COLORS.liquidity} />
+          <StatTile label="综合评分" value={data.consensusScore.overall != null ? `${data.consensusScore.overall}` : '--'} tone={dirTone} />
+          <StatTile label="增长" value={data.consensusScore.growth != null ? `${data.consensusScore.growth}` : '--'} tone={CAT_TONE.growth} />
+          <StatTile label="通胀" value={data.consensusScore.inflation != null ? `${data.consensusScore.inflation}` : '--'} tone={CAT_TONE.inflation} />
+          <StatTile label="风险" value={data.consensusScore.risk != null ? `${data.consensusScore.risk}` : '--'} tone={CAT_TONE.risk} />
+          <StatTile label="流动性" value={data.consensusScore.liquidity != null ? `${data.consensusScore.liquidity}` : '--'} tone={CAT_TONE.liquidity} />
         </div>
         <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
-          <span className={`font-semibold ${dirTone}`}>{data.consensusScore.direction.toUpperCase()}</span>
+          <span className={`font-semibold ${dirClass}`}>{data.consensusScore.direction.toUpperCase()}</span>
           <span>强度 {data.consensusScore.strength} · 置信度 {data.consensusScore.confidence}%</span>
         </div>
       </MacroCard>
@@ -87,6 +98,8 @@ export default function MacroConsensusDashboard() {
         <ResponsiveChartBox option={historyOption} deps={[historyOption]} />
       </MacroCard>
 
+      <NowcastCard />
+
       <MacroCard title="信号明细" padding="sm">
         <div className="space-y-1.5">
           {data.signals.map((s, i) => (
@@ -94,7 +107,7 @@ export default function MacroConsensusDashboard() {
               <span className="text-ink-2">{s.name}</span>
               <div className="flex items-center gap-3">
                 <span className="num">{s.current != null ? s.current.toFixed(2) : '--'}</span>
-                <span className={`num ${(s.zScore ?? 0) > 1 ? 'text-down' : (s.zScore ?? 0) < -1 ? 'text-up' : 'text-ink-3'}`}>
+                <span className={`num ${zTone(s)}`}>
                   Z: {s.zScore != null ? s.zScore.toFixed(2) : '--'}
                 </span>
                 <span className="text-ink-3">权重 {(s.weight * 100).toFixed(0)}%</span>

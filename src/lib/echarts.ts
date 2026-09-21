@@ -1,15 +1,15 @@
 import * as echarts from 'echarts/core'
-import { LineChart, BarChart, ScatterChart, HeatmapChart } from 'echarts/charts'
+import { LineChart, BarChart, ScatterChart } from 'echarts/charts'
 import {
   TitleComponent, GridComponent, TooltipComponent, LegendComponent,
-  VisualMapComponent, DataZoomComponent, MarkLineComponent, MarkAreaComponent,
+  DataZoomComponent, MarkLineComponent, MarkAreaComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
 echarts.use([
-  LineChart, BarChart, ScatterChart, HeatmapChart,
+  LineChart, BarChart, ScatterChart,
   TitleComponent, GridComponent, TooltipComponent, LegendComponent,
-  VisualMapComponent, DataZoomComponent, MarkLineComponent, MarkAreaComponent,
+  DataZoomComponent, MarkLineComponent, MarkAreaComponent,
   CanvasRenderer,
 ])
 

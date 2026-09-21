@@ -209,7 +209,7 @@ function NetLiquidityChart({
 <div style="display:flex;align-items:center;gap:6px">
   <span style="width:8px;height:8px;border-radius:50%;background:${t.series[0]};flex:none"></span>
   <span>净流动性</span>
-  <span style="margin-left:20px;font-weight:600;color:${t.series[0]}">${fmtTrillion(p.value * 1e6)}</span>
+  <span style="margin-left:20px;font-weight:600;color:${t.series[0]}">${fmtTrillion(p.value)}</span>
 </div>`
         },
       }),
@@ -421,7 +421,7 @@ function ReservesChart({ series }: { series: SeriesData[] }) {
           const p = Array.isArray(params) ? params[0] : params
           if (!p) return ''
           return `<div style="font-size:11px;color:${t.text3};margin-bottom:4px">${p.axisValue}</div>
-<div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${t.series[3]};flex:none"></span><span>银行准备金</span><span style="margin-left:20px;font-weight:600;color:${t.series[3]}">${p.value != null ? fmtTrillion(p.value * 1e6) : '--'}</span></div>`
+<div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${t.series[3]};flex:none"></span><span>银行准备金</span><span style="margin-left:20px;font-weight:600;color:${t.series[3]}">${p.value != null ? fmtTrillion(p.value) : '--'}</span></div>`
         },
       }),
       grid: chartGrid({ top: 14, bottom: 30 }),
@@ -654,7 +654,7 @@ export default function GlobalLiquidityDashboard() {
             )}
           </div>
           <div className="num text-3xl font-bold leading-none text-accent">
-            {netLast == null ? '--' : fmtTrillion(netLast)}
+            {netLast == null ? '--' : fmtTrillion(netLast / 1e6)}
           </div>
           <div className={`num text-xs ${netChangeTone === 'up' ? 'text-up' : netChangeTone === 'down' ? 'text-down' : 'text-ink-3'}`}>
             周变化{' '}

@@ -8,7 +8,7 @@ import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
 import {
   categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, markLine, valueAxis, eventLine,
+  chartTooltip, lineSeries, valueAxis, eventLine, defaultZoomStart,
 } from '../../lib/chartOptions'
 
 interface Data {
@@ -71,7 +71,7 @@ export default function YieldCurveRegimeDashboard() {
     const dates = data.spreadHistory.map(p => p.date)
     const spreadData = data.spreadHistory.map(p => p.spread10y2y)
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
@@ -120,7 +120,7 @@ export default function YieldCurveRegimeDashboard() {
     if (!data?.curveHistory) return null
     const { dates, tenors } = data.curveHistory
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
@@ -147,11 +147,11 @@ export default function YieldCurveRegimeDashboard() {
     <div className="space-y-4">
       <MacroCard accent={SIGNAL_ACCENT[data.currentSpread.signal] || 'none'}>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatTile label="10Y-2Y 利差" value={data.currentSpread.spread10y2y != null ? `${data.currentSpread.spread10y2y.toFixed(2)}%` : '--'} className={data.currentSpread.spread10y2y != null && data.currentSpread.spread10y2y < 0 ? 'text-down' : ''} />
+          <StatTile label="10Y-2Y 利差" value={data.currentSpread.spread10y2y != null ? `${data.currentSpread.spread10y2y.toFixed(2)}%` : '--'} tone={data.currentSpread.spread10y2y != null && data.currentSpread.spread10y2y < 0 ? 'down' : 'neutral'} />
           <StatTile label="1Y 百分位" value={data.currentSpread.percentile1y != null ? `${data.currentSpread.percentile1y.toFixed(0)}%` : '--'} />
           <StatTile label="5Y 百分位" value={data.currentSpread.percentile5y != null ? `${data.currentSpread.percentile5y.toFixed(0)}%` : '--'} />
-          <StatTile label="Z-Score" value={data.currentSpread.zScore != null ? data.currentSpread.zScore.toFixed(2) : '--'} className={Math.abs(data.currentSpread.zScore ?? 0) > 1 ? 'text-warn' : ''} />
-          <StatTile label="倒挂月数" value={`${data.currentSpread.inversionMonths}`} className={data.currentSpread.inversionMonths > 0 ? 'text-down' : ''} />
+          <StatTile label="Z-Score" value={data.currentSpread.zScore != null ? data.currentSpread.zScore.toFixed(2) : '--'} tone={Math.abs(data.currentSpread.zScore ?? 0) > 1 ? 'warn' : 'neutral'} />
+          <StatTile label="倒挂月数" value={`${data.currentSpread.inversionMonths}`} tone={data.currentSpread.inversionMonths > 0 ? 'down' : 'neutral'} />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
           <span className={`rounded-sm border border-line bg-surface-2 px-2 py-0.5 text-2xs font-bold ${sigTone}`}>
@@ -239,7 +239,7 @@ export default function YieldCurveRegimeDashboard() {
               </tr>
             </thead>
             <tbody>
-              {(currentForward?.buckets ?? []).map((r, i) => (
+              {(currentForward?.buckets ?? []).filter(r => r.sampleSize > 0).map((r, i) => (
                 <tr key={i} className="border-b border-line last:border-0">
                   <td className="py-1.5 text-ink-2">{r.spreadRange}</td>
                   <td className="py-1.5 text-right num">{r.avgReturn1m.toFixed(2)}%</td>

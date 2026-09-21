@@ -244,11 +244,13 @@ async function handleBacktest(url: URL): Promise<Response> {
       label: s.label,
       confidence: s.confidence,
       sp500Price: Number(s.sp500_price),
+      // 窗口尾部未满期的前瞻收益是 NULL，必须保留 null 而非折算成 0，
+      // 否则 overall 均值会被成片的假 0 系统性稀释。
       forwardReturns: {
-        1: Number(s.fwd_return_1m) || 0,
-        3: Number(s.fwd_return_3m) || 0,
-        6: Number(s.fwd_return_6m) || 0,
-        12: Number(s.fwd_return_12m) || 0,
+        1: s.fwd_return_1m == null ? null : Number(s.fwd_return_1m),
+        3: s.fwd_return_3m == null ? null : Number(s.fwd_return_3m),
+        6: s.fwd_return_6m == null ? null : Number(s.fwd_return_6m),
+        12: s.fwd_return_12m == null ? null : Number(s.fwd_return_12m),
       },
     }))
 
@@ -262,6 +264,7 @@ async function handleBacktest(url: URL): Promise<Response> {
         { symbol: '^RUT', nameZh: '罗素2000' },
       ]
       const snapshotDates = snapshotsFormatted.map((s) => s.date)
+      if (snapshotDates.length === 0) throw new Error('无快照，跳过多指数序列')
       // 只取快照起点（往前留一个月缓存）之后的行情，避免拉取全量历史（^GSPC 达上万行）
       const priceFloor = new Date(snapshotDates[0])
       priceFloor.setMonth(priceFloor.getMonth() - 1)
@@ -392,14 +395,21 @@ async function handleBacktest(url: URL): Promise<Response> {
     }))
 
     const total = snapshotsFormatted.length
+    // 均值只统计该期限有有效前瞻收益的快照（null 不参与、也不占分母）
+    const avgFwd = (h: 1 | 3 | 6 | 12): number => {
+      const vals = snapshotsFormatted
+        .map((x) => x.forwardReturns[h])
+        .filter((v): v is number => v != null && Number.isFinite(v))
+      return vals.length > 0 ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(4) : 0
+    }
     const overall = {
       startDate,
       endDate,
       totalSnapshots: total,
-      avgReturn1m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[1], 0) / total).toFixed(4) : 0,
-      avgReturn3m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[3], 0) / total).toFixed(4) : 0,
-      avgReturn6m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[6], 0) / total).toFixed(4) : 0,
-      avgReturn12m: total > 0 ? +(snapshotsFormatted.reduce((s, x) => s + x.forwardReturns[12], 0) / total).toFixed(4) : 0,
+      avgReturn1m: avgFwd(1),
+      avgReturn3m: avgFwd(3),
+      avgReturn6m: avgFwd(6),
+      avgReturn12m: avgFwd(12),
     }
 
     return new Response(

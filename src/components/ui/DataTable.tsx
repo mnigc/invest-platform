@@ -66,6 +66,13 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody>
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={columns.length} className="px-3 py-6 text-center text-2xs text-ink-3">
+                暂无数据
+              </td>
+            </tr>
+          )}
           {rows.map((row, ri) => (
             <tr
               key={rowKey(row, ri)}

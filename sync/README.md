@@ -9,19 +9,23 @@ sync/
 ├── sync_base.py             # 连接、日志、重试、MySQL→PostgreSQL SQL 适配、批量 UPSERT
 │                            #   + upsert_analysis_result()（预计算 payload 写入，含 NaN 清理）
 ├── analysis.py              # 统计/相关性/事件研究纯函数（预计算脚本共用）
-├── run_sync.py              # 统一调度入口（按依赖顺序执行）
-├── verify_db.py             # 连接、表清单、预计算端点自检
+├── run_sync.py              # 统一调度入口（任务清单/顺序的单一事实来源：TASKS / TASK_ORDER）
 ├── # ── 取数层 ──
 ├── sync_indexes.py          # 美股四大指数
 ├── sync_gold_decision.py    # 黄金决策
 ├── sync_global_liquidity.py # 全球流动性
+├── sync_commodities.py      # 大宗商品
+├── sync_cpi.py              # CPI 通胀
+├── sync_leading.py          # 领先指标
 ├── sync_regime.py           # 宏观体制与风险异常
 ├── sync_macro_analysis.py   # 宏观分析交叉数据（FRED）
-├── sync_regime_backtest.py  # 预计算：体制回测快照
+├── sync_nowcast.py          # Nowcast（GDPNow / ENI）
+├── sync_regime_backtest.py  # 预计算：体制快照 + 多指数×体制回测矩阵
 ├── # ── 预计算层（写 analysis_results）──
 ├── sync_cross_asset.py      # 跨资产相关性矩阵
 ├── sync_macro_consensus.py  # 宏观信号一致性评分
 ├── sync_credit_stress.py    # 信用-利率交叉压力
+├── sync_analysis_liquidity.py # 全球流动性分析（净流动性/分位/z-score/前瞻收益）
 ├── sync_inflation_anchor.py # 通胀预期锚定分析
 ├── sync_yield_curve.py      # 收益率曲线 × 宏观体制
 └── sync_gold_correlation.py # 黄金定价残差 + 美元关联信号
@@ -38,8 +42,12 @@ sync/
 | `indices` | 宏观体制回测 / 指数对比 | 美股四大指数日线 | stooq → Yahoo（降级） |
 | `gold_decision` | 黄金决策 | 金价历史（GC=F）+ 今日金价、美元指数 DXY、DFII10、T10YIE | gold-api + Yahoo + FRED |
 | `global_liquidity` | 全球流动性 | 美联储/欧央行/日央行总资产、RRP、TGA、SOFR | FRED |
+| `commodities` | 大宗商品 | WTI/布伦特/铜/铁矿石/天然气 | Yahoo / FRED |
+| `cpi` | CPI 通胀 | CPI/核心CPI/PCE/核心PCE/PPI | FRED |
+| `leading` | 领先指标 | 金融状况/就业/生产/地产/需求/信心 | FRED |
 | `regime` | 宏观体制 / 风险异常 | CPI、DGS10、DGS2、CFNAI、FEDFUNDS、DFII10、T10YIE、BBB 信用利差、VIXCLS | FRED |
 | `macro_analysis` | 宏观分析交叉数据 | 收益率曲线 / 通胀预期 / 信用利差等 22 个指标 | FRED |
+| `nowcast` | Nowcast | 亚特兰大 GDPNow / 圣路易斯联储 ENI | FRED |
 | `regime_backtest` | 宏观体制回测 | 体制快照 + 多指数×体制回测矩阵 | 读库计算 |
 
 **预计算层**（读上面的结果，算完写 `analysis_results` 表）：
@@ -49,6 +57,7 @@ sync/
 | `analysis_cross_asset` | 跨资产相关性 | `analysis/cross-asset-correlation` |
 | `analysis_macro_consensus` | 宏观共识 | `analysis/macro-consensus` |
 | `analysis_credit_stress` | 信用压力监测 | `analysis/credit-stress` |
+| `analysis_liquidity` | 全球流动性 | `analysis/liquidity` |
 | `analysis_inflation_anchor` | 通胀预期锚定 | `analysis/inflation-anchor` |
 | `analysis_yield_curve` | 收益率曲线体制 | `analysis/yield-curve-regime` |
 | `analysis_gold_correlation` | 黄金定价残差 | `gold/correlation` |
@@ -60,7 +69,7 @@ sync/
 
 `analysis_*` 任务读的是取数层写好的库表，**顺序颠倒会用到上一轮数据（恒定滞后一天），
 空库首次运行则必然全部失败**。`run_sync.py` 用 `TASK_ORDER` 显式定义顺序，
-`--group` / `--all` 均按此执行（早期版本用 `sorted()` 按 key 字母序，恰好把 6 个
+`--group` / `--all` 均按此执行（早期版本用 `sorted()` 按 key 字母序，恰好把 7 个
 `analysis_*` 排到最前，是个已修复的 bug）。
 
 新增任务时**务必**把 key 加进 `TASK_ORDER`，未登记的会排在末尾并可能破坏依赖。
@@ -97,7 +106,7 @@ cd /opt/macro
 
 | 组 | 任务数 | 包含 |
 | --- | --- | --- |
-| **daily** | 12 | 6 个取数任务 + 6 个预计算任务，见上一节 |
+| **daily** | 17 | 10 个取数任务 + 7 个预计算任务，见上一节（以 `run_sync.py --list` 为准） |
 
 > 任务失败会让 `run_sync.py` 以**退出码 1** 结束（此前恒为 0，失败被 CI 静默吞掉）。
 > CI / 定时任务据此判定成功与否。
@@ -118,19 +127,20 @@ cd /opt/macro
 
 ```
 任务名称: 数据同步-每日
-执行周期: 自定义 cron  30 6 * * 2-6
+执行周期: 自定义 cron  30 7 * * 2-6
 命令: cd /opt/macro && /opt/macro/.venv/bin/python3 run_sync.py --group daily
 ```
 
-> 时间以服务器时区为准。示例按北京时间（UTC+8）：UTC 22:30（美东 18:30，美国收盘且 FRED 当日数据发布后）= 北京次日 06:30，即周二至周六早上 `2-6`。不要早于美国收盘跑，否则会把盘中价写成当日收盘。
+> 时间以服务器时区为准。示例按北京时间（UTC+8）：UTC 23:30（美东冬令时 18:30 / 夏令时 19:30，美国收盘且 FRED 当日数据发布后）= 北京次日 07:30，即周二至周六早上 `2-6`。不要早于美国收盘与 FRED 发布跑，否则会把盘中价写成当日收盘。
 
 ### 3.1 GitHub Actions（补充，非主用）
 
 项目内置 `.github/workflows/sync.yml`，可用 GitHub 托管 runner 定时同步：
 
-- **定时**：每个交易日 UTC 22:30 执行（`30 22 * * 1-5`，美东 18:30，收盘后）
+- **定时**：每个交易日 UTC 23:30 执行（`30 23 * * 1-5`，美东冬令时 18:30 / 夏令时 19:30，收盘且 FRED 发布后）
 - **执行内容**：`run_sync.py --group daily` 全量任务（取数层 + 预计算层），
   清单与顺序由 run_sync.py 的 TASKS / TASK_ORDER 单一维护
+- **失败提醒**：同步失败时自动开 GitHub issue（避免定时任务静默失败）
 - **手动触发**：Actions 页面 → run workflow → 可随时补跑
 
 需要在仓库 **Settings → Secrets and variables → Actions** 配置两个 secret：
@@ -144,8 +154,7 @@ cd /opt/macro
 > 其余国际源（FRED）任务在 1Panel 服务器定时跑。数据库连接已强制走 IPv4。
 
 > ⚠️ 在新环境首次启用前，先在 Supabase 执行 `supabase_schema.sql` 建表
-> （含 `analysis_results`），否则 6 个预计算任务会因表不存在而失败。
-> 建表后可用 `python3 verify_db.py` 确认 11 张表 + 6 个端点就绪。
+> （含 `analysis_results`），否则 7 个预计算任务会因表不存在而失败。
 
 ---
 
@@ -182,10 +191,14 @@ FROM data_sync_logs ORDER BY finished_at DESC LIMIT 20;
 # 脚本日志
 tail -100 /opt/macro/sync/logs/run_sync_*.log
 tail -100 /opt/macro/sync/logs/sync_gold_decision_*.log
+```
 
-# 数据库自检（连接 + 表清单 + 每表记录数/最新日期）
-export DATABASE_URL='postgresql://postgres.xxxx:******@aws-0-*.pooler.supabase.com:5432/postgres'
-python3 verify_db.py
+```sql
+-- 数据库自检：每表记录数 / 最新日期（在 Supabase SQL Editor 执行）
+SELECT 'indicator_data' t, count(*) n, max(data_date::text) latest FROM indicator_data
+UNION ALL SELECT 'asset_prices', count(*), max(price_date::text) FROM asset_prices
+UNION ALL SELECT 'analysis_results', count(*), max(valid_from::text) FROM analysis_results
+UNION ALL SELECT 'regime_snapshots', count(*), max(snapshot_date::text) FROM regime_snapshots;
 ```
 
 ---

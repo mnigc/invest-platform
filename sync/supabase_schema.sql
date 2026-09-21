@@ -178,7 +178,7 @@ create table if not exists regime_index_summaries (
 );
 create index if not exists idx_index_summaries_symbol on regime_index_summaries (index_symbol);
 
--- ── 预计算分析结果（解决 Worker CPU 超限：6 个重分析接口改为读预计算 JSONB）──
+-- ── 预计算分析结果（解决 Worker CPU 超限：重分析接口改为读预计算 JSONB，共 7 个端点）──
 -- endpoint = 原 API 路径去前缀 + .json，例如 'analysis/cross-asset-correlation'
 -- payload  = 与原 API data 字段字节级一致
 create table if not exists analysis_results (

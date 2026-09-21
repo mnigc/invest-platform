@@ -83,7 +83,9 @@ function severityTone(severity: string): string {
 function RegimeOverview({ regime, confidence, label }: { regime: string; confidence: number; label: string }) {
   const dir = REGIME_DIR[regime] ?? 0
   const dirLabel = dir === 1 ? '偏多' : dir === -1 ? '偏空' : '中性'
-  const gaugePercent = Math.min(95, Math.max(5, (confidence)))
+  // 指针位置 = 体制方向 ± 置信度偏移（50 为中点）；
+  // 直接把 confidence 当百分位画会把「置信度」误读成「风险偏好程度」
+  const gaugePercent = Math.min(95, Math.max(5, 50 + dir * (confidence / 2)))
   const desc = REGIME_DESC[regime] || REGIME_DESC.UNKNOWN
 
   return (
@@ -139,7 +141,7 @@ function SignalCard({ signal }: { signal: RegimeSignal }) {
               data={signal.sparkline}
               width={120}
               height={40}
-              color={dir === 1 ? '#22c55e' : dir === -1 ? '#ef4444' : '#9ca3af'}
+              color={dir === 1 ? 'rgb(var(--c-up))' : dir === -1 ? 'rgb(var(--c-down))' : 'rgb(var(--c-text-3))'}
             />
           )}
           <span className={`shrink-0 rounded-sm px-1.5 py-0.5 text-2xs font-medium ${

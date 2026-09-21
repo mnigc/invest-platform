@@ -1,0 +1,197 @@
+---
+// 每周结论摘要：把已落库的预计算结果（共识评分 / 体制快照 / 黄金 / 流动性）
+// 汇总成一页可分享的周度结论。纯 SSR 读库，无额外同步任务。
+export const prerender = false
+
+import Layout from '../layouts/Layout.astro'
+import { PageHeader } from '../components/ui/PageHeader'
+import { queryOne } from '../lib/db'
+import { toDateStr } from '../lib/date'
+
+interface ConsensusPayload {
+  consensusScore: { overall: number | null; direction: string; strength: string; confidence: number }
+  historicalConsensus: { dates: string[]; overall: (number | null)[] }
+  signal: { direction: string; evidence: string[] }
+}
+
+const DIR_CN: Record<string, string> = {
+  bullish: '偏多', risk_on: '偏多', expansion: '扩张', positive: '偏多', dovish: '偏多',
+  bearish: '偏空', risk_off: '偏空', contraction: '收缩', negative: '偏空', hawkish: '偏鹰',
+  neutral: '中性', mixed: '分歧',
+}
+
+let consensus: ConsensusPayload | null = null
+let consensusAt: string | null = null
+let goldSignal: { title?: string; direction?: string; confidence?: number } | null = null
+let liqCurrent: { netLiquidityTrn?: number | null; weeklyChangeTrn?: number | null } | null = null
+let liqSignal: { direction?: string } | null = null
+let regimeSnap: { date: string; regime: string; label: string; confidence: number } | null = null
+
+try {
+  // jsonb 无排序算子，不能 MAX(CASE...) 透视；分端点各取一行
+  const [consRow, goldRow, liqRow, snap] = await Promise.all([
+    queryOne<any>(
+      `SELECT payload, computed_at FROM analysis_results WHERE endpoint = 'analysis/macro-consensus'`,
+    ),
+    queryOne<any>(
+      `SELECT payload FROM analysis_results WHERE endpoint = 'gold/correlation'`,
+    ),
+    queryOne<any>(
+      `SELECT payload FROM analysis_results WHERE endpoint = 'analysis/liquidity'`,
+    ),
+    queryOne<any>(
+      `SELECT snapshot_date, regime, label, confidence
+       FROM regime_snapshots ORDER BY snapshot_date DESC LIMIT 1`,
+    ),
+  ])
+  if (consRow?.payload) {
+    consensus = (typeof consRow.payload === 'string' ? JSON.parse(consRow.payload) : consRow.payload) as ConsensusPayload
+    consensusAt = consRow.computed_at ? toDateStr(consRow.computed_at) : null
+  }
+  if (goldRow?.payload) {
+    const g = typeof goldRow.payload === 'string' ? JSON.parse(goldRow.payload) : goldRow.payload
+    goldSignal = g?.signal ?? null
+  }
+  if (liqRow?.payload) {
+    const l = typeof liqRow.payload === 'string' ? JSON.parse(liqRow.payload) : liqRow.payload
+    liqCurrent = l?.current ?? null
+    liqSignal = l?.signal ?? null
+  }
+  if (snap) regimeSnap = { date: toDateStr(snap.snapshot_date), regime: snap.regime, label: snap.label, confidence: Number(snap.confidence) }
+} catch (e: any) {
+  console.error('[weekly]', e?.message || e)
+}
+
+// 周环比：最近一个非空评分 vs 其前 7 天内（含）最近一个非空评分
+let latestScore: number | null = null
+let weekAgoScore: number | null = null
+if (consensus?.historicalConsensus?.dates?.length) {
+  const { dates, overall } = consensus.historicalConsensus
+  let lastI = -1
+  for (let i = overall.length - 1; i >= 0; i--) {
+    if (overall[i] != null) { lastI = i; break }
+  }
+  if (lastI >= 0) {
+    latestScore = overall[lastI]
+    const cutoff = new Date(`${dates[lastI]}T00:00:00Z`)
+    cutoff.setUTCDate(cutoff.getUTCDate() - 7)
+    const cutoffStr = cutoff.toISOString().slice(0, 10)
+    for (let i = lastI - 1; i >= 0; i--) {
+      if (overall[i] != null && dates[i] <= cutoffStr) { weekAgoScore = overall[i]; break }
+    }
+  }
+}
+const scoreDelta = latestScore != null && weekAgoScore != null ? +(latestScore - weekAgoScore).toFixed(1) : null
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: '每周宏观结论摘要',
+  description: '宏观共识评分周度变化、当前体制、黄金与流动性信号方向。',
+  url: (Astro.site?.origin ?? 'https://invest.soulcreator.cn') + '/weekly',
+  inLanguage: 'zh-CN',
+}
+
+const ready = consensus != null || regimeSnap != null
+const dirTone = (d?: string) =>
+  ['bullish', 'risk_on', 'expansion', 'positive', 'dovish'].includes(d || '')
+    ? 'text-up'
+    : ['bearish', 'risk_off', 'contraction', 'negative', 'hawkish'].includes(d || '')
+      ? 'text-down'
+      : 'text-ink-2'
+---
+
+<Layout
+  title="每周宏观结论摘要 - MACRO EDGE"
+  description="宏观共识评分一周变化、当前体制与置信度、黄金/流动性信号方向。每周一页读懂当前宏观环境。"
+  canonical="/weekly"
+  jsonLd={jsonLd}
+>
+  <div class="animate-enter">
+    <PageHeader
+      title="每周宏观结论摘要"
+      subtitle="预计算结果 · 每周聚合视图 · 研究参考"
+    />
+
+    {!ready && (
+      <div class="rounded-md border border-line bg-surface px-4 py-6 text-center text-sm text-ink-3">
+        分析数据尚未生成，请等待同步任务完成后刷新。
+      </div>
+    )}
+
+    {ready && (
+      <div class="flex flex-col gap-4">
+        <!-- 本周结论 -->
+        <div class="rounded-lg border border-line bg-surface p-4">
+          <div class="font-mono text-2xs uppercase tracking-wider text-ink-3">本周结论</div>
+          <p class="mt-2 text-sm leading-relaxed text-ink-2">
+            {latestScore != null && (
+              <>
+                宏观共识综合评分 <span class="num font-bold text-ink">{latestScore}</span>
+                {scoreDelta != null && (
+                  <span class={scoreDelta > 0 ? 'text-up' : scoreDelta < 0 ? 'text-down' : 'text-ink-3'}>
+                    （一周 {scoreDelta > 0 ? '+' : ''}{scoreDelta}）
+                  </span>
+                )}
+                ，方向 <span class={`font-semibold ${dirTone(consensus?.consensusScore?.direction)}`}>
+                  {DIR_CN[consensus?.consensusScore?.direction ?? ''] ?? consensus?.consensusScore?.direction ?? '--'}
+                </span>
+                {consensusAt && <span class="text-ink-3">（数据截至 {consensusAt}）</span>}。
+              </>
+            )}
+            {regimeSnap && (
+              <>
+                当前宏观体制判定为 <span class="font-semibold text-ink">「{regimeSnap.label}」</span>
+                （置信度 {regimeSnap.confidence}%，快照 {regimeSnap.date}）。
+              </>
+            )}
+          </p>
+          {consensus?.signal?.evidence?.length ? (
+            <ul class="mt-2 list-disc space-y-0.5 pl-5 text-xs leading-relaxed text-ink-2">
+              {consensus.signal.evidence.slice(0, 4).map((e) => <li>{e}</li>)}
+            </ul>
+          ) : undefined}
+        </div>
+
+        <!-- 关键信号速览 -->
+        <div class="rounded-lg border border-line bg-surface p-4">
+          <div class="mb-2 font-mono text-2xs uppercase tracking-wider text-ink-3">关键信号速览</div>
+          <div class="divide-y divide-line text-sm">
+            <a href="/signals/gold" class="flex items-center justify-between gap-3 py-2.5 hover:bg-surface-2">
+              <span class="text-ink-2">黄金定价信号</span>
+              <span class={`shrink-0 font-semibold ${dirTone(goldSignal?.direction)}`}>
+                {goldSignal?.title ?? '未就绪'}
+              </span>
+            </a>
+            <a href="/indicators/global-liquidity" class="flex items-center justify-between gap-3 py-2.5 hover:bg-surface-2">
+              <span class="text-ink-2">净流动性</span>
+              <span class={`shrink-0 num font-semibold ${dirTone(liqSignal?.direction)}`}>
+                {liqCurrent?.netLiquidityTrn != null
+                  ? `${liqCurrent.netLiquidityTrn.toFixed(2)}T`
+                  : '--'}
+                {liqCurrent?.weeklyChangeTrn != null && (
+                  <span class="ml-1 text-xs text-ink-3">
+                    周{liqCurrent.weeklyChangeTrn >= 0 ? '+' : ''}{liqCurrent.weeklyChangeTrn.toFixed(2)}T
+                  </span>
+                )}
+              </span>
+            </a>
+            <a href="/signals/regime" class="flex items-center justify-between gap-3 py-2.5 hover:bg-surface-2">
+              <span class="text-ink-2">宏观体制</span>
+              <span class="shrink-0 font-semibold text-ink">{regimeSnap ? `「${regimeSnap.label}」 ${regimeSnap.confidence}%` : '未就绪'}</span>
+            </a>
+            <a href="/analysis/macro-consensus" class="flex items-center justify-between gap-3 py-2.5 hover:bg-surface-2">
+              <span class="text-ink-2">共识评分构成</span>
+              <span class="shrink-0 text-xs text-info">五维 Z-Score 明细 →</span>
+            </a>
+          </div>
+        </div>
+
+        <p class="text-xs leading-relaxed text-ink-3">
+          本页为多模块预计算结果的周度聚合视图，数据每日更新（本页取各端点最新快照）；
+          每日级信号与配置倾向见 <a href="/signal-board" class="text-info hover:text-accent-hover">宏观信号板</a>。仅供研究参考，不构成投资建议。
+        </p>
+      </div>
+    )}
+  </div>
+</Layout>

@@ -102,7 +102,10 @@ def _ffill(points):
 
 
 def _build_net_liquidity(fed, rrp, tga):
-    """净流动性 = Fed 总资产 - RRP - TGA。
+    """净流动性 = Fed 总资产 - RRP - TGA（统一换算为百万美元再相减）。
+
+    FED_RRP 存的是十亿美元（FRED RRPONTSYD 口径），WALCL/WTREGEN 是百万美元，
+    不换算直接相减会把 RRP 少减 1000 倍。
 
     RRP / TGA 与 Fed 频率不一致，标准做法：
       1) 各自前向填充到完整日期轴
@@ -119,7 +122,7 @@ def _build_net_liquidity(fed, rrp, tga):
             continue
         out.append({
             "date": p["date"],
-            "value": round(p["value"] - r - t, 2),
+            "value": round(p["value"] - r * 1000 - t, 2),
         })
     return out
 

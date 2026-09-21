@@ -1,11 +1,13 @@
 name: Data Sync (Supabase)
 
 on:
-  # 每交易日 22:30 UTC（美东 18:30，北京时间次日 06:30）跑，周一至周五。
+  # 每交易日 23:30 UTC 跑，周一至周五 = 美东冬令时 18:30 / 夏令时 19:30（北京次日 07:30）。
   # 必须在美国收盘（16:00 ET）与 FRED 当日数据发布（~18:00 ET）之后：
   # 早跑会把盘中未完成 K 线写成「当日收盘价」，且当日宏观值尚未发布。
+  # 原先的 22:30 UTC 在北半球冬季（EST=UTC-5）只有 17:30 ET，早于 FRED 发布，
+  # 23:30 UTC 在最坏情况（冬令时）下仍留 30 分钟余量。
   schedule:
-    - cron: "30 22 * * 1-5"
+    - cron: "30 23 * * 1-5"
   # 允许手动触发（补跑/调试）
   workflow_dispatch:
 
@@ -16,7 +18,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    # 全量 16 个任务（含此前遗漏的 regime / nowcast / analysis_liquidity），
+    # 全量 17 个任务（10 个取数 + 7 个预计算，清单以 `python run_sync.py --list` 为准），
     # 且各任务间有 5~25s 的 delay 节流，故比原先的 45 分钟留足余量。
     timeout-minutes: 60
 
@@ -66,3 +68,27 @@ jobs:
           path: sync/logs/*.log
           if-no-files-found: ignore
           retention-days: 14
+
+  notify-failure:
+    # 同步失败时开一个 issue 提醒（定时任务静默失败最难发现）。
+    # 403/无权限时该 job 会失败，但不影响 sync 本身。
+    needs: sync
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="[sync] 数据同步失败 ($(date -u +%F))"
+          body="定时数据同步工作流失败，请检查日志。\n\n运行链接: $RUN_URL"
+          # 同一天已有未关闭的同类 issue 时不重复开
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "[sync] 数据同步失败 in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "已有开启的失败 issue #$existing，跳过"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$(printf '%b' "$body")"
+          fi

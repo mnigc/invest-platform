@@ -6,7 +6,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SignalBoardDashboard } from '../components/signals/SignalBoardDashboard'
 
 const description =
-  '宏观资产配置综合信号板：黄金价格、宏观体制、风险异常、信用利差、收益率曲线、领先指标、跨资产联动等多源信号加权综合评分，给出当前宏观环境的资产配置研判。每日更新。'
+  '宏观研究终端的决策结论层：聚合黄金价格、宏观体制、风险异常、信用利差、收益率曲线、领先指标、跨资产联动等多源信号，加权综合后给出当前资产配置倾向与依据（评分过程见宏观信号一致性页）。每日更新。'
 
 // 站点域名从 astro.config.mjs 的 site 取（构建注入），避免硬编码两处漂移
 const siteOrigin = Astro.site?.origin ?? 'https://invest.soulcreator.cn'
@@ -44,6 +44,7 @@ const relatedSearches = {
     {
       title: '今日热门',
       links: [
+        { href: '/weekly', label: '每周结论摘要' },
         { href: '/signals/gold', label: '黄金价格' },
         { href: '/signals/regime', label: '宏观体制研判' },
         { href: '/indicators/leading', label: '衰退预警' },
@@ -101,8 +102,8 @@ const relatedSearches = {
   <div class="animate-enter">
     <PageHeader
       title="宏观信号板 · 资产配置综合评分"
-      subtitle="黄金 / 宏观体制 / 风险异常 · 多信号加权 · 研究参考"
+      subtitle="结论层 · 多源信号加权 → 配置倾向（评分过程见信号一致性页）· 研究参考"
     />
-    <SignalBoardDashboard client:load />
+    <SignalBoardDashboard client:visible />
   </div>
 </Layout>

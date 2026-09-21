@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 interface SparklineProps {
   data: { date: string; value: number }[]
   width?: number
@@ -13,6 +15,9 @@ export function Sparkline({
   color,
   className = '',
 }: SparklineProps) {
+  // 渐变 id 必须每实例唯一：只按 color 生成会让同页多个 Sparkline
+  // 共享第一个 <defs>，面积色与折线色错配
+  const gradientId = `sparkline-${useId()}`
   if (!data || data.length < 2) return null
 
   const values = data.map((d) => d.value)
@@ -32,9 +37,9 @@ export function Sparkline({
 
   const pathD = `M${points.join(' L')}`
 
-  // 判断趋势方向：最后一个值 vs 第一个值
+  // 判断趋势方向：最后一个值 vs 第一个值；颜色走 tokens 单一色源，明暗主题各自正确
   const trend = values[values.length - 1] - values[0]
-  const strokeColor = color || (trend > 0 ? '#22c55e' : trend < 0 ? '#ef4444' : '#9ca3af')
+  const strokeColor = color || (trend > 0 ? 'rgb(var(--c-up))' : trend < 0 ? 'rgb(var(--c-down))' : 'rgb(var(--c-text-3))')
 
   // 填充区域
   const fillPathD = `${pathD} L${padding + chartWidth},${padding + chartHeight} L${padding},${padding + chartHeight} Z`
@@ -48,14 +53,14 @@ export function Sparkline({
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id={`sparkline-gradient-${color || 'default'}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={strokeColor} stopOpacity="0.3" />
           <stop offset="100%" stopColor={strokeColor} stopOpacity="0.05" />
         </linearGradient>
       </defs>
       <path
         d={fillPathD}
-        fill={`url(#sparkline-gradient-${color || 'default'})`}
+        fill={`url(#${gradientId})`}
       />
       <path
         d={pathD}

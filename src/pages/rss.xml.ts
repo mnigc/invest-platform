@@ -12,6 +12,13 @@ export async function GET(context: APIContext) {
     site,
     items: [
       {
+        title: '每周结论摘要 · 评分变化与关键信号',
+        pubDate,
+        description:
+          '宏观共识评分一周变化、当前体制与历史战绩、黄金/流动性信号方向。',
+        link: '/weekly',
+      },
+      {
         title: '组合信号板 · 每日更新',
         pubDate,
         description:

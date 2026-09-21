@@ -72,7 +72,9 @@ export const GET = withCache(async () => {
     const m1Data = pick('M1');
     const m2Data = pick('M2');
 
-    // ── 净流动性 = 美联储总资产 - RRP - TGA ──
+    // ── 净流动性 = 美联储总资产 - RRP - TGA（统一换算为百万美元再相减）──
+    // WALCL/WTREGEN 存的是百万美元，但 RRPONTSYD 是十亿美元，
+    // 不换算直接相减会把 RRP 少减 1000 倍，净流动性整体虚高。
     // RRP/TGA 发布节奏与总资产不完全同日，用 as-of 对齐（取 ≤ 当日最近值），
     // 而不是只保留恰好同日的点，否则序列会出现成段缺失。
     const netLiquidity: { date: string; value: number }[] = [];
@@ -82,7 +84,7 @@ export const GET = withCache(async () => {
       if (rrp == null || tga == null) continue;
       netLiquidity.push({
         date: p.date,
-        value: +(p.value - rrp - tga).toFixed(2),
+        value: +(p.value - rrp * 1000 - tga).toFixed(2),
       });
     }
 

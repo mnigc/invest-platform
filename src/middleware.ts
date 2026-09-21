@@ -12,8 +12,11 @@ import { env } from 'cloudflare:workers'
  */
 export const onRequest: MiddlewareHandler = (_context, next) => {
   const runtimeEnv = env as Record<string, string | undefined>
-  setRuntimeEnv(runtimeEnv)
   // 把整个请求放进「请求作用域」：数据库连接在本请求内创建并关闭，
   // 不越出请求作用域存活（workerd 禁止跨请求复用 WebSocket，见 db.ts 说明）。
-  return withRequestDb(next)
+  // env 注入放进作用域内，并发请求各读各的，不会互相覆盖。
+  return withRequestDb(() => {
+    setRuntimeEnv(runtimeEnv)
+    return next()
+  })
 }

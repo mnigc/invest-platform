@@ -196,7 +196,7 @@ INDICATORS = {
                          sub="压力指数", unit="指数", freq="weekly", source="fred",
                          series="NFCI"),
     ("ICSA", "US"): dict(zh="初请失业金人数", en="Initial Claims", cat="经济数据", sub="就业",
-                         unit="人", freq="weekly", source="fred", series="ICSA"),
+                         unit="千人", freq="weekly", source="fred", series="ICSA"),
     ("UNRATE", "US"): dict(zh="失业率", en="Unemployment Rate", cat="经济数据", sub="就业",
                            unit="%", freq="monthly", source="fred", series="UNRATE"),
     ("PAYEMS", "US"): dict(zh="非农就业总数", en="All Employees Total Nonfarm", cat="经济数据",
@@ -431,9 +431,11 @@ def sync_indicators(task, keys, full=False):
         if key in _SYNCED:
             log.info("%s 本轮已同步过，跳过（跨模块去重）", key_str(key))
             continue
-        _SYNCED.add(key)
         try:
             total += _sync_one(key, full=full)
+            # 只同步成功后才去重标记；失败留给后续任务重试，
+            # 否则先跑的共享指标一挂，后面所有含它的任务都静默跳过。
+            _SYNCED.add(key)
         except Exception as e:
             log.error("%s 同步失败: %s", key_str(key), e)
             errors.append("%s: %s" % (key_str(key), e))

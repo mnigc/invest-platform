@@ -144,7 +144,8 @@ function ClaimsChart({ series }: { series: LeadingSeries[] }) {
     const icsa = series.find((s) => s.code === 'ICSA')
     if (!icsa?.data.length) return null
     const dates = icsa.data.map((p) => p.date)
-    const vals = icsa.data.map((p) => p.value)
+    // FRED ICSA 原始口径是千人，统一换算成万人后与轴/tooltip 单位一致
+    const vals = icsa.data.map((p) => (p.value == null ? null : +(p.value / 10).toFixed(3)))
     const ma4 = movingAverage(vals, 4)
 
     return {
@@ -156,12 +157,6 @@ function ClaimsChart({ series }: { series: LeadingSeries[] }) {
       yAxis: valueAxis(t, {
         name: '万人',
         nameTextStyle: axisNameStyle(t.text3),
-        axisLabel: {
-          color: t.text3,
-          fontSize: 10,
-          fontFamily: t.fontMono,
-          formatter: (v: number) => `${(v / 10000).toFixed(0)}`,
-        },
       }),
       dataZoom: [chartDataZoom(t, { start: 50, end: 100 })],
       series: [

@@ -7,7 +7,7 @@ import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
 import MacroConsensusDashboard from '../../components/analysis/MacroConsensusDashboard'
 
 const description =
-  '宏观信号一致性评分：流动性、恐慌（VIX）、利率（10Y-2Y）、通胀（盈亏平衡）、信用（BBB+HY 利差）五维信号加权综合得分（0-100）。'
+  '宏观信号一致性评分（综合评分的过程与依据层）：流动性、恐慌（VIX）、利率（10Y-2Y）、通胀（盈亏平衡）、信用（BBB+HY 利差）五维信号 Z-Score 与权重的加权综合得分（0-100）；结论与配置倾向见宏观信号板。'
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Dataset',
@@ -56,7 +56,7 @@ const relatedSearches = {
 ---
 
 <Layout
-  title="宏观信号一致性评分 - MACRO EDGE"
+  title="宏观信号一致性评分 · 评分过程与依据 - MACRO EDGE"
   description={description}
   canonical="/analysis/macro-consensus"
   jsonLd={jsonLd}
@@ -66,11 +66,11 @@ const relatedSearches = {
   <div class="animate-enter">
     <PageHeader
       title="宏观信号一致性评分"
-      subtitle="多维度信号的一致性/分歧度分析"
+      subtitle="过程层 · 五维信号 Z-Score 与权重（最终结论见宏观信号板）"
     />
     <IndicatorGuide>
       <p slot="summary">
-        <strong class="text-ink">投资指引：</strong>综合得分 &gt; 70 → 积极配置风险资产（股票/信用债/商品）；综合得分 &lt; 30 → 防御配置（国债/黄金/现金）；30-70 之间 → 轻仓观望，等待信号收敛；关注各维度 Z-Score 极端值，单维度极端信号需警惕反转。
+        <strong class="text-ink">投资指引：</strong>本页解释综合得分如何构成；面向操作的配置倾向结论请见 <a href="/signal-board" class="text-accent hover:underline">宏观信号板</a>。得分口径：&gt; 70 → 多数信号支持风险资产（股票/信用债/商品）；&lt; 30 → 支持防御配置（国债/黄金/现金）；30-70 → 信号分歧，轻仓观望；关注各维度 Z-Score 极端值，单维度极端信号需警惕反转。
       </p>
       <p class="my-1.5">
         <strong class="text-ink">宏观信号一致性</strong>综合评估多个维度的宏观信号是否同向。信号一致时趋势可靠性高，信号分歧时市场方向不明，需等待确认。
@@ -97,6 +97,6 @@ const relatedSearches = {
       </ul>
     </IndicatorGuide>
 
-    <MacroConsensusDashboard client:load />
+    <MacroConsensusDashboard client:visible />
   </div>
 </Layout>

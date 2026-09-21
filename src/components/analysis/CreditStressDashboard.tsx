@@ -9,7 +9,7 @@ import { StatTile } from '../ui/StatTile'
 import { DataTable } from '../ui/DataTable'
 import {
   categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, valueAxis,
+  chartTooltip, lineSeries, valueAxis, defaultZoomStart,
 } from '../../lib/chartOptions'
 
 interface Data {
@@ -27,6 +27,7 @@ interface Data {
 
 const STATUS_ACCENT: Record<string, 'green' | 'gold' | 'red'> = { normal: 'green', elevated: 'gold', high_stress: 'red' }
 const STATUS_COLORS: Record<string, string> = { normal: 'text-up', elevated: 'text-warn', high_stress: 'text-down' }
+const STATUS_TILE_TONE: Record<string, 'up' | 'warn' | 'down'> = { normal: 'up', elevated: 'warn', high_stress: 'down' }
 
 export default function CreditStressDashboard() {
   const [data, setData] = useState<Data | null>(null)
@@ -48,7 +49,7 @@ export default function CreditStressDashboard() {
     if (!data?.spreadHistory) return null
     const { dates, series } = data.spreadHistory
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     const thLine = (v: number | null, color: string, label?: string): any =>
       v == null ? null : { yAxis: v, lineStyle: { color, type: 'dashed', width: 1 }, symbol: ['none', 'none'], animation: false, label: { show: !!label, formatter: label, position: 'insideEndTop', fontSize: 9, color } }
     return {
@@ -97,7 +98,7 @@ export default function CreditStressDashboard() {
     const wedge = series.find(s => s.name === 'BBB-HY溢价')
     if (!wedge) return null
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
@@ -127,7 +128,7 @@ export default function CreditStressDashboard() {
     if (!data?.corrHistory) return null
     const { dates, series } = data.corrHistory
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : Number(v).toFixed(3) }),
@@ -161,7 +162,8 @@ export default function CreditStressDashboard() {
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 
-  const statusTone = STATUS_COLORS[data.combinedStress.status] || 'text-ink-3'
+  const statusClass = STATUS_COLORS[data.combinedStress.status] || 'text-ink-3'
+  const statusTone = STATUS_TILE_TONE[data.combinedStress.status] || 'neutral'
   // 量纲不同：percentile5y 是 0-100 分位值（与其余分析模块一致），
   // winRate 是 0-1 比率。此前共用同一个 pct() 导致分位显示成 5000%。
   const pctRank = (v: number) => v.toFixed(0)
@@ -173,13 +175,13 @@ export default function CreditStressDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <StatTile label="BBB 利差" value={data.currentSpread.bbbSpread != null ? `${data.currentSpread.bbbSpread.toFixed(2)}%` : '--'} />
           <StatTile label="HY OAS" value={data.currentSpread.hyOas != null ? `${data.currentSpread.hyOas.toFixed(2)}%` : '--'} />
-          <StatTile label="BBB-HY 溢价" value={data.currentSpread.wedge != null ? `${data.currentSpread.wedge.toFixed(2)}%` : '--'} sub="HV - BBB" />
+          <StatTile label="BBB-HY 溢价" value={data.currentSpread.wedge != null ? `${data.currentSpread.wedge.toFixed(2)}%` : '--'} sub="HY − BBB，走阔=风险资产要求更高补偿" />
           <StatTile label="历史分位" value={data.currentSpread.percentile5y != null ? `${pctRank(data.currentSpread.percentile5y)}%` : '--'} sub={data.currentSpread.spreadZScore != null ? `Z: ${data.currentSpread.spreadZScore.toFixed(2)}` : undefined} />
-          <StatTile label="复合指数" value={data.combinedStress.combinedIndex != null ? data.combinedStress.combinedIndex.toFixed(3) : '--'} className={statusTone} />
+          <StatTile label="复合指数" value={data.combinedStress.combinedIndex != null ? data.combinedStress.combinedIndex.toFixed(3) : '--'} tone={statusTone} />
           <StatTile label="状态" value={data.combinedStress.status.toUpperCase()} sub={data.updatedAt} />
         </div>
         <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
-          <span className={`font-semibold ${statusTone}`}>{data.combinedStress.status.toUpperCase()}</span>
+          <span className={`font-semibold ${statusClass}`}>{data.combinedStress.status.toUpperCase()}</span>
           <span>{data.combinedStress.statusDesc}</span>
         </div>
       </MacroCard>

@@ -28,7 +28,7 @@ import yfinance as yf
 from sync_base import (
     SyncError,
     _setup_logger, get_conn, write_sync_log, with_retry, safe_dec, bulk_upsert,
-
+    drop_unsettled_today,
 )
 from indicators import sync_indicators
 
@@ -224,6 +224,7 @@ def fetch_gold_history():
     rows = _yahoo_via_yfinance(GOLD_SYMBOL, GOLD_START)
     if not rows:
         rows = _yahoo_via_curl(GOLD_SYMBOL, GOLD_START)
+    rows = drop_unsettled_today(rows)
     log.info("金价历史 %s -> %d 条", GOLD_SYMBOL, len(rows))
     return rows
 

@@ -180,7 +180,10 @@ def sync():
         risk_score = by_id["vix"]["zScore"] or 0
         growth_score = by_id["spread"]["zScore"] or 0
 
-        overall_raw = sum((s["zScore"] or 0) * s["weight"] for s in signals)
+        # 各信号对综合分的作用方向必须与分类卡口径一致（risk 卡是 50 - z*15）：
+        # VIX 走高 / 信用利差走阔是利空，按 +z 直加会把恐慌当成利好。
+        SIGNAL_SIGNS = {"liquidity": 1, "vix": -1, "spread": 1, "inflation": 1, "credit": -1}
+        overall_raw = sum((s["zScore"] or 0) * s["weight"] * SIGNAL_SIGNS[s["id"]] for s in signals)
         overall_pct = round(max(0, min(100, 50 + overall_raw * 15)))
 
         if overall_pct > 70:
@@ -213,15 +216,16 @@ def sync():
         overall_history = []
         for i in range(len(all_dates)):
             parts = [
-                (liq_z[i], 0.2), (risk_z[i], 0.2), (growth_z[i], 0.25),
-                (inf_z[i], 0.2), (credit_z[i], 0.15),
+                (liq_z[i], 0.2, SIGNAL_SIGNS["liquidity"]), (risk_z[i], 0.2, SIGNAL_SIGNS["vix"]),
+                (growth_z[i], 0.25, SIGNAL_SIGNS["spread"]), (inf_z[i], 0.2, SIGNAL_SIGNS["inflation"]),
+                (credit_z[i], 0.15, SIGNAL_SIGNS["credit"]),
             ]
-            parts = [(z, w) for z, w in parts if z is not None]
+            parts = [(z, w, g) for z, w, g in parts if z is not None]
             if not parts:
                 overall_history.append(None)
                 continue
-            sum_w = sum(w for _, w in parts)
-            raw = sum(z * w for z, w in parts) / sum_w
+            sum_w = sum(w for _, w, _ in parts)
+            raw = sum(z * w * g for z, w, g in parts) / sum_w
             overall_history.append(round(max(0, min(100, 50 + raw * 15))))
 
         data = {

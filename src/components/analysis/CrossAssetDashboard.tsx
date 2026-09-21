@@ -8,7 +8,7 @@ import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
 import {
   categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, valueAxis,
+  chartTooltip, lineSeries, valueAxis, defaultZoomStart,
 } from '../../lib/chartOptions'
 
 interface Data {
@@ -44,7 +44,7 @@ export default function CrossAssetDashboard() {
     if (!data?.correlationHistory) return null
     const { dates, series } = data.correlationHistory
     const total = dates.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
@@ -74,9 +74,9 @@ export default function CrossAssetDashboard() {
     <div className="space-y-4">
       <MacroCard accent={REGIME_ACCENT[data.regimeDetection.regime] || 'none'}>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <StatTile label="分散化评分" value={`${data.diversificationScore}`} className={data.diversificationScore > 60 ? 'text-up' : data.diversificationScore < 40 ? 'text-down' : ''} />
+          <StatTile label="分散化评分" value={`${data.diversificationScore}`} tone={data.diversificationScore > 60 ? 'up' : data.diversificationScore < 40 ? 'down' : 'neutral'} />
           <StatTile label="当前体制" value={data.regimeDetection.regime} />
-          <StatTile label="信号方向" value={data.signal.direction} className={data.signal.direction === 'risk_off' ? 'text-down' : 'text-up'} />
+          <StatTile label="信号方向" value={data.signal.direction} tone={data.signal.direction === 'risk_off' ? 'down' : 'up'} />
         </div>
         <div className="mt-3 text-xs text-ink-3">{data.regimeDetection.regimeDesc}</div>
       </MacroCard>

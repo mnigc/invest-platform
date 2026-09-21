@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import { ResponsiveChartBox } from '../charts/ChartBox'
-import { useChartTheme } from '../ui/theme'
+import { useChartTheme, type ChartTheme } from '../ui/theme'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ErrorState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
@@ -20,7 +20,7 @@ import {
   rightValueAxis,
   thresholdLine,
   valueAxis,
-  eventLine,
+  eventLine, defaultZoomStart,
 } from '../../lib/chartOptions'
 
 type Direction = 'bullish' | 'bearish' | 'neutral'
@@ -62,8 +62,8 @@ interface Data {
     t10yie: number | null
     residZ: number | null
     residPercentile: number
-    momentum20: number
-    momentum60: number
+    momentum20: number | null
+    momentum60: number | null
   }
   priceChart: { date: string; gold: number; dxy: number | null; dfii10: number | null }[]
   corrChart: {
@@ -86,8 +86,9 @@ interface Data {
     m20: { date: string; value: number }[]
     m60: { date: string; value: number }[]
   }
-  extremes: { date: string; dir: string }[]
-  eventStudies: {
+  // 可选字段：旧 payload（sync 尚未重跑）没有这些字段，前端需容忍缺失而非整块白屏。
+  extremes?: { date: string; dir: string }[]
+  eventStudies?: {
     broken: Study
     overvalued: Study
     undervalued: Study
@@ -162,11 +163,67 @@ function buildResidSpans(
     else if (isUnder) cur = { start: p.date, end: p.date, dir: 'undervalued' }
   }
   if (cur) spans.push(cur)
-  return spans.filter((s) => {
-    const startIdx = series.findIndex((p) => p.date === s.start)
-    const endIdx = series.findIndex((p) => p.date === s.end)
-    return endIdx - startIdx + 1 >= minDays
-  })
+  const idxOf = new Map(series.map((p, i) => [p.date, i]))
+  return spans.filter((s) => (idxOf.get(s.end) ?? 0) - (idxOf.get(s.start) ?? 0) + 1 >= minDays)
+}
+
+/** 残差 z 贡献分解图的单因子版本（DFII10 / DXY 各一张）。
+ * 两个因子的贡献量级相差约两个数量级（DFII10 |z| 峰值 ≈ 10，DXY ≈ 0.05），
+ * 同一张图共用 y 轴时 DXY 柱子高度不足 1px、肉眼等同空图；
+ * 因此贡献柱走独立的右轴自动定标，残差 z 线留在左轴，
+ * ±2σ 阈值线与持续偏离背景区段仍挂在 z 线上。 */
+function buildResidFactorOption(
+  t: ChartTheme,
+  resid: { series: Data['residSeries']; areas: unknown[][]; start: number },
+  contribKey: 'contribDfii' | 'contribDxy',
+  barLabel: string,
+  posColor: string,
+  negColor: string,
+): EChartsOption {
+  const { series, areas, start } = resid
+  return {
+    ...chartAnimation,
+    tooltip: chartTooltip(t, {
+      valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(2)),
+    }),
+    legend: chartLegend(t, ['残差 z（总）', barLabel]),
+    grid: chartGrid({ top: 32, bottom: 32 }),
+    xAxis: categoryAxis(t, series.map((p) => p.date)),
+    yAxis: [
+      valueAxis(t, {
+        name: 'z',
+        nameTextStyle: { color: t.text3, fontSize: 10, align: 'left' },
+      }),
+      rightValueAxis(t, {
+        name: '贡献',
+        nameTextStyle: { color: t.text3, fontSize: 10, align: 'right' },
+      }),
+    ],
+    dataZoom: [chartDataZoom(t, { start, end: 100 })],
+    series: [
+      lineSeries('残差 z（总）', series.map((p) => p.z), t.warn, {
+        lineStyle: { width: 1.5, color: t.warn },
+        itemStyle: { color: t.warn },
+        z: 5,
+        markLine: markLine([
+          thresholdLine(2, t.down, '+2σ'),
+          thresholdLine(-2, t.up, '-2σ'),
+        ]),
+        markArea: markArea(areas),
+      }),
+      {
+        name: barLabel,
+        type: 'bar',
+        yAxisIndex: 1,
+        data: series.map((p) => {
+          const v = p[contribKey]
+          if (v == null) return null
+          return { value: v, itemStyle: { color: v >= 0 ? posColor : negColor } }
+        }),
+        barWidth: '40%',
+      },
+    ],
+  } as EChartsOption
 }
 
 /* --------------------------------------------------------------------------- */
@@ -509,7 +566,7 @@ export function GoldDecisionDashboard() {
   const priceDxyOption = useMemo<EChartsOption | null>(() => {
     if (!data?.priceChart?.length) return null
     const total = data.priceChart.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
@@ -548,7 +605,7 @@ export function GoldDecisionDashboard() {
   const priceDfiiOption = useMemo<EChartsOption | null>(() => {
     if (!data?.priceChart?.length) return null
     const total = data.priceChart.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t),
@@ -599,7 +656,7 @@ export function GoldDecisionDashboard() {
   const corrOption = useMemo<EChartsOption | null>(() => {
     if (!data?.corrChart?.s60?.length) return null
     const total = data.corrChart.s60.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
@@ -647,7 +704,7 @@ export function GoldDecisionDashboard() {
   const corrIrrOption = useMemo<EChartsOption | null>(() => {
     if (!data?.corrIrrChart?.s60?.length) return null
     const total = data.corrIrrChart.s60.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
@@ -697,14 +754,27 @@ export function GoldDecisionDashboard() {
   ): EChartsOption | null => {
     if (!sd?.bins?.length) return null
     const bins = sd.bins
-    const pts = sd.points ?? []
 
-    // 分位带：用 stackedBar（低-中-高）把每桶的 [q25, 中位, q75] 画出来
-    // ECharts 没有"区间带"原生，但用 bar + stack 可以做出"色块 + 中位线"
+    // 分位带用 custom 矩形直接画 [q25, q75]：stacked bar 从 0 起堆，
+    // 桶值为负时方向和起点全错，区间绘制只有 custom 是干净的。
     const xLabels = bins.map((b) => b.xMid.toFixed(2))
-    const barLow = bins.map((b) => +(b.median - b.q25).toFixed(4))
-    const barHigh = bins.map((b) => +(b.q75 - b.median).toFixed(4))
     const medianLine = bins.map((b) => +b.median.toFixed(4))
+
+    // 历史散点必须归入所属分桶（xMin ≤ x < xMax），category 轴下
+    // 拿原始 x 值当类目名会因匹配不上而被 ECharts 整批丢弃。
+    const binIndexOf = (x: number): number | null => {
+      for (let i = 0; i < bins.length; i++) {
+        const b = bins[i]
+        if (x >= b.xMin && (x < b.xMax || i === bins.length - 1)) return i
+      }
+      if (x < bins[0].xMin) return 0
+      return bins.length - 1
+    }
+    const pts = (sd.points ?? []).flatMap((p) => {
+      const bi = binIndexOf(p.x)
+      return bi == null ? [] : [[xLabels[bi], p.y] as [string, number]]
+    })
+    const latestBin = sd.latest ? binIndexOf(sd.latest.x) : null
 
     return {
       ...chartAnimation,
@@ -732,22 +802,27 @@ export function GoldDecisionDashboard() {
       }),
       series: [
         {
-          name: '下半分位',
-          type: 'bar',
-          stack: 'band',
-          data: barLow,
-          xAxisIndex: 0,
-          itemStyle: { color: 'transparent' },
-          emphasis: { itemStyle: { color: 'transparent' } },
+          name: '50% 分位带 (Q25–Q75)',
+          type: 'custom',
+          zIndex: 1,
           tooltip: { show: false },
-        },
-        {
-          name: '上半分位',
-          type: 'bar',
-          stack: 'band',
-          data: barHigh,
-          itemStyle: { color: accentColor, opacity: 0.18 },
-          emphasis: { focus: 'series' },
+          renderItem: (_: any, api: any) => {
+            const low = api.coord([api.value(0), api.value(1)])
+            const high = api.coord([api.value(0), api.value(2)])
+            const bandWidth = Math.max(api.size([1, 0])[0] * 0.45, 3)
+            return {
+              type: 'rect',
+              shape: {
+                x: low[0] - bandWidth / 2,
+                y: Math.min(low[1], high[1]),
+                width: bandWidth,
+                height: Math.abs(low[1] - high[1]),
+              },
+              style: { fill: accentColor, opacity: 0.18 },
+            }
+          },
+          encode: { x: 0, y: [1, 2] },
+          data: bins.map((b, i) => [i, b.q25, b.q75]),
         },
         {
           name: '中位收益',
@@ -763,17 +838,17 @@ export function GoldDecisionDashboard() {
         {
           name: '历史点 (60D 收益)',
           type: 'scatter',
-          data: pts.map((p) => [p.x.toFixed(2), p.y]),
+          data: pts,
           symbolSize: 4,
           itemStyle: { color: t.text3, opacity: 0.5 },
           z: 2,
         },
-        ...(sd.latest
+        ...(sd.latest && latestBin != null
           ? [
               {
                 name: '当前',
                 type: 'scatter',
-                data: [[sd.latest.x.toFixed(2), sd.latest.y]],
+                data: [[xLabels[latestBin], sd.latest.y]],
                 symbolSize: 16,
                 itemStyle: { color: t.warn, borderColor: t.text, borderWidth: 1.5, shadowBlur: 8, shadowColor: t.warn },
                 z: 5,
@@ -804,79 +879,64 @@ export function GoldDecisionDashboard() {
     [data, t],
   )
 
-  const residOption = useMemo<EChartsOption | null>(() => {
-    if (!data?.residSeries?.length) return null
-    const total = data.residSeries.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
-    const series = data.residSeries
-
+  // 残差 z 贡献分解：按因子拆成 DFII10 / DXY 两张图。
+  // 背景区段、dataZoom 起始窗口等共享计算只做一次，两张图复用。
+  const residBase = useMemo(() => {
+    const series = data?.residSeries ?? []
+    if (!series.length) return null
     // 从残差序列中切出"持续高估 / 持续低估"区间（z 跨 ±2 进入、回落离场，
-    // 过滤持续 < 3 个交易日的尖峰），作为背景色块叠在本图——
-    // 残差区间属于双因子综合视图，不再叠加到单因子价格图上
-    const residSpans = buildResidSpans(series, 3)
-    const residAreas: unknown[][] = []
-    for (const s of residSpans) {
-      const color = s.dir === 'overvalued' ? t.downBg : t.upBg
-      residAreas.push([
-        { xAxis: s.start, itemStyle: { color } },
+    // 过滤持续 < 3 个交易日的尖峰），作为背景色块叠在图上
+    const areas: unknown[][] = []
+    for (const s of buildResidSpans(series, 3)) {
+      areas.push([
+        { xAxis: s.start, itemStyle: { color: s.dir === 'overvalued' ? t.downBg : t.upBg } },
         { xAxis: s.end },
       ])
     }
-
+    const total = series.length
     return {
-      ...chartAnimation,
-      tooltip: chartTooltip(t, {
-        valueFormatter: (v: any) => (v == null ? '--' : Number(v).toFixed(2)),
-      }),
-      legend: chartLegend(t, ['残差 z（总）', 'DFII10 贡献', 'DXY 动量贡献']),
-      grid: chartGrid({ top: 32, bottom: 32 }),
-      xAxis: categoryAxis(t, series.map((p) => p.date)),
-      yAxis: valueAxis(t),
-      dataZoom: [chartDataZoom(t, { start: defaultStart, end: 100 })],
-      series: [
-        lineSeries(
-          '残差 z（总）',
-          series.map((p) => p.z),
-          t.warn,
-          {
-            lineStyle: { width: 1.5, color: t.warn },
-            itemStyle: { color: t.warn },
-            z: 5,
-            markLine: markLine([
-              thresholdLine(2, t.down, '+2σ'),
-              thresholdLine(-2, t.up, '-2σ'),
-            ]),
-            markArea: markArea(residAreas),
-          },
-        ),
-        {
-          name: 'DFII10 贡献',
-          type: 'bar',
-          data: series.map((p) => {
-            const v = p.contribDfii
-            if (v == null) return null
-            return { value: v, itemStyle: { color: v >= 0 ? t.downSoft : t.upSoft } }
-          }),
-          barWidth: '40%',
-        },
-        {
-          name: 'DXY 动量贡献',
-          type: 'bar',
-          data: series.map((p) => {
-            const v = p.contribDxy
-            if (v == null) return null
-            return { value: v, itemStyle: { color: v >= 0 ? t.down : t.up } }
-          }),
-          barWidth: '40%',
-        },
-      ],
-    } as EChartsOption
+      series,
+      areas,
+      start: defaultZoomStart(total),
+    }
   }, [data, t])
+
+  const residDfiiOption = useMemo<EChartsOption | null>(
+    () =>
+      residBase
+        ? buildResidFactorOption(
+            t,
+            residBase,
+            'contribDfii',
+            'DFII10 贡献',
+            t.downSoft,
+            t.upSoft,
+          )
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [residBase, t],
+  )
+
+  const residDxyOption = useMemo<EChartsOption | null>(
+    () =>
+      residBase
+        ? buildResidFactorOption(
+            t,
+            residBase,
+            'contribDxy',
+            'DXY 动量贡献',
+            t.down,
+            t.up,
+          )
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [residBase, t],
+  )
 
   const momentumOption = useMemo<EChartsOption | null>(() => {
     if (!data?.momentumChart?.m20?.length) return null
     const total = data.momentumChart.m20.length
-    const defaultStart = Math.max(0, Math.floor((total - 1300) / total * 100))
+    const defaultStart = defaultZoomStart(total)
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
@@ -954,15 +1014,15 @@ export function GoldDecisionDashboard() {
             />
             <StatTile
               label="金价动量 20D"
-              value={`${(latest.momentum20 * 100).toFixed(2)}%`}
+              value={latest.momentum20 != null ? `${(latest.momentum20 * 100).toFixed(2)}%` : '--'}
               sub="近20日对数收益"
-              tone={latest.momentum20 >= 0 ? 'up' : 'down'}
+              tone={latest.momentum20 == null ? 'neutral' : latest.momentum20 >= 0 ? 'up' : 'down'}
             />
             <StatTile
               label="金价动量 60D"
-              value={`${(latest.momentum60 * 100).toFixed(2)}%`}
+              value={latest.momentum60 != null ? `${(latest.momentum60 * 100).toFixed(2)}%` : '--'}
               sub="近60日对数收益"
-              tone={latest.momentum60 >= 0 ? 'up' : 'down'}
+              tone={latest.momentum60 == null ? 'neutral' : latest.momentum60 >= 0 ? 'up' : 'down'}
             />
             <StatTile
               label="定价残差 z"
@@ -1026,19 +1086,19 @@ export function GoldDecisionDashboard() {
         {/* ── 综合定价（默认）：残差分解 → 残差事件研究 → 动量背景 ── */}
         {tab === 'both' && (
           <div role="tabpanel" className="flex flex-col gap-4">
-            <MacroCard title="定价残差 z 贡献分解">
-              <ResponsiveChartBox option={residOption} deps={[residOption]} />
+            <MacroCard title="定价残差 z 贡献分解 · DFII10（实际利率）">
+              <ResponsiveChartBox option={residDfiiOption} deps={[residDfiiOption]} />
               <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-                双因子模型：DFII10 + DXY 20 日动量。
-                <span className="text-warn">橙色线</span> = 残差 z 总值（±2σ 阈值）。
-                柱状=两个因子对 z 的贡献：<span className="text-down">红色</span> = 正向贡献（推高 z）/ <span className="text-up">绿色</span> = 负向贡献。
+                双因子模型：DFII10 + DXY 动量。
+                <span className="text-warn">橙色线</span>（左轴）= 残差 z 总值（±2σ 阈值）。
+                柱状（右轴）= DFII10 对残差的贡献：<span className="text-down">红色</span> = 正向贡献（推高 z）/ <span className="text-up">绿色</span> = 负向贡献。
                 背景色块：残差持续偏离区间（<span className="text-down">浅红=高估 z≥2</span> / <span className="text-up">浅绿=低估 z≤-2</span>，持续≥3 个交易日）。
-                可识别当前偏离主要由哪个因子解释。
+                贡献与 z 分别按各自量级定标（DFII10 是主导因子），可识别当前偏离主要由哪个因子解释。
               </p>
-              {data.extremes.length > 0 && (
+              {(data.extremes?.length ?? 0) > 0 && (
                 <p className="mt-1 text-2xs leading-relaxed text-ink-3">
-                  历史极端点（<span className="num">{data.extremes.length}</span>）：
-                  {data.extremes
+                  历史极端点（<span className="num">{data.extremes!.length}</span>）：
+                  {data.extremes!
                     .slice(-8)
                     .map((e) => `${e.date}(${e.dir === 'overvalued' ? '高估' : '低估'})`)
                     .join(' · ')}
@@ -1046,7 +1106,21 @@ export function GoldDecisionDashboard() {
               )}
             </MacroCard>
 
+            <MacroCard title="定价残差 z 贡献分解 · DXY（美元动量）">
+              <ResponsiveChartBox option={residDxyOption} deps={[residDxyOption]} />
+              <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+                DXY 贡献单独成图并独立定标：其对残差的贡献量级约为 DFII10 的
+                <span className="num">1/200</span>，与 z 共用同一 y 轴时柱子高度不足 1px、肉眼等同空图。
+                <span className="text-warn">橙色线</span>（左轴）= 残差 z 总值（±2σ 阈值）。
+                柱状（右轴）= DXY 动量对残差的贡献：<span className="text-down">红色</span> = 正向贡献 / <span className="text-up">绿色</span> = 负向贡献。
+                贡献项为「系数 × 因子偏离均值」，二者之和并不等于 z（残差窗口与因子均值窗口口径不同），
+                仅用于比较两个因子谁更值得注意。
+              </p>
+            </MacroCard>
+
             <MacroCard title="事件研究：定价残差极值后的黄金后市收益">
+              {data.eventStudies && (
+                <>
               <StudyTable
                 title="残差高估（z ≥ 2）后"
                 study={data.eventStudies.overvalued}
@@ -1065,6 +1139,8 @@ export function GoldDecisionDashboard() {
                     历史事件不足，样本积累后自动生成验证统计。
                   </p>
                 )}
+                </>
+              )}
             </MacroCard>
 
             <MacroCard title="金价动量（20D / 60D 对数收益率累加）">
@@ -1128,12 +1204,14 @@ export function GoldDecisionDashboard() {
             )}
 
             <MacroCard title="事件研究：美元关系失效后的黄金后市收益">
-              <StudyTable
-                title="相关性失效/正相关切换后"
-                study={data.eventStudies.broken}
-                expected="neutral"
-                triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
-              />
+              {data.eventStudies && (
+                <StudyTable
+                  title="相关性失效/正相关切换后"
+                  study={data.eventStudies.broken}
+                  expected="neutral"
+                  triggerHint="滚动 60 日黄金-美元收益率相关从负转非负（相关系数 ≥ -0.15）"
+                />
+              )}
             </MacroCard>
           </div>
         )}

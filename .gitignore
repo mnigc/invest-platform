@@ -37,7 +37,7 @@ run_schema.py
 .doc/
 
 # Cloudflare
-.dev.vars/
+.dev.vars
 wrangler.toml.bak
 .wrangler/
 

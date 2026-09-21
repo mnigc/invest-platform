@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type TileTone = 'neutral' | 'up' | 'down' | 'warn' | 'info'
+export type TileTone = 'neutral' | 'up' | 'down' | 'warn' | 'info' | 'accent'
 export type TileAccent = 'blue' | 'cyan' | 'gold' | 'red' | 'green' | 'none'
 
 interface Props {
@@ -21,6 +21,7 @@ const TONE_VALUE: Record<TileTone, string> = {
   down: 'text-down',
   warn: 'text-warn',
   info: 'text-info',
+  accent: 'text-accent',
 }
 
 const ACCENT_BAR: Record<Exclude<TileAccent, 'none'>, string> = {

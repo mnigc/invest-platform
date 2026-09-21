@@ -42,7 +42,6 @@ export function chartLegend(
   return {
     data,
     top: 0,
-    meidum: 0,
     itemWidth: 12,
     itemHeight: 8,
     itemGap: 14,
@@ -231,4 +230,13 @@ export const chartAnimation = {
   animationEasing: 'cubicOut' as const,
   animationDurationUpdate: 320,
   animationEasingUpdate: 'cubicOut' as const,
+}
+
+/** 全站图表共用的 dataZoom 默认展示窗口（点数） */
+export const ZOOM_WINDOW_POINTS = 1300
+
+/** 换算成 dataZoom start 百分比；空数组 / total=0 返回 0，避免 NaN 写进 option */
+export function defaultZoomStart(total: number): number {
+  if (!Number.isFinite(total) || total <= ZOOM_WINDOW_POINTS) return 0
+  return Math.floor(((total - ZOOM_WINDOW_POINTS) / total) * 100)
 }

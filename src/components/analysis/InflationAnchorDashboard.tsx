@@ -9,7 +9,7 @@ import { StatTile } from '../ui/StatTile'
 import { DataTable } from '../ui/DataTable'
 import {
   categoryAxis, chartAnimation, chartDataZoom, chartGrid, chartLegend,
-  chartTooltip, lineSeries, valueAxis, markLine, thresholdLine,
+  chartTooltip, lineSeries, valueAxis, markLine, thresholdLine, defaultZoomStart,
 } from '../../lib/chartOptions'
 
 interface Data {
@@ -52,7 +52,7 @@ export default function InflationAnchorDashboard() {
     return () => { alive = false }
   }, [])
 
-  const zoom = (total: number) => Math.max(0, Math.floor((total - 1300) / Math.max(1, total) * 100))
+  const zoom = defaultZoomStart
 
   const beOption = useMemo<EChartsOption | null>(() => {
     if (!data?.breakevenHistory) return null
@@ -79,7 +79,7 @@ export default function InflationAnchorDashboard() {
   const devOption = useMemo<EChartsOption | null>(() => {
     if (!data?.breakevenHistory) return null
     const { dates } = data.breakevenHistory
-    const devData = data.breakevenHistory.series.find(s => s.tenor === '10Y')?.data.map(v => v != null ? +(v - 2.0).toFixed(3) : null) ?? []
+    const devData = data.breakevenHistory.series.find(s => s.tenor === '10Y')?.data.map(v => v != null ? +(v - (data.currentSnapshot?.fedTargetPct ?? 2.0)).toFixed(3) : null) ?? []
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, { valueFormatter: (v: any) => v == null ? '--' : `${Number(v).toFixed(3)}%` }),
@@ -93,8 +93,8 @@ export default function InflationAnchorDashboard() {
         data: devData.map(v => ({ value: v, itemStyle: { color: v != null && v >= 0 ? t.downSoft : t.upSoft } })),
         markLine: markLine([
           thresholdLine(0, t.border),
-          thresholdLine(0.5, t.warn, '±0.5%'),
-          thresholdLine(-0.5, t.warn),
+          thresholdLine(0.3, t.warn, '±0.3%'),
+          thresholdLine(-0.3, t.warn),
           thresholdLine(0.8, t.down, '±0.8%'),
           thresholdLine(-0.8, t.down),
         ]),
@@ -149,7 +149,7 @@ export default function InflationAnchorDashboard() {
       dataZoom: [chartDataZoom(t, { start: zoom(dates.length), end: 100 })],
       series: [
         lineSeries('10Y 盈亏平衡', breakeven10y, t.series[0], { lineStyle: { width: 1.3 } }),
-        lineSeries('CPI YoY', cpiYoy, t.series[1], { lineStyle: { width: 1.2 } }),
+        lineSeries('CPI YoY', cpiYoy, t.series[1], { lineStyle: { width: 1.2, type: 'dashed' } }),
         {
           name: '预期-实际缺口',
           type: 'bar',
@@ -225,7 +225,7 @@ export default function InflationAnchorDashboard() {
         <MacroCard title="10Y 偏离联储2%目标" padding="sm">
           <ResponsiveChartBox option={devOption} deps={[devOption]} />
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">
-            <span className="text-warn">±0.5%</span> = 政策响应阈值；<span className="text-down">±0.8%</span> = 脱锚边界（对应状态机 anchored / drifting / deanchored）。
+            <span className="text-warn">±0.3%</span> = 锚定容忍带；<span className="text-down">±0.8%</span> = 脱锚边界（对应状态机 anchored / drifting / deanchored）。
           </p>
         </MacroCard>
         <MacroCard title="期限结构：5Y5Y 远期 vs 5Y-10Y 斜率" padding="sm">

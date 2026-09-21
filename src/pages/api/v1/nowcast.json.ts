@@ -8,8 +8,10 @@ import type { NowcastResponse } from '../../../lib/core';
 /**
  * Nowcast API（亚特兰大 GDPNow / 圣路易斯联储 ENI）。
  *
- * 按用户决策：本接口**不**挂任何页面、不挂导航。
- * 暴露在 `/api/v1/nowcast.json` 供内部看板 / 二次开发调用。
+ * 消费方：宏观共识页（/analysis/macro-consensus）的 NowcastCard；
+ * 同时保留裸 JSON 端点供二次开发调用。
+ * （历史备注：早期决策曾「不挂任何页面」，2026-09 全盘评审后改为接入共识页，
+ * 避免同步任务产出无人消费。）
  *
  * 实现说明（v2 修订）：
  *   - gdpNow  → FRED series `GDPNOW`（亚特兰大 Fed GDPNow 季度 SAAR %）

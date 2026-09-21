@@ -434,6 +434,32 @@ def safe_int(v):
         return None
 
 
+def drop_unsettled_today(rows):
+    """美东当日 16:10 前，丢弃行情最后一行「今天」的未完成 K 线。
+
+    定时任务在美股收盘后才跑，本函数不影响夜跑；
+    但 workflow_dispatch 手动补跑或本地白天运行时，Yahoo/stooq
+    会把盘中价作为「当日收盘价」返回，落库即污染收盘序列。
+    rows 为 [(date, value), ...] 且按日期升序。
+    """
+    if not rows:
+        return rows
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        # 无 tzdata 环境（极少）不冒险过滤，保持原行为
+        return rows
+    last_date = str(rows[-1][0])[:10]
+    today = now.strftime("%Y-%m-%d")
+    before_close = (now.hour, now.minute) < (16, 10)
+    if last_date == today and before_close and now.weekday() < 5:
+        _setup_logger("sync_base").info(
+            "美东尚未收盘(%s)，丢弃当日未完成 K 线: %s", now.strftime("%H:%M"), last_date)
+        return rows[:-1]
+    return rows
+
+
 # ============== 预计算结果写入（analysis_results）==============
 def json_sanitize(obj):
     """递归把 payload 规整成 PG jsonb 能接受的纯 JSON 值。
@@ -474,8 +500,8 @@ def dumps_json(payload):
 def upsert_analysis_result(conn, endpoint, valid_from, payload, version=1):
     """把某个端点的预计算结果整包写入 analysis_results（endpoint 为主键）。
 
-    6 个预计算脚本共用：analysis/cross-asset-correlation、macro-consensus、
-    credit-stress、inflation-anchor、yield-curve-regime、gold/correlation。
+    7 个预计算脚本共用：analysis/cross-asset-correlation、macro-consensus、
+    credit-stress、liquidity、inflation-anchor、yield-curve-regime、gold/correlation。
     """
     with conn.cursor() as cur:
         cur.execute(

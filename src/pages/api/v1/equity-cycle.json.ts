@@ -89,16 +89,27 @@ export const GET = withCache(async () => {
     const cyclicalRaw = etfMonthly.filter((m) => m.meta.bucket === 'cyclical' && m.monthly.length);
     const defensiveRaw = etfMonthly.filter((m) => m.meta.bucket === 'defensive' && m.monthly.length);
 
-    const cyclicalNorm = cyclicalRaw.map((m) =>
-      normalizeTo100(m.monthly).filter(
-        (p): p is { date: string; value: number } => p.value != null,
-      ),
-    );
-    const defensiveNorm = defensiveRaw.map((m) =>
-      normalizeTo100(m.monthly).filter(
-        (p): p is { date: string; value: number } => p.value != null,
-      ),
-    );
+    // 桶内所有 ETF 统一到「共同存在的第一个月」作 100 基期再等权合成。
+    // 若各按自身首月归一，成立晚的 ETF 会把其上市前的历史变化整体丢掉，
+    // 等权均值随之跳变，周期/防御比的 1.0 均衡线会整体漂移。
+    const normalizeBucket = (
+      raw: typeof cyclicalRaw,
+    ): { date: string; value: number }[][] => {
+      if (!raw.length) return [];
+      const firstCommon = raw.reduce(
+        (mx, m) => (m.monthly[0].date > mx ? m.monthly[0].date : mx),
+        raw[0].monthly[0].date,
+      );
+      return raw.map((m) => {
+        const base = m.monthly.find((p) => p.date >= firstCommon);
+        if (!base || !base.value) return [];
+        return m.monthly
+          .filter((p) => p.date >= firstCommon)
+          .map((p) => ({ date: p.date, value: +((p.value / base.value) * 100).toFixed(2) }));
+      });
+    };
+    const cyclicalNorm = normalizeBucket(cyclicalRaw);
+    const defensiveNorm = normalizeBucket(defensiveRaw);
 
     const cyclicalIndex = equalWeightComposite(cyclicalNorm);
     const defensiveIndex = equalWeightComposite(defensiveNorm);

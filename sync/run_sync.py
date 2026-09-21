@@ -156,7 +156,7 @@ TASKS = {
 # 执行顺序（重要）：analysis_* 是「预计算层」，必须跑在「取数层」之后。
 # 它们读的是 indicators / indicator_data / asset_prices / regime_snapshots，
 # 若提前执行会用到上一轮数据（恒定滞后一天），空库首次运行则必然全失败。
-# 注：此前用 sorted() 按 key 字母序执行，恰好把 6 个 analysis_* 全排到最前，属 bug。
+# 注：此前用 sorted() 按 key 字母序执行，恰好把全部 analysis_* 排到最前，属 bug。
 TASK_ORDER = [
     # —— 取数层 ——
     "indices",            # 美股指数 / 金价 / DXY（走网络源，耗时最长）

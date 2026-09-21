@@ -3,9 +3,9 @@ export const prerender = true
 
 import Layout from '../../layouts/Layout.astro'
 import { KnowledgeTopicPage } from '../../components/knowledge/KnowledgeTopicPage'
-import { findTopic, relatedTopics } from '../../content/knowledge/topics'
+import { mustTopic, relatedTopics } from '../../content/knowledge/topics'
 
-const entry = findTopic('interest-rate')!
+const entry = mustTopic('interest-rate')
 const topic = entry.data
 const related = relatedTopics('interest-rate')
 const canonicalPath = `/knowledge/interest-rate`
@@ -21,7 +21,7 @@ const articleJsonLd = {
   author: { '@type': 'Organization', name: 'MACRO EDGE' },
   publisher: { '@type': 'Organization', name: 'MACRO EDGE' },
   keywords: '利率,联邦基金利率,贴现率,期限结构,中性利率,泰勒规则,实际利率',
-  mainEntityOfPage: canonicalPath,
+  mainEntityOfPage: String(new URL(canonicalPath, Astro.site!)),
 }
 
 const faqJsonLd = {
@@ -30,11 +30,8 @@ const faqJsonLd = {
   mainEntity: [
     { '@type': 'Question', name: `什么是${topic.title}？`, acceptedAnswer: { '@type': 'Answer', text: topic.intro } },
     { '@type': 'Question', name: `${topic.title}的核心结论是什么？`, acceptedAnswer: { '@type': 'Answer', text: topic.conclusion } },
-    ...topic.strategy.slice(0, 4).map((s) => ({
-      '@type': 'Question',
-      name: `${topic.title}在投资上有什么应用？`,
-      acceptedAnswer: { '@type': 'Answer', text: s },
-    })),
+    ...[{'@type': 'Question', name: `${topic.title}在投资上有什么应用？`,
+      acceptedAnswer: { '@type': 'Answer', text: topic.strategy.join(' ') } }],
   ],
 }
 
@@ -84,6 +81,6 @@ const relatedSearches = {
   relatedSearches={relatedSearches}
 >
   <div class="animate-enter">
-    <KnowledgeTopicPage client:load topic={topic} related={related} />
+    <KnowledgeTopicPage client:visible topic={topic} related={related} />
   </div>
 </Layout>

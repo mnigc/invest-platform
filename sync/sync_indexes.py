@@ -18,8 +18,7 @@ import pandas as pd
 from sync_base import (
     SyncError,
     _setup_logger, get_conn, write_sync_log, with_retry,
-    bulk_upsert,
-
+    bulk_upsert, drop_unsettled_today,
 )
 
 log = _setup_logger("sync_indexes")
@@ -221,15 +220,11 @@ def _fetch_via_stooq(symbol, stooq_symbol, start):
 def fetch_index_history(symbol, stooq_symbol, start):
     """从多个数据源拉取指数历史日线收盘价 -> [(date, close)]"""
     rows = _fetch_via_stooq(symbol, stooq_symbol, start)
-    if rows:
-        return rows
-
-    rows = _fetch_via_yfinance(symbol, start)
-    if rows:
-        return rows
-
-    rows = _fetch_via_curl(symbol, start)
-    return rows
+    if not rows:
+        rows = _fetch_via_yfinance(symbol, start)
+    if not rows:
+        rows = _fetch_via_curl(symbol, start)
+    return drop_unsettled_today(rows)
 
 
 def upsert_prices(asset_id, rows):

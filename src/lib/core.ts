@@ -126,7 +126,7 @@ export interface BacktestSnapshot {
   label: string
   confidence: number
   sp500Price: number
-  forwardReturns: { 1: number; 3: number; 6: number; 12: number }
+  forwardReturns: { 1: number | null; 3: number | null; 6: number | null; 12: number | null }
 }
 
 export interface BacktestSummary {
@@ -200,30 +200,34 @@ export function getDays(period: string): number {
 
 // ── Utils ──
 
+/** null / undefined / NaN 统一按「无值」处理，避免格式化后直出 "NaN" */
+const hasNum = (value: number | null | undefined): value is number =>
+  value !== null && value !== undefined && Number.isFinite(Number(value))
+
 export function fmt(value: number | null, suffix = ''): string {
-  if (value === null || value === undefined) return '--'
+  if (!hasNum(value)) return '--'
   return `${Number(value).toFixed(2)}${suffix}`
 }
 
 export function fmtPct(value: number | null): string {
-  if (value === null || value === undefined) return '--'
+  if (!hasNum(value)) return '--'
   const sign = value >= 0 ? '+' : ''
   return `${sign}${Number(value).toFixed(2)}%`
 }
 
 export function fmtChange(value: number | null): string {
-  if (value === null || value === undefined) return '--'
+  if (!hasNum(value)) return '--'
   const sign = value >= 0 ? '+' : ''
   return `${sign}${Number(value).toFixed(2)}`
 }
 
 export function fmtTrillions(value: number | null): string {
-  if (value === null || value === undefined) return '--'
+  if (!hasNum(value)) return '--'
   return `${Number(value).toFixed(2)}T`
 }
 
 export function fmtCompact(value: number | null): string {
-  if (value === null || value === undefined) return '--'
+  if (!hasNum(value)) return '--'
   if (Math.abs(value) >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(2)}K`

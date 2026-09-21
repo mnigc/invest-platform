@@ -5,7 +5,7 @@ import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
 import { Tooltip } from '../ui/Tooltip'
 import { fmt, fmtTrillions } from '../../lib/core'
-import { REGIME_DIR, type Dir } from '../../lib/regimeMeta'
+import { REGIME_DIR, REGIME_LABELS, type Dir } from '../../lib/regimeMeta'
 
 type SignalInput = {
   id: string
@@ -388,6 +388,84 @@ function computeAggregate(rows: SignalInput[]): Aggregate {
   return { score: sN, label, stance, count: active.length }
 }
 
+/* --------------------------- 配置倾向（结论层） --------------------------- */
+
+type Tilt = 'over' | 'neutral' | 'under'
+
+interface AllocItem {
+  asset: string
+  tilt: Tilt
+  basis: string
+}
+
+const TILT_LABEL: Record<Tilt, string> = { over: '超配', neutral: '中性', under: '低配' }
+const TILT_TONE: Record<Tilt, string> = { over: 'text-up', neutral: 'text-ink-2', under: 'text-down' }
+
+/**
+ * 按「信号 → 资产」的传导方向把参与信号加权到 [-1,1]：
+ * 正值 = 支持超配该资产。每类资产只吃语义明确的信号，避免黑箱总分复用到所有资产。
+ */
+function computeAllocation(rows: SignalInput[], agg: Aggregate): AllocItem[] {
+  const usable = rows.filter((r) => !r.pending && !r.error && r.direction !== 0)
+  const signed = (ids: string[], sign = 1, weight = (r: SignalInput) => r.confidence) => {
+    let num = 0
+    let den = 0
+    for (const r of usable) {
+      if (!ids.includes(r.id)) continue
+      const w = weight(r)
+      num += r.direction * w * sign
+      den += w
+    }
+    return den > 0 ? num / den : null
+  }
+  const classify = (v: number | null): Tilt =>
+    v == null ? 'neutral' : v >= 0.3 ? 'over' : v <= -0.3 ? 'under' : 'neutral'
+  const parts = (ids: string[]) =>
+    usable.filter((r) => ids.includes(r.id)).map((r) => r.module).join(' + ') || '暂无参与信号'
+
+  // 股票/风险资产：直接用综合分（board 的全部信号）
+  const eqV = agg.count > 0 ? agg.score / 100 : null
+  // 黄金：自身定价信号 + 流动性传导（扩表利多黄金）
+  const goldRaw = signed(['gold'], 1)
+  const goldLiq = signed(['liquidity'], 1, (r) => r.confidence * 0.5)
+  const goldV = goldRaw != null && goldLiq != null ? (goldRaw + goldLiq) / 2 : goldRaw ?? goldLiq
+  // 国债等防守债券：信用/风险信号走避险方向（risk_off → 利多债券 = 取反）
+  const bondV = signed(['credit-stress', 'yield-curve', 'anomalies'], -1)
+  // 现金：整体防守时超配（等待成本低的期权价值），进攻时低配
+  const cashV = agg.count > 0 ? (agg.score <= -15 ? 0.5 : agg.score >= 15 ? -0.5 : 0) : null
+
+  return [
+    { asset: '股票 / 风险资产', tilt: classify(eqV), basis: `综合评分 ${agg.count} 路信号加权 → ${agg.label}` },
+    { asset: '黄金', tilt: classify(goldV), basis: `依据：${parts(['gold', 'liquidity'])}` },
+    { asset: '国债 / 防守债券', tilt: classify(bondV), basis: `依据：${parts(['credit-stress', 'yield-curve', 'anomalies'])}（避险方向）` },
+    { asset: '现金', tilt: classify(cashV), basis: agg.count > 0 ? `整体立场 ${agg.label}，防守期保留再配置期权` : '暂无信号' },
+  ]
+}
+
+/** 数据陈旧判定：库内快照距今 > staleDays 个自然日 → 同步可能断档 */
+function staleDaysOf(updatedAtIso: string | null | undefined, nowMs: number): number | null {
+  if (!updatedAtIso) return null
+  const d = new Date(updatedAtIso)
+  if (isNaN(d.getTime())) return null
+  const days = (nowMs - d.getTime()) / 86_400_000
+  return days > 3 ? Math.floor(days) : null
+}
+
+/* --------------------------- 信号战绩（记分卡） --------------------------- */
+
+interface TrackSummaryRow {
+  regime: string
+  count: number
+  avgReturn1m: number
+  avgReturn3m: number
+  avgReturn6m: number
+  avgReturn12m: number
+  winRate1m: number
+  winRate3m: number
+  winRate6m: number
+  winRate12m: number
+}
+
 export function SignalBoardDashboard() {
   const [essentialsDone, setEssentialsDone] = useState(false)
   const [detailsDone, setDetailsDone] = useState(false)
@@ -405,6 +483,7 @@ export function SignalBoardDashboard() {
     highAnom: null,
   })
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [trackRecord, setTrackRecord] = useState<{ nameZh: string; row: TrackSummaryRow } | null>(null)
   const [sources, setSources] = useState<SourceStatus[]>([])
   const retryKeyRef = useRef(0)
 
@@ -504,10 +583,21 @@ export function SignalBoardDashboard() {
         const lastValid = [...snaps].reverse().find((s: any) => s.sp500Price > 0)
         newTiles.sp500 = lastValid ? lastValid.sp500Price : null
         if (lastValid) {
-          const lastDate = lastValid.date
-          const sameRegime = snaps.filter((s: any) => s.date >= lastDate.slice(0, 7) && s.regime === lastValid.regime)
-          newTiles.regimeMonths = sameRegime.length > 0 ? sameRegime.length : null
+          // 从末尾回溯「体制连续相同」的周快照段，周频 ÷4.345 折算为月数
+          let runWeeks = 0
+          for (let i = snaps.length - 1; i >= 0; i--) {
+            if (snaps[i].regime !== lastValid.regime) break
+            runWeeks++
+          }
+          newTiles.regimeMonths = runWeeks > 0 ? Math.max(1, Math.round(runWeeks / 4.345)) : null
         }
+        // 战绩记分卡：当前体制在指数回测摘要中的历史前瞻表现（优先标普500）
+        const idxList: any[] = backtest.data.indexSummaries ?? []
+        const sp = idxList.find((x: any) => x.symbol === '^GSPC') ?? idxList[0]
+        const row = sp && lastValid ? sp.rows?.find((r: any) => r.regime === lastValid.regime) ?? null : null
+        setTrackRecord(sp && row ? { nameZh: String(sp.nameZh ?? '').replace('指数', ''), row } : null)
+      } else {
+        setTrackRecord(null)
       }
 
       if (liq.ok && liq.data) {
@@ -613,14 +703,13 @@ export function SignalBoardDashboard() {
   useEffect(load, [])
 
   const agg = useMemo(() => computeAggregate(signals), [signals])
+  const alloc = useMemo(() => computeAllocation(signals, agg), [signals, agg])
+  const staleDays = staleDaysOf(updatedAt, Date.now())
   const failedCount = sources.filter((s) => s.state === 'failed').length
   const isLoading = !essentialsDone || !detailsDone
   const hasAnySignal = signals.some((s) => !s.pending && !s.error)
 
   // 没有任何一路成功时显示错误态
-  if (essentialsDone && !detailsDone) {
-    // 允许先显示第一阶段
-  }
   if (essentialsDone && detailsDone && !hasAnySignal) {
     return (
       <div className="flex flex-col gap-3">
@@ -653,6 +742,19 @@ export function SignalBoardDashboard() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 数据陈旧告警：updatedAt 超过 3 天说明同步断档 */}
+      {staleDays != null && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-warn/50 bg-warn/10 px-3 py-2 text-xs"
+        >
+          <span className="font-semibold text-warn">数据已 {staleDays} 天未更新</span>
+          <span className="text-ink-2">
+            定时同步可能失败（见 GitHub Actions / 数据同步 issue），以下信号与结论可能滞后，请以刷新后为准。
+          </span>
+        </div>
+      )}
+
       {/* 综合评分（首屏核心 5 路就绪后才填充，否则只显示骨架） */}
       <MacroCard variant="elevated">
         {!essentialsDone ? (
@@ -687,6 +789,27 @@ export function SignalBoardDashboard() {
             </div>
             <div className="md:col-span-2 lg:col-span-1">
               <Gauge percent={gaugePercent} />
+            </div>
+          </div>
+        )}
+
+        {/* 配置倾向结论：结论层输出，每类资产只吃语义明确的信号 */}
+        {essentialsDone && agg.count > 0 && (
+          <div className="mt-4 border-t border-line pt-3">
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className="font-mono text-2xs uppercase tracking-wider text-ink-3">配置倾向</span>
+              <span className="text-2xs text-ink-3">由参与信号方向加权推导 · 研究参考</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              {alloc.map((a) => (
+                <div key={a.asset} className="rounded-md border border-line bg-surface-2 px-3 py-2">
+                  <div className="text-2xs text-ink-2">{a.asset}</div>
+                  <div className={`num mt-0.5 text-base font-bold ${TILT_TONE[a.tilt]}`}>
+                    {TILT_LABEL[a.tilt]}
+                  </div>
+                  <div className="mt-1 text-2xs leading-snug text-ink-3">{a.basis}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -743,6 +866,35 @@ export function SignalBoardDashboard() {
           accent={failedCount > 0 ? 'red' : 'green'}
         />
       </div>
+
+      {/* 信号战绩：当前体制的历史前瞻表现（记分卡） */}
+      {trackRecord && (
+        <MacroCard
+          title={`信号战绩 · 当前体制「${REGIME_LABELS[trackRecord.row.regime] ?? trackRecord.row.regime}」历史兑现`}
+          padding="sm"
+        >
+          <p className="mb-2 text-2xs leading-relaxed text-ink-3">
+            历史上该体制共出现 {trackRecord.row.count} 个月，{trackRecord.nameZh || '代表指数'}在其后 1/3/6/12 个月的平均涨跌幅与上涨概率（胜率）。
+            这是当前体制信号的方向性证据，不构成对未来收益的保证。
+          </p>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {([
+              ['1 个月后', trackRecord.row.avgReturn1m, trackRecord.row.winRate1m],
+              ['3 个月后', trackRecord.row.avgReturn3m, trackRecord.row.winRate3m],
+              ['6 个月后', trackRecord.row.avgReturn6m, trackRecord.row.winRate6m],
+              ['12 个月后', trackRecord.row.avgReturn12m, trackRecord.row.winRate12m],
+            ] as [string, number, number][]).map(([h, ret, win]) => (
+              <div key={h} className="rounded-md border border-line bg-surface-2 px-3 py-2">
+                <div className="text-2xs text-ink-2">{h}</div>
+                <div className={`num mt-0.5 text-base font-bold ${ret >= 0 ? 'text-up' : 'text-down'}`}>
+                  {ret >= 0 ? '+' : ''}{(ret * 100).toFixed(2)}%
+                </div>
+                <div className={`text-2xs ${win >= 0.5 ? 'text-up' : 'text-down'}`}>胜率 {(win * 100).toFixed(0)}%</div>
+              </div>
+            ))}
+          </div>
+        </MacroCard>
+      )}
 
       {/* 数据源状态（折叠） */}
       {sources.length > 0 && (
