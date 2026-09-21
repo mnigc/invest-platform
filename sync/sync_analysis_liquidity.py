@@ -148,8 +148,8 @@ def _calc_forward_returns(net_points, price_points):
 
     返回: [{ regime: 'expansion'|'contraction'|'neutral', n, avgReturn1m, ..., winRate1m, ... }, ...]
     """
-    sorted_prices = sorted(price_points, key=lambda p: p["date"])
-    price_map = {p["date"]: p["value"] for p in sorted_prices}
+    sorted_prices = [(p["date"], p["value"]) for p in sorted(price_points, key=lambda p: p["date"])]
+    price_map = dict(sorted_prices)
     sorted_net = sorted(net_points, key=lambda p: p["date"])
 
     # 周频（Fed 数据本身就是 weekly）数据，TREND_WINDOW 周即 TREND_WINDOW 个点
