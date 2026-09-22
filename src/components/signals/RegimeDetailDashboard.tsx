@@ -243,7 +243,7 @@ export function RegimeDetailDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshots, segments, t, currentSeries])
 
-  if (loading) return <LoadingSkeleton type="card" rows={3} height={220} />
+  if (loading) return <LoadingSkeleton type="chart" />
   if (error) return <ErrorState message={error} onRetry={load} />
   if (!regime) return <EmptyState title="暂无数据" description="宏观体制数据同步后将在此展示。" />
 

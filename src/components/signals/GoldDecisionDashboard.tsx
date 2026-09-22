@@ -964,7 +964,7 @@ export function GoldDecisionDashboard() {
     } as EChartsOption
   }, [data, t])
 
-  if (loading) return <LoadingSkeleton type="card" rows={4} height={300} />
+  if (loading) return <LoadingSkeleton type="chart" />
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data) return <ErrorState message="暂无数据" />
 

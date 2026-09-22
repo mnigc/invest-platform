@@ -588,7 +588,7 @@ export default function GlobalLiquidityDashboard() {
     }
   }, [reloadKey])
 
-  if (loading) return <LoadingSkeleton type="card" rows={3} height={320} />
+  if (loading) return <LoadingSkeleton type="chart" />
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data) return <EmptyState title="暂无数据" />
 

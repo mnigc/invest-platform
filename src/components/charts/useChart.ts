@@ -16,6 +16,7 @@ import type { EChartsOption } from 'echarts'
 export function useChart(option: EChartsOption | null, deps: unknown[] = []) {
   const ref = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.ECharts | null>(null)
+  const firstDrawRef = useRef(true)
 
   const resize = useCallback(() => {
     chartRef.current?.resize()
@@ -48,7 +49,12 @@ export function useChart(option: EChartsOption | null, deps: unknown[] = []) {
   useEffect(() => {
     if (!chartRef.current || !option) return
     try {
-      chartRef.current.setOption(option, { replaceMerge: ['series'] })
+      // 首次 setOption 禁用入场动画：骨架屏换成图表本身就带"又加载了一次"的观感，
+      // 再叠加从左到右画线的动画，加载感翻倍。首帧直接呈现完整图表。
+      // merge 语义下 animation:false 会保留，后续数据/主题更新也瞬时完成，同属预期。
+      const opt = firstDrawRef.current ? { ...option, animation: false } : option
+      firstDrawRef.current = false
+      chartRef.current.setOption(opt, { replaceMerge: ['series'] })
     } catch (e) {
       console.warn('[useChart] setOption failed:', e)
     }

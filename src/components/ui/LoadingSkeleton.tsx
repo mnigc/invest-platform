@@ -26,8 +26,14 @@ export function LoadingSkeleton({
     <div role="status" aria-busy="true" aria-live="polite">
       <span className="sr-only">{label}</span>
 
-      {type === 'chart' &&
-        skeleton('100%', height ?? 320, 'rounded-lg border border-line')}
+      {type === 'chart' && (
+        <div
+          className={`skeleton w-full rounded-lg border border-line ${
+            height ? '' : 'h-[260px] sm:h-[320px] lg:h-[380px]'
+          }`}
+          style={height ? { height: `${height}px` } : undefined}
+        />
+      )}
 
       {type === 'number' && skeleton('80px', 32)}
 

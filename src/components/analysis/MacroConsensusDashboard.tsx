@@ -65,7 +65,7 @@ export default function MacroConsensusDashboard() {
     } as EChartsOption
   }, [data, t])
 
-  if (loading) return <LoadingSkeleton />
+  if (loading) return <LoadingSkeleton type="chart" />
   if (error) return <ErrorState message={error} />
   if (!data) return <EmptyState title="暂无数据" />
 

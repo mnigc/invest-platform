@@ -220,7 +220,7 @@ export default function EquityCycleDashboard() {
     return { spreadLast, realRateLast, cdLast }
   }, [data])
 
-  if (loading) return <LoadingSkeleton type="card" rows={3} height={320} />
+  if (loading) return <LoadingSkeleton type="chart" />
   if (error) return <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
   if (!data || !stats) return <EmptyState title="暂无数据" />
 
