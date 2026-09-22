@@ -1,4 +1,6 @@
 name = "invest-platform"
+# 固定账号，CI（GitHub Actions）里用 API Token 部署时免歧义
+account_id = "5510caca1bff855b33d7d703198806a7"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 main = "@astrojs/cloudflare/entrypoints/server"

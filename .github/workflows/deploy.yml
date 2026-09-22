@@ -1,0 +1,43 @@
+# push 到 main 即自动构建并部署到 Cloudflare Workers。
+# 前置：仓库 Settings → Secrets and variables → Actions 里需有
+#   CLOUDFLARE_API_TOKEN（权限模板"编辑 Cloudflare Workers"即可）。
+# 配好后本地的 `npm run deploy` 可以退役：部署内容 = 已推送的 commit。
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 允许在 Actions 页手动触发
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # 部署不互相打断，排队串行
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 构建
+        run: npm run build
+        env:
+          SITE_URL: https://invest.soulcreator.cn
+
+      - name: 部署到 Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 5510caca1bff855b33d7d703198806a7
+          command: deploy
