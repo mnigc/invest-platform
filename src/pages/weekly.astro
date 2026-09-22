@@ -60,6 +60,9 @@ try {
   if (snap) regimeSnap = { date: toDateStr(snap.snapshot_date), regime: snap.regime, label: snap.label, confidence: Number(snap.confidence) }
 } catch (e: any) {
   console.error('[weekly]', e?.message || e)
+  // 标记降级响应：edgeCache（middleware.ts）看到此头会跳过边缘缓存，
+  // 避免 DB 瞬时抖动时把空数据页面钉在边缘 30 分钟
+  Astro.response.headers.set('X-Db-Failed', '1')
 }
 
 // 周环比：最近一个非空评分 vs 其前 7 天内（含）最近一个非空评分

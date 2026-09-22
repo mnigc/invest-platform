@@ -9,3 +9,11 @@ binding = "ASSETS"
 
 [observability]
 enabled = true
+
+# Smart Placement：把 Worker 执行位置搬到离 Supabase 最近的 colo。
+# 每个请求都要新建一条到 Supabase 的 WebSocket 连接（db.ts），握手 +
+# 每条查询的跨区 RTT 都是主要延迟来源；让计算贴近数据库可整体削减。
+# 副作用（正面的）：Cache API 的缓存落在 Worker 实际执行的 colo，
+# Smart Placement 使全站共享同一份边缘缓存，命中率接近 100%。
+[placement]
+mode = "smart"
