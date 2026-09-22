@@ -102,7 +102,12 @@ function readFonts(): { sans: string; mono: string } {
 
 /** 当前主题模式，随 html[data-theme] 变化自动更新 */
 export function useThemeMode(): ThemeMode {
-  const [mode, setMode] = useState<ThemeMode>('dark')
+  // 惰性初始化：客户端首帧直接读 html[data-theme]，否则浅色主题访客
+  // 会先按默认的 'dark' 起手一轮再翻转
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    if (typeof document === 'undefined') return 'dark'
+    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+  })
 
   useEffect(() => {
     const read = () => {
@@ -158,8 +163,15 @@ export type ChartTheme = {
 /** ECharts 用的已解析色值。主题切换时自动重读。 */
 export function useChartTheme(): ChartTheme {
   const mode = useThemeMode()
-  const [t, setT] = useState<Triplets>(SSR_SEED)
-  const [fonts, setFonts] = useState(SSR_FONTS)
+  // 惰性初始化：客户端首帧直接读真实 CSS 变量。若用 SSR 种子起手，图表会
+  // 先按种子色画一版再重画——浅色主题下就是"先出一张配色错误的丑图，随后
+  // 又换了一张"。种子仅保留给真正的 SSR 首帧（服务端没有 document）。
+  const [t, setT] = useState<Triplets>(() =>
+    typeof document === 'undefined' ? SSR_SEED : readTriplets(),
+  )
+  const [fonts, setFonts] = useState(() =>
+    typeof document === 'undefined' ? SSR_FONTS : readFonts(),
+  )
 
   useEffect(() => {
     setT(readTriplets())

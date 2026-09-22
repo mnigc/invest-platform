@@ -13,6 +13,7 @@
   --color-surface: rgb(var(--c-surface));
   --color-surface-2: rgb(var(--c-surface-2));
   --color-surface-3: rgb(var(--c-surface-3));
+  --color-surface-elev: rgb(var(--c-surface-elev));
   --color-line: rgb(var(--c-border));
   --color-line-strong: rgb(var(--c-border-strong));
   --color-ink: rgb(var(--c-text));
@@ -296,8 +297,9 @@
     padding-left: max(12px, env(safe-area-inset-left));
     padding-right: max(12px, env(safe-area-inset-right));
     border-bottom: 1px solid rgb(var(--c-border));
-    background-color: rgb(var(--c-bg) / 0.88);
-    backdrop-filter: blur(8px);
+    /* 实色底、不用半透明 + backdrop-filter 模糊：粘性条每帧滚动都要
+       重光栅化模糊区域，图表页滚动掉帧明显；实色底视觉几乎一致 */
+    background-color: rgb(var(--c-bg));
   }
 
   @media (min-width: 1024px) {

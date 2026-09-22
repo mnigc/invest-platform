@@ -49,7 +49,7 @@ export function MacroCard({
       style={style}
       className={[
         'relative overflow-hidden rounded-lg border',
-        variant === 'elevated' ? 'bg-surface-2' : 'bg-surface',
+        variant === 'elevated' ? 'bg-surface-elev' : 'bg-surface',
         'border-line',
         accent !== 'none' ? `border-l-2 ${ACCENT_BAR[accent]}` : '',
         interactive

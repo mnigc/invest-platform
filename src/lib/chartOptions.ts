@@ -109,21 +109,16 @@ export function rightValueAxis(t: ChartTheme, opts: Plain = {}): any {
 export function chartDataZoom(t: ChartTheme, opts: Plain = {}): any {
   return {
     type: 'slider',
-    height: 16,
+    height: 20,
     bottom: 0,
+    // 缩略影线关掉：几百个数据点压进 20px 高的条里只剩一团噪声，
+    // 看起来像渲染错误；数据形态主图本身已经展示
+    showDataShadow: false,
     borderColor: t.border,
     backgroundColor: 'transparent',
     fillerColor: t.accentSoft,
     handleStyle: { color: t.accent, borderColor: t.accent },
     moveHandleStyle: { color: t.border },
-    dataBackground: {
-      lineStyle: { color: t.border },
-      areaStyle: { color: t.borderSoft },
-    },
-    selectedDataBackground: {
-      lineStyle: { color: t.accent },
-      areaStyle: { color: t.accentSoft },
-    },
     textStyle: { color: t.text3, fontSize: 10 },
     ...opts,
   }
