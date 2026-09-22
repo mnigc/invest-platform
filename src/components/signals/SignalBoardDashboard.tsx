@@ -3,6 +3,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ErrorState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
+import { WinRateMeter } from '../ui/WinRateMeter'
 import { Tooltip } from '../ui/Tooltip'
 import { fmt, fmtTrillions } from '../../lib/core'
 import { REGIME_DIR, REGIME_LABELS, type Dir } from '../../lib/regimeMeta'
@@ -877,21 +878,43 @@ export function SignalBoardDashboard() {
             历史上该体制共出现 {trackRecord.row.count} 个月，{trackRecord.nameZh || '代表指数'}在其后 1/3/6/12 个月的平均涨跌幅与上涨概率（胜率）。
             这是当前体制信号的方向性证据，不构成对未来收益的保证。
           </p>
+          {/* 兑现路径：4 个视野一排，收益方向着色 + 胜率进度条。
+              这是用户最关心的卡片，做出与普通数据卡不同的视觉权重 */}
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {([
               ['1 个月后', trackRecord.row.avgReturn1m, trackRecord.row.winRate1m],
               ['3 个月后', trackRecord.row.avgReturn3m, trackRecord.row.winRate3m],
               ['6 个月后', trackRecord.row.avgReturn6m, trackRecord.row.winRate6m],
               ['12 个月后', trackRecord.row.avgReturn12m, trackRecord.row.winRate12m],
-            ] as [string, number, number][]).map(([h, ret, win]) => (
-              <div key={h} className="rounded-md border border-line bg-surface-2 px-3 py-2">
-                <div className="text-2xs text-ink-2">{h}</div>
-                <div className={`num mt-0.5 text-base font-bold ${ret >= 0 ? 'text-up' : 'text-down'}`}>
-                  {ret >= 0 ? '+' : ''}{(ret * 100).toFixed(2)}%
+            ] as [string, number, number][]).map(([h, ret, win]) => {
+              const positive = ret >= 0
+              const strong = win >= 0.75
+              return (
+                <div
+                  key={h}
+                  className={`relative overflow-hidden rounded-md border px-3 py-2.5 ${
+                    positive ? 'border-up/25 bg-up/5' : 'border-down/25 bg-down/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-2xs uppercase tracking-wider text-ink-3">{h}</span>
+                    <span
+                      className={`num rounded-sm border px-1 text-2xs ${
+                        strong ? 'border-up/40 text-up' : 'border-line text-ink-2'
+                      }`}
+                    >
+                      胜率 {Math.round(win * 100)}%
+                    </span>
+                  </div>
+                  <div className={`num mt-1.5 text-xl font-bold leading-none ${positive ? 'text-up' : 'text-down'}`}>
+                    {positive ? '▲' : '▼'} {(Math.abs(ret) * 100).toFixed(2)}%
+                  </div>
+                  <div className="mt-2.5">
+                    <WinRateMeter value={win} />
+                  </div>
                 </div>
-                <div className={`text-2xs ${win >= 0.5 ? 'text-up' : 'text-down'}`}>胜率 {(win * 100).toFixed(0)}%</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </MacroCard>
       )}

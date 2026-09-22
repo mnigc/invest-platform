@@ -7,6 +7,7 @@ import { ErrorState } from '../ui/States'
 import { MacroCard } from '../ui/MacroCard'
 import { StatTile } from '../ui/StatTile'
 import { DataTable, type Column } from '../ui/DataTable'
+import { WinRateMeter } from '../ui/WinRateMeter'
 import {
   categoryAxis,
   chartAnimation,
@@ -392,14 +393,32 @@ function StudyTable({
 
   const columns: Column<[string, HorizonStat]>[] = [
     { key: 'h', header: '窗口', render: ([h]) => `${h} 日` },
-    { key: 'n', header: '样本', numeric: true, render: ([, s]) => s.n },
+    {
+      key: 'n',
+      header: '样本',
+      numeric: true,
+      render: ([, s]) =>
+        s.n < 5 ? (
+          <span
+            className="inline-flex rounded-sm border border-warn/40 bg-warn/5 px-1 text-2xs text-warn"
+            title="样本量低，置信度有限"
+          >
+            {s.n}
+          </span>
+        ) : (
+          s.n
+        ),
+    },
     {
       key: 'win',
       header: '胜率',
       numeric: true,
       render: ([, s]) => (
-        <span className={s.winRate >= 0.5 ? 'text-up' : 'text-down'}>
-          {fmtPct(s.winRate)}
+        <span className="inline-flex w-20 flex-col items-stretch gap-1">
+          <span className={`num ${s.winRate >= 0.5 ? 'text-up' : 'text-down'}`}>
+            {fmtPct(s.winRate)}
+          </span>
+          <WinRateMeter value={s.winRate} />
         </span>
       ),
     },
@@ -434,30 +453,32 @@ function StudyTable({
           expected === 'neutral' ||
           actual === 'neutral' ||
           expected === actual
+        const base =
+          'inline-flex items-center whitespace-nowrap rounded-sm border px-1 text-2xs'
+        if (!aligned)
+          return (
+            <span
+              className={`${base} border-warn/50 bg-warn/5 text-warn`}
+              title="实际方向与模型预期相反（窗口内中位数）"
+            >
+              ⚠ 相反
+            </span>
+          )
+        if (expected === 'neutral')
+          return (
+            <span className={`${base} border-line text-ink-3`} title="相关性失效，无方向含义">
+              —
+            </span>
+          )
+        if (s.n < 5)
+          return (
+            <span className={`${base} border-line text-ink-3`} title="样本不足，方向仅供参考">
+              ~ 观察
+            </span>
+          )
         return (
-          <span
-            className={
-              aligned
-                ? s.n < 5
-                  ? 'text-ink-3'
-                  : expected === 'neutral'
-                    ? 'text-ink-3'
-                    : 'text-up'
-                : 'text-warn'
-            }
-            title={
-              aligned
-                ? '实际方向与模型预期一致'
-                : '实际方向与模型预期相反（窗口内中位数）'
-            }
-          >
-            {aligned
-              ? expected === 'neutral'
-                ? '—'
-                : s.n < 5
-                  ? '~'
-                  : '✓'
-              : '⚠'}
+          <span className={`${base} border-up/40 bg-up/5 text-up`} title="实际方向与模型预期一致">
+            ✓ 一致
           </span>
         )
       },

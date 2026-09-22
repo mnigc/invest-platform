@@ -55,3 +55,6 @@ venv/
 # sync 脚本：仅忽略产物与缓存，脚本本身要入库
 sync/__pycache__/
 sync/logs/
+
+# ZCode 会话产物（截图/工作流草稿等）
+.zcode/
