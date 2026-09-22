@@ -331,13 +331,17 @@ def sync():
         if not assets:
             raise SyncError("etf_drawdown: 无任何标的有可用价格数据")
 
-        # 数值自检：最大回撤必须等于水下曲线极值（两套代码路径互验）
+        # 数值自检：周采样水下曲线的极值只能比日频 MDD 浅（采样错过谷底日，
+        # 深差取决于当周振幅），绝不能更深——更深说明两条代码路径分叉。
         for sym, blk in assets.items():
             uv_min = min(blk["underwater"]["values"])
-            if abs(uv_min - blk["mdd"]["depth"]) > 0.005:
+            if uv_min < blk["mdd"]["depth"] - 0.005:
                 raise SyncError(
-                    "etf_drawdown %s: MDD(%s) 与水下曲线极值(%s)不一致"
-                    % (sym, blk["mdd"]["depth"], uv_min))
+                    "etf_drawdown %s: 水下曲线极值(%s) 深于 MDD(%s)，引擎分叉"
+                    % (sym, uv_min, blk["mdd"]["depth"]))
+            gap = uv_min - blk["mdd"]["depth"]
+            if gap > 0.01:
+                log.warning("  %s: 周采样错过谷底日，曲线极值比 MDD 浅 %.2fpp", sym, gap * 100)
 
         payload = {
             "assets": assets,
