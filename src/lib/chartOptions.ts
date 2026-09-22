@@ -25,6 +25,9 @@ export function chartTooltip(
     borderWidth: 1,
     padding: [8, 10],
     textStyle: { color: t.text, fontSize: 12, fontFamily: t.fontSans },
+    // MacroCard 有 overflow-hidden，tooltip 默认挂在图表容器内会被卡片边框裁掉，
+    // 必须挂到 body 上才能逸出卡片（分桶散点图的 tooltip 尤其高）
+    appendToBody: true,
     extraCssText: 'box-shadow: 0 8px 24px rgba(0,0,0,0.35); border-radius: 5px;',
     axisPointer: {
       lineStyle: { color: t.border, width: 1 },

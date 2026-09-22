@@ -801,6 +801,14 @@ export function GoldDecisionDashboard() {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         trigger: 'axis',
+        // 单桶可能叠几百个历史点，tooltip 内容全高可达数千 px。
+        // 不挂 body（全局 appendToBody 对超大 contentSize 定位会漂移），
+        // 用原生 confine 夹在图表区内 + 高度封顶内部滚动，图表区本身不会被卡片裁剪
+        appendToBody: false,
+        confine: true,
+        enterable: true,
+        extraCssText:
+          'box-shadow: 0 8px 24px rgba(0,0,0,0.35); border-radius: 5px; max-height: 300px; overflow-y: auto;',
         valueFormatter: (v: any) => (v == null ? '--' : `${(Number(v) * 100).toFixed(2)}%`),
       }),
       legend: chartLegend(t, ['50% 分位带 (Q25–Q75)', '中位收益', '历史点 (60D 收益)']),
