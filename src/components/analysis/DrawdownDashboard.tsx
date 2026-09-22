@@ -123,7 +123,8 @@ export default function DrawdownDashboard() {
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, { trigger: 'item' }),
-      grid: chartGrid({ top: 32, bottom: 8 }),
+      // bottom 需容纳 x 轴名（containLabel 不含轴名，不足会被裁切）
+      grid: chartGrid({ top: 32, bottom: 34 }),
       legend: chartLegend(t, ['已修复', '进行中']),
       xAxis: {
         type: 'value', name: '回撤深度 %', nameLocation: 'middle', nameGap: 24,
