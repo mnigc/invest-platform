@@ -1,0 +1,96 @@
+---
+export const prerender = true
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+import BacktestDashboard from '../../components/analysis/BacktestDashboard'
+
+const description =
+  'SPY、QQQ 交易策略历史回测对比：买入持有基准、200 日均线趋势过滤、RSI(2) 超卖均值回归、回撤加仓。含交易胜率、盈亏比、期望值、样本内外验证与参数敏感性分析。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: 'ETF 策略回测数据集',
+  description,
+  keywords: '策略回测,胜率,盈亏比,均值回归,趋势跟踪,200日均线,RSI,SPY,QQQ,期望值',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  temporalCoverage: '1993-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: 'ETF 策略回测' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '相关',
+      links: [
+        { href: '/analysis/etf-drawdown', label: '回撤与修复' },
+        { href: '/equity-cycle', label: '股票风险溢价' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signal-board', label: '宏观信号板' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/analysis/etf-drawdown', label: '回撤与修复' },
+    { href: '/signal-board', label: '宏观信号板' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/commodities', label: '大宗商品' },
+  ],
+}
+---
+
+<Layout
+  title="ETF 策略回测 - SPY / QQQ | MACRO EDGE"
+  description={description}
+  canonical="/analysis/etf-backtest"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
+  <div class="animate-enter">
+    <PageHeader
+      title="ETF 策略回测"
+      subtitle="高胜率 ≠ 高回报：胜率、盈亏比与期望值的完整对照"
+    />
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">投资指引：</strong>评判任何策略先看三件事——能否跑赢买入持有、样本外是否衰减、参数是否敏感。均值回归类（RSI 超卖）胜率高但单笔亏损大；趋势过滤类（200日线）胜率低但砍掉大部分熊市。没有既高胜率又高盈亏比的免费午餐。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">期望值</strong> = 胜率 × 平均盈利 −（1−胜率）× 平均亏损。胜率 75% 但平均亏损是平均盈利 3 倍的策略，期望值依然为负。<strong class="text-ink">盈亏比（Profit Factor）</strong> = 总盈利 ÷ 总亏损，大于 1.5 才值得考虑。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">买入持有基准</strong> — 所有策略的对照线。风险调整后跑不赢基准的策略，复杂度只是噪音。
+        </li>
+        <li>
+          <strong class="text-ink">信号时点纪律</strong> — 信号在 t 日收盘产生、t+1 收盘执行，计入单边成本。避免前视偏差是回测可信的底线。
+        </li>
+        <li>
+          <strong class="text-ink">样本内 / 样本外</strong> — 按时间 70/30 切分。样本外 CAGR 明显低于样本内 = 策略大概率过拟合。
+        </li>
+        <li>
+          <strong class="text-ink">参数敏感性</strong> — 把参数扫一遍：只有 RSI(2) 赚钱而 RSI(4)~RSI(20) 都不行的策略，是数据挖掘的产物而非规律。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <BacktestDashboard client:visible />
+  </div>
+</Layout>

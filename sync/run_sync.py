@@ -151,6 +151,20 @@ TASKS = {
         "delay": 15,
         "args": [],
     },
+    "analysis_etf_drawdown": {
+        "name": "预计算：ETF 回撤与修复分析（SPY/VOO/QQQ/^GSPC）",
+        "script": "sync_analysis_drawdown",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
+    "analysis_etf_backtest": {
+        "name": "预计算：ETF 策略回测（SPY/QQQ）",
+        "script": "sync_analysis_backtest",
+        "group": "daily",
+        "delay": 0,
+        "args": [],
+    },
 }
 
 # 执行顺序（重要）：analysis_* 是「预计算层」，必须跑在「取数层」之后。
@@ -177,6 +191,8 @@ TASK_ORDER = [
     "analysis_inflation_anchor",
     "analysis_yield_curve",
     "analysis_gold_correlation",
+    "analysis_etf_drawdown",
+    "analysis_etf_backtest",
 ]
 
 

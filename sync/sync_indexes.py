@@ -45,6 +45,16 @@ SECTOR_ETFS = [
      "2000-01-01", "defensive"),
 ]
 
+# 宽基核心 ETF —— 回撤/修复分析与策略回测的主力标的。
+# 与指数不同，ETF 的 adjusted_close（分红再投资全收益口径）才是真实持有收益，
+# 回撤与修复时间必须按全收益计算，否则修复时长被系统性高估。
+# (symbol, name_zh, name_en, start_date) —— stooq 无 ETF，走 yfinance / curl_cffi。
+CORE_ETFS = [
+    ("SPY", "标普500ETF", "SPDR S&P 500 ETF Trust", "1993-02-01"),
+    ("VOO", "标普500ETF(先锋)", "Vanguard S&P 500 ETF", "2010-09-01"),
+    ("QQQ", "纳指100ETF", "Invesco QQQ Trust", "1999-03-10"),
+]
+
 YAHOO_TIMEOUT = 30
 YAHOO_MAX_RETRY = 4
 
@@ -182,6 +192,132 @@ def _fetch_via_curl(symbol, start):
     raise RuntimeError("Yahoo %s 拉取失败: %s" % (symbol, last_err))
 
 
+def _fetch_ohlcv_yfinance(symbol, start):
+    """yfinance 拉取 OHLCV + 复权收盘（auto_adjust=False 时 Adj Close 单列返回）"""
+    try:
+        import yfinance as yf
+        df = yf.download(symbol, start=start, progress=False,
+                         auto_adjust=False, prepost=False, threads=False,
+                         timeout=30)
+    except Exception as e:
+        log.warning("yfinance %s OHLCV 拉取异常: %s", symbol, e)
+        return []
+
+    if df is None or getattr(df, "empty", True):
+        log.warning("yfinance %s OHLCV 返回空", symbol)
+        return []
+
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [str(c[-1]).strip() for c in df.columns]
+    df = df.reset_index()
+
+    col_map = {}
+    for c in df.columns:
+        low = str(c).lower().replace(" ", "")
+        if low.startswith("date"):
+            col_map["date"] = c
+        elif low == "open":
+            col_map["open"] = c
+        elif low == "high":
+            col_map["high"] = c
+        elif low == "low":
+            col_map["low"] = c
+        elif low == "close":
+            col_map["close"] = c
+        elif low == "volume":
+            col_map["volume"] = c
+        elif low == "adjclose":
+            col_map["adjclose"] = c
+
+    if "date" not in col_map or "close" not in col_map:
+        log.warning("%s OHLCV 缺关键列: %s", symbol, list(df.columns))
+        return []
+
+    rows = []
+    for _, r in df.iterrows():
+        try:
+            d = r[col_map["date"]]
+            d = d.strftime("%Y-%m-%d") if isinstance(d, (datetime.datetime, datetime.date)) else str(d)[:10]
+            close = float(r[col_map["close"]])
+            if not d or close <= 0:
+                continue
+
+            def _f(key):
+                try:
+                    return float(r[col_map[key]]) if key in col_map else None
+                except Exception:
+                    return None
+
+            adj = _f("adjclose")
+            rows.append((d, _f("open"), _f("high"), _f("low"), close,
+                         _f("volume"), adj if adj and adj > 0 else close))
+        except Exception:
+            continue
+
+    log.info("yfinance %s OHLCV -> %d 条", symbol, len(rows))
+    return rows
+
+
+def _fetch_ohlcv_curl(symbol, start):
+    """curl_cffi 拉取 Yahoo v8 chart API 的 OHLCV + adjclose（绕限流兜底）"""
+    from curl_cffi import requests as c_requests
+
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+    period1 = calendar.timegm(time.strptime(start, "%Y-%m-%d"))
+    period2 = int(time.time())
+    params = {"period1": period1, "period2": period2, "interval": "1d",
+              "events": "div,splits"}
+
+    last_err = None
+    for attempt in range(1, YAHOO_MAX_RETRY + 1):
+        try:
+            r = c_requests.get(url, params=params, impersonate="chrome", timeout=YAHOO_TIMEOUT)
+            if r.status_code != 200:
+                last_err = "HTTP %d" % r.status_code
+                time.sleep(min(2 ** (attempt - 1), 15))
+                continue
+            res = ((r.json().get("chart") or {}).get("result") or [None])[0]
+            if not res:
+                last_err = "chart.result 为空"
+                time.sleep(min(2 ** (attempt - 1), 15))
+                continue
+            ts = res.get("timestamp") or []
+            quote = (res.get("indicators", {}).get("quote") or [{}])[0]
+            adj = (res.get("indicators", {}).get("adjclose") or [{}])[0].get("adjclose") or []
+            opens, highs, lows = quote.get("open") or [], quote.get("high") or [], quote.get("low") or []
+            closes, volumes = quote.get("close") or [], quote.get("volume") or []
+            rows = []
+            for k, t_ in enumerate(ts):
+                try:
+                    d = datetime.datetime.utcfromtimestamp(t_).strftime("%Y-%m-%d")
+                    close = float(closes[k]) if k < len(closes) and closes[k] is not None else 0
+                    if not d or close <= 0:
+                        continue
+                    a = float(adj[k]) if k < len(adj) and adj[k] is not None else close
+                    rows.append((
+                        d,
+                        float(opens[k]) if k < len(opens) and opens[k] is not None else None,
+                        float(highs[k]) if k < len(highs) and highs[k] is not None else None,
+                        float(lows[k]) if k < len(lows) and lows[k] is not None else None,
+                        close,
+                        float(volumes[k]) if k < len(volumes) and volumes[k] is not None else None,
+                        a if a > 0 else close,
+                    ))
+                except Exception:
+                    continue
+            rows.sort(key=lambda x: x[0])
+            if rows:
+                log.info("curl_cffi %s OHLCV -> %d 条", symbol, len(rows))
+                return rows
+            last_err = "拉取 0 条"
+        except Exception as e:
+            last_err = repr(e)[:120]
+            log.warning("curl_cffi %s OHLCV 异常: %s", symbol, e)
+        time.sleep(min(2 ** (attempt - 1), 15))
+
+    raise RuntimeError("Yahoo %s OHLCV 拉取失败: %s" % (symbol, last_err))
+
+
 def _fetch_via_stooq(symbol, stooq_symbol, start):
     """使用 stooq.com 拉取数据（免费，无需 API Key）"""
     import requests
@@ -261,9 +397,36 @@ def sync_sector_etf(symbol, name_zh, name_en, start, bucket):
     return asset_id, upsert_prices(asset_id, rows)
 
 
+def upsert_ohlcv(asset_id, rows):
+    """批量写入 asset_prices（含 OHLCV + adjusted_close，全收益口径）"""
+    if not rows:
+        return 0
+    payload = [(asset_id,) + tuple(r) for r in rows]
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            return bulk_upsert(
+                conn, cur, "asset_prices",
+                ["asset_id", "trade_date", "open_price", "high_price", "low_price",
+                 "close_price", "volume", "adjusted_close"],
+                payload, ["asset_id", "trade_date"],
+                ["open_price", "high_price", "low_price", "close_price",
+                 "volume", "adjusted_close"]
+            )
+
+
+def sync_core_etf(symbol, name_zh, name_en, start):
+    """同步单个宽基 ETF 的 OHLCV + 复权价（无 stooq 通道）。"""
+    asset_id = ensure_asset(symbol, name_zh, name_en, sub_category="宽基ETF")
+    rows = _fetch_ohlcv_yfinance(symbol, start)
+    if not rows:
+        rows = _fetch_ohlcv_curl(symbol, start)
+    rows = drop_unsettled_today(rows)
+    return asset_id, upsert_ohlcv(asset_id, rows)
+
+
 def main():
     log.info("=" * 60)
-    log.info("开始同步: 美股四大指数 + 行业 ETF")
+    log.info("开始同步: 美股四大指数 + 行业 ETF + 宽基 ETF")
 
     only = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -271,16 +434,16 @@ def main():
     errors = []
 
     if only:
-        # 单 symbol 模式：既支持指数符号（^GSPC）也支持 ETF 符号（XLI）
-        idx_hit = [t for t in INDEXES if t[0] == only]
-        etf_hit = [t for t in SECTOR_ETFS if t[0] == only]
-        targets_idx = idx_hit
-        targets_etf = etf_hit
+        # 单 symbol 模式：支持指数（^GSPC）/ 行业 ETF（XLI）/ 宽基 ETF（SPY）
+        targets_idx = [t for t in INDEXES if t[0] == only]
+        targets_etf = [t for t in SECTOR_ETFS if t[0] == only]
+        targets_core = [t for t in CORE_ETFS if t[0] == only]
     else:
         targets_idx = INDEXES
         targets_etf = SECTOR_ETFS
+        targets_core = CORE_ETFS
 
-    if not targets_idx and not targets_etf and only:
+    if not targets_idx and not targets_etf and not targets_core and only:
         log.error("未知标的: %s", only)
         write_sync_log("indices", "failed", 0, "未知标的 %s" % only)
         return
@@ -300,6 +463,16 @@ def main():
             _, n = sync_sector_etf(symbol, name_zh, name_en, start, bucket)
             total += n
             log.info("[%s/%s] 写入 %d 条", symbol, bucket, n)
+        except Exception as e:
+            log.error("[%s] 同步失败: %s", symbol, e)
+            errors.append("%s: %s" % (symbol, e))
+        time.sleep(1)
+
+    for symbol, name_zh, name_en, start in targets_core:
+        try:
+            _, n = sync_core_etf(symbol, name_zh, name_en, start)
+            total += n
+            log.info("[%s/宽基] 写入 %d 条", symbol, n)
         except Exception as e:
             log.error("[%s] 同步失败: %s", symbol, e)
             errors.append("%s: %s" % (symbol, e))

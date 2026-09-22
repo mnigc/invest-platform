@@ -1,0 +1,96 @@
+---
+export const prerender = true
+
+import Layout from '../../layouts/Layout.astro'
+import { PageHeader } from '../../components/ui/PageHeader'
+import IndicatorGuide from '../../components/ui/IndicatorGuide.astro'
+import DrawdownDashboard from '../../components/analysis/DrawdownDashboard'
+
+const description =
+  'SPY、VOO、QQQ 历史回撤与修复分析：最大回撤、回撤修复用时、平均回撤、平均修复时长、按深度分桶统计、水下曲线与年度收益。ETF 按含分红全收益口径计算。'
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: 'ETF 回撤与修复分析数据集',
+  description,
+  keywords: '最大回撤,回撤修复,水下曲线,SPY,VOO,QQQ,标普500,纳指100,熊市,持有体验',
+  creator: { '@type': 'Organization', name: 'MACRO EDGE' },
+  distribution: { '@type': 'DataDownload', encodingFormat: 'text/html' },
+  temporalCoverage: '1993-01-01/..',
+}
+
+const breadcrumb = [
+  { label: '首页', href: '/' },
+  { label: '分析', href: '/signal-board' },
+  { label: '回撤与修复' },
+]
+
+const relatedSearches = {
+  groups: [
+    {
+      title: '相关',
+      links: [
+        { href: '/analysis/etf-backtest', label: 'ETF 策略回测' },
+        { href: '/equity-cycle', label: '股票风险溢价' },
+        { href: '/signals/regime', label: '宏观体制' },
+        { href: '/analysis/cross-asset', label: '跨资产联动' },
+      ],
+    },
+    {
+      title: '其他',
+      links: [
+        { href: '/signal-board', label: '宏观信号板' },
+        { href: '/signals/gold', label: '黄金价格' },
+        { href: '/indicators/global-liquidity', label: '全球流动性' },
+        { href: '/indicators/leading', label: '衰退预警' },
+      ],
+    },
+  ],
+  universal: [
+    { href: '/analysis/etf-backtest', label: 'ETF 策略回测' },
+    { href: '/signal-board', label: '宏观信号板' },
+    { href: '/indicators/cpi', label: 'CPI 通胀' },
+    { href: '/indicators/commodities', label: '大宗商品' },
+  ],
+}
+---
+
+<Layout
+  title="回撤与修复分析 - SPY / VOO / QQQ | MACRO EDGE"
+  description={description}
+  canonical="/analysis/etf-drawdown"
+  jsonLd={jsonLd}
+  breadcrumb={breadcrumb}
+  relatedSearches={relatedSearches}
+>
+  <div class="animate-enter">
+    <PageHeader
+      title="回撤与修复分析"
+      subtitle="每一次下跌有多深、疼多久、多久修复——持有体验的完整历史"
+    />
+    <IndicatorGuide>
+      <p slot="summary">
+        <strong class="text-ink">投资指引：</strong>5% 级回调每年多次、平均数周自愈，是持有成本而非风险；20%+ 熊市平均需要数年修复，事前仓位管理比事后止损更重要。最大回撤决定你能否拿得住——用 MDD × 你的仓位估算最大浮亏，超过承受能力就降低仓位。
+      </p>
+      <p class="my-1.5">
+        <strong class="text-ink">回撤（Drawdown）</strong>是资产价格相对历史前高的跌幅；<strong class="text-ink">修复（Recovery）</strong>是收盘价收复前高所需的时间。两者共同刻画" underwater"（水下）体验。
+      </p>
+      <ul class="my-1.5 list-disc space-y-1 pl-5">
+        <li>
+          <strong class="text-ink">水下曲线</strong> — 距前高的回撤幅度逐日连线。曲线归零即创新高；下探深度与回弹耗时一眼看清每轮牛熊。
+        </li>
+        <li>
+          <strong class="text-ink">深度 × 修复散点</strong> — 回撤越深修复越久且高度非线性：5% 级回调以天计，30%+ 级熊市以年计，50% 级以十年计。
+        </li>
+        <li>
+          <strong class="text-ink">全收益口径</strong> — ETF 按 adjusted_close（分红再投资）计算修复时间；指数价格口径会高估修复时长。两口径在卡片上均有标注。
+        </li>
+        <li>
+          <strong class="text-ink">进行中的回撤</strong> — 尚未收复前高的回撤不计入平均修复时长（否则均值失真），单独以"进行中"标注。
+        </li>
+      </ul>
+    </IndicatorGuide>
+
+    <DrawdownDashboard client:visible />
+  </div>
+</Layout>
