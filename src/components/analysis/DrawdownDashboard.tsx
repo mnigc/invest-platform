@@ -324,20 +324,34 @@ export default function DrawdownDashboard() {
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
-        valueFormatter: (v: any) => (v == null ? '--' : `${(Number(v) * 100).toFixed(1)}%`),
+        // 柱子数据已是百分数单位（如 11.99 = 11.99%），只补 % 号，切勿再乘 100
+        valueFormatter: (v: any) => (v == null ? '--' : `${Number(v).toFixed(1)}%`),
       }),
       grid: chartGrid({ top: 16, bottom: 36 }),
-      xAxis: categoryAxis(t, rows.map(r => String(r.year))),
+      xAxis: categoryAxis(t, rows.map(r => String(r.year)), { boundaryGap: true }),
       yAxis: valueAxis(t, {
         axisLabel: { color: t.text3, fontSize: 10, fontFamily: t.fontMono, formatter: (v: number) => `${v}%` },
       }),
       dataZoom: [chartDataZoom(t, { start: 60, end: 100 })],
       series: [{
         type: 'bar', name: '年度收益',
+        barMaxWidth: 22,
+        barCategoryGap: '35%',
         data: rows.map(r => ({
           value: +(r.ret * 100).toFixed(2),
-          itemStyle: { color: r.ret >= 0 ? t.up : t.down },
+          itemStyle: {
+            color: r.ret >= 0 ? t.up : t.down,
+            borderRadius: r.ret >= 0 ? [3, 3, 0, 0] : [0, 0, 3, 3],
+          },
         })),
+        // 0% 基线：有负收益年份时正负柱的分界
+        markLine: {
+          silent: true, symbol: ['none', 'none'], animation: false,
+          label: { show: false },
+          data: [{ yAxis: 0 }],
+          lineStyle: { color: t.border, width: 1 },
+        },
+        emphasis: { focus: 'series' },
       }],
     } as unknown as EChartsOption
   }, [asset, t])
