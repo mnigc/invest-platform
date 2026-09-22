@@ -43,6 +43,7 @@ interface Asset {
   episodes: Episode[]
   scatter: { depth: number; recoveryDays: number | null; peakDate: string; troughDate: string; recovered: boolean }[]
   underwater: { dates: string[]; values: number[] }
+  growth: { dates: string[]; values: number[] }
   risk: RiskStats
 }
 interface Data {
@@ -57,6 +58,13 @@ const pct = (v: number | null | undefined, digits = 1) =>
 const num = (v: number | null | undefined) => (v == null ? '--' : String(v))
 const dateShort = (d: string | null | undefined) => (d == null ? '--' : d.slice(0, 7).replace('-', '/'))
 const fmtDate = (d: string | null | undefined) => (d == null ? '--' : d)
+
+/** 周采样序列中目标日期的最近下标（首个 >= target 的位置，兜底末位） */
+function nearestIdx(dates: string[], target: string | null | undefined): number {
+  if (!target) return -1
+  for (let i = 0; i < dates.length; i++) if (dates[i] >= target) return i
+  return dates.length - 1
+}
 
 export default function DrawdownDashboard() {
   const [data, setData] = useState<Data | null>(null)
@@ -110,6 +118,101 @@ export default function DrawdownDashboard() {
       ],
     } as EChartsOption
   }, [asset, symbol, t])
+
+  /* 增长曲线 + 最大回撤标注 + 修复中区间（参考基金 App 的"持有体验"图） */
+  const growthOption = useMemo<EChartsOption | null>(() => {
+    if (!asset?.growth) return null
+    const dates = asset.growth.dates
+    const vals = asset.growth.values.map(v => +(v * 100).toFixed(2))
+    const mddIdx = nearestIdx(dates, asset.mdd.peakDate)
+    const troughIdx = nearestIdx(dates, asset.mdd.troughDate)
+    const curIdx = asset.current.inDrawdown ? nearestIdx(dates, asset.current.peakDate) : -1
+    const last = dates.length - 1
+    const mddPct = `${(Math.abs(asset.mdd.depth) * 100).toFixed(1)}%`
+
+    // 标注点：峰/谷绿点，谷底挂 MDD 标签；修复中在末端挂红标签
+    const annotations: any[] = [
+      {
+        value: [dates[mddIdx], vals[mddIdx]], symbolSize: 7,
+        itemStyle: { color: t.up },
+      },
+      {
+        value: [dates[troughIdx], vals[troughIdx]], symbolSize: 7,
+        itemStyle: { color: t.up },
+        label: {
+          show: true, formatter: `最大回撤${mddPct}`, position: 'right', distance: 10,
+          backgroundColor: t.up, color: '#fff', padding: [4, 8], borderRadius: 4,
+          fontSize: 10, fontFamily: t.fontSans,
+        },
+      },
+    ]
+    if (curIdx >= 0) {
+      annotations.push({
+        value: [dates[last], vals[last]], symbolSize: 7,
+        itemStyle: { color: t.down },
+        label: {
+          show: true, formatter: `修复中 · 距高点${pct(asset.current.depth, 1)}`,
+          position: 'left', distance: 10,
+          backgroundColor: t.down, color: '#fff', padding: [4, 8], borderRadius: 4,
+          fontSize: 10, fontFamily: t.fontSans,
+        },
+      })
+    }
+
+    const markAreas: any[][] = [
+      [
+        { xAxis: dates[mddIdx], itemStyle: { color: t.downSoft, opacity: 0.22 } },
+        { xAxis: dates[troughIdx] },
+      ],
+    ]
+    if (curIdx >= 0) {
+      markAreas.push([
+        { xAxis: dates[curIdx], itemStyle: { color: t.warn, opacity: 0.1 } },
+        { xAxis: dates[last] },
+      ])
+    }
+
+    return {
+      ...chartAnimation,
+      tooltip: chartTooltip(t, {
+        valueFormatter: (v: any) => (v == null ? '--' : `${Number(v).toFixed(1)}%`),
+      }),
+      grid: chartGrid({ top: 44, bottom: 36, right: 28 }),
+      xAxis: categoryAxis(t, dates),
+      yAxis: valueAxis(t, {
+        scale: true,
+        axisLabel: {
+          color: t.text3, fontSize: 10, fontFamily: t.fontMono,
+          formatter: (v: number) => `${Math.round(v)}%`,
+        },
+      }),
+      dataZoom: [chartDataZoom(t, { start: defaultZoomStart(dates.length), end: 100 })],
+      series: [
+        {
+          name: '累计增长', type: 'line', data: vals,
+          showSymbol: false, smooth: 0,
+          lineStyle: { width: 1.3, color: t.accent },
+          itemStyle: { color: t.accent },
+          areaStyle: { color: t.accentSoft, opacity: 0.18 },
+          markArea: { silent: true, animation: false, data: markAreas },
+          z: 3,
+        },
+        ...(curIdx >= 0
+          ? [{
+              name: '修复中', type: 'line',
+              data: vals.map((v, i) => (i >= curIdx ? v : null)),
+              showSymbol: false, smooth: 0, connectNulls: false,
+              lineStyle: { width: 1.6, color: t.down },
+              itemStyle: { color: t.down }, z: 5,
+            }]
+          : []),
+        {
+          name: '回撤标注', type: 'scatter', data: annotations,
+          silent: true, z: 10, tooltip: { show: false },
+        },
+      ],
+    } as unknown as EChartsOption
+  }, [asset, t])
 
   /* 深度 × 修复时长散点：伤口越深、愈合越久（对数轴） */
   const scatterOption = useMemo<EChartsOption | null>(() => {
@@ -245,6 +348,19 @@ export default function DrawdownDashboard() {
           />
         </div>
       </MacroCard>
+
+      {/* 增长曲线与最大回撤区间 */}
+      {asset.growth && (
+        <MacroCard title="增长曲线与最大回撤" padding="sm">
+          <ResponsiveChartBox option={growthOption} deps={[growthOption]} />
+          <p className="px-3 pb-2 text-2xs text-ink-3">
+            累计增长（期初=0%，含分红再投资）。绿点标出最大回撤的峰顶与谷底；红色段与阴影为最近高点以来的修复进行时——
+            {asset.current.inDrawdown
+              ? `当前正处在距高点 ${pct(asset.current.depth, 1)} 的修复中。`
+              : '当前处于历史高位附近，无进行中的修复。'}
+          </p>
+        </MacroCard>
+      )}
 
       {/* 水下曲线 */}
       <MacroCard title="水下曲线（距前高回撤）" padding="sm">

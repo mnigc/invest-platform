@@ -181,18 +181,27 @@ def bucket_stats(episodes):
     return buckets
 
 
-def underwater_weekly(daily_dd):
-    """水下曲线周线采样（每周最后一个交易日），控制 payload 体积。"""
-    dates, values, last_iso = [], [], None
-    for d, dd in daily_dd:
+def underwater_weekly(dates, prices, daily_dd):
+    """水下曲线 + 累计增长曲线的周线采样（每周最后一个交易日），控制 payload 体积。
+
+    返回 (dates, dd_values, growth_values)：growth 为相对序列首日的累计涨幅（小数）。
+    """
+    out_dates, out_dd, out_growth, idxs = [], [], [], []
+    last_iso, cur_d, cur_dd = None, None, None
+    for i, (d, dd) in enumerate(daily_dd):
         iso = date.fromisoformat(d).isocalendar()[:2]
         if last_iso is not None and iso != last_iso:
-            dates.append(cur_d)
-            values.append(cur_v)
-        cur_d, cur_v, last_iso = d, dd, iso
-    dates.append(cur_d)
-    values.append(cur_v)
-    return dates, values
+            out_dates.append(cur_d)
+            out_dd.append(cur_dd)
+            idxs.append(i - 1)
+        cur_d, cur_dd, last_iso = d, dd, iso
+    out_dates.append(cur_d)
+    out_dd.append(cur_dd)
+    idxs.append(len(daily_dd) - 1)
+
+    base = prices[0]
+    out_growth = [round(prices[i] / base - 1, 4) for i in idxs]
+    return out_dates, out_dd, out_growth
 
 
 def risk_stats(dates, prices, daily_dd, mdd_depth):
@@ -260,7 +269,7 @@ def compute_asset(symbol, name_zh, basis, dates, prices):
                 break
     cur_ep = ongoing[-1] if ongoing else None
 
-    weekly_d, weekly_v = underwater_weekly(daily_dd)
+    weekly_d, weekly_v, weekly_g = underwater_weekly(dates, prices, daily_dd)
 
     return {
         "symbol": symbol,
@@ -313,6 +322,7 @@ def compute_asset(symbol, name_zh, basis, dates, prices):
             for e in episodes if -e["depth"] >= SCATTER_MIN_DEPTH
         ],
         "underwater": {"dates": weekly_d, "values": weekly_v},
+        "growth": {"dates": weekly_d, "values": weekly_g},
         "risk": risk_stats(dates, prices, daily_dd, mdd_ep["depth"] if mdd_ep else 0),
     }
 
