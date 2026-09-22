@@ -29,6 +29,10 @@ interface RiskStats {
   bestYear: number | null; worstYear: number | null; positiveYearRate: number | null
   annualReturns: { year: number; ret: number }[]
 }
+interface MajorEpisode {
+  peakDate: string; troughDate: string; recoveryDate: string | null
+  depth: number; recovered: boolean
+}
 interface Asset {
   symbol: string; nameZh: string; basis: string; basisLabel: string
   dataStart: string; dataEnd: string; nDays: number; years: number
@@ -44,6 +48,7 @@ interface Asset {
   scatter: { depth: number; recoveryDays: number | null; peakDate: string; troughDate: string; recovered: boolean }[]
   underwater: { dates: string[]; values: number[] }
   growth: { dates: string[]; values: number[] }
+  majorEpisodes: MajorEpisode[]
   risk: RiskStats
 }
 interface Data {
@@ -119,36 +124,71 @@ export default function DrawdownDashboard() {
     } as EChartsOption
   }, [asset, symbol, t])
 
-  /* 增长曲线 + 最大回撤标注 + 修复中区间（参考基金 App 的"持有体验"图） */
+  /* 增长曲线 + 全部显著回撤标注（≥5%）：峰/谷/修复完成点 + 回撤区间阴影 */
   const growthOption = useMemo<EChartsOption | null>(() => {
     if (!asset?.growth) return null
     const dates = asset.growth.dates
     const vals = asset.growth.values.map(v => +(v * 100).toFixed(2))
-    const mddIdx = nearestIdx(dates, asset.mdd.peakDate)
-    const troughIdx = nearestIdx(dates, asset.mdd.troughDate)
+    const eps: MajorEpisode[] = asset.majorEpisodes ?? []
     const curIdx = asset.current.inDrawdown ? nearestIdx(dates, asset.current.peakDate) : -1
     const last = dates.length - 1
     const mddPct = `${(Math.abs(asset.mdd.depth) * 100).toFixed(1)}%`
 
-    // 标注点：峰/谷绿点，谷底挂 MDD 标签；修复中在末端挂红标签
-    const annotations: any[] = [
-      {
-        value: [dates[mddIdx], vals[mddIdx]], symbolSize: 7,
-        itemStyle: { color: t.up },
-      },
-      {
-        value: [dates[troughIdx], vals[troughIdx]], symbolSize: 7,
-        itemStyle: { color: t.up },
-        label: {
-          show: true, formatter: `最大回撤${mddPct}`, position: 'right', distance: 10,
-          backgroundColor: t.up, color: '#fff', padding: [4, 8], borderRadius: 4,
-          fontSize: 10, fontFamily: t.fontSans,
-        },
-      },
-    ]
+    // 每个回撤事件的区间阴影（峰→谷）
+    const markAreas: any[][] = []
+    for (const e of eps) {
+      const a = nearestIdx(dates, e.peakDate)
+      const b = nearestIdx(dates, e.troughDate)
+      if (b > a) markAreas.push([
+        { xAxis: dates[a], itemStyle: { color: t.downSoft, opacity: 0.16 } },
+        { xAxis: dates[b] },
+      ])
+    }
+    // 进行中的回撤：谷→当前 浅橙阴影
+    if (curIdx >= 0 && asset.current.troughDate) {
+      const tb = nearestIdx(dates, asset.current.troughDate)
+      if (last > tb) markAreas.push([
+        { xAxis: dates[tb], itemStyle: { color: t.warn, opacity: 0.1 } },
+        { xAxis: dates[last] },
+      ])
+    }
+
+    const peakDots: any[] = []
+    const troughDots: any[] = []
+    const recoveryDots: any[] = []
+    for (const e of eps) {
+      const pi = nearestIdx(dates, e.peakDate)
+      peakDots.push({
+        value: [dates[pi], vals[pi]], depth: e.depth, date: e.peakDate,
+      })
+      const ti = nearestIdx(dates, e.troughDate)
+      const isMdd = e.peakDate === asset.mdd.peakDate
+      troughDots.push({
+        value: [dates[ti], vals[ti]], depth: e.depth, date: e.troughDate,
+        ...(isMdd
+          ? {
+              symbolSize: 9,
+              label: {
+                show: true, formatter: `最大回撤${mddPct}`, position: 'right', distance: 10,
+                backgroundColor: t.up, color: '#fff', padding: [4, 8], borderRadius: 4,
+                fontSize: 10, fontFamily: t.fontSans,
+              },
+            }
+          : {}),
+      })
+      if (e.recovered && e.recoveryDate) {
+        const ri = nearestIdx(dates, e.recoveryDate)
+        recoveryDots.push({
+          value: [dates[ri], vals[ri]], depth: e.depth, date: e.recoveryDate,
+          peakDate: e.peakDate,
+        })
+      }
+    }
+    // 修复中末端标注
+    const repairAnnotations: any[] = []
     if (curIdx >= 0) {
-      annotations.push({
-        value: [dates[last], vals[last]], symbolSize: 7,
+      repairAnnotations.push({
+        value: [dates[last], vals[last]], symbolSize: 8,
         itemStyle: { color: t.down },
         label: {
           show: true, formatter: `修复中 · 距高点${pct(asset.current.depth, 1)}`,
@@ -159,24 +199,28 @@ export default function DrawdownDashboard() {
       })
     }
 
-    const markAreas: any[][] = [
-      [
-        { xAxis: dates[mddIdx], itemStyle: { color: t.downSoft, opacity: 0.22 } },
-        { xAxis: dates[troughIdx] },
-      ],
-    ]
-    if (curIdx >= 0) {
-      markAreas.push([
-        { xAxis: dates[curIdx], itemStyle: { color: t.warn, opacity: 0.1 } },
-        { xAxis: dates[last] },
-      ])
-    }
+    const dotTooltip = (kind: string) => ({
+      trigger: 'item',
+      backgroundColor: t.surface3,
+      borderColor: t.border,
+      borderWidth: 1,
+      padding: [8, 10],
+      textStyle: { color: t.text, fontSize: 12, fontFamily: t.fontSans },
+      formatter: (p: any) => {
+        const d = p.data || {}
+        const depthTxt = d.depth != null ? `${(Math.abs(d.depth) * 100).toFixed(1)}%` : '--'
+        if (kind === 'peak') return `峰顶 ${d.date}<br/>此后回撤 ${depthTxt}`
+        if (kind === 'trough') return `谷底 ${d.date}<br/>回撤深度 ${depthTxt}`
+        return `修复完成 ${d.date}<br/>深度 ${depthTxt} · 自 ${d.peakDate} 峰顶`
+      },
+    })
 
     return {
       ...chartAnimation,
       tooltip: chartTooltip(t, {
         valueFormatter: (v: any) => (v == null ? '--' : `${Number(v).toFixed(1)}%`),
       }),
+      legend: chartLegend(t, ['峰顶', '谷底', '修复完成'], { top: 0 }),
       grid: chartGrid({ top: 44, bottom: 36, right: 28 }),
       xAxis: categoryAxis(t, dates),
       yAxis: valueAxis(t, {
@@ -204,12 +248,30 @@ export default function DrawdownDashboard() {
               showSymbol: false, smooth: 0, connectNulls: false,
               lineStyle: { width: 1.6, color: t.down },
               itemStyle: { color: t.down }, z: 5,
+              tooltip: { show: false },
             }]
           : []),
         {
-          name: '回撤标注', type: 'scatter', data: annotations,
-          silent: true, z: 10, tooltip: { show: false },
+          name: '峰顶', type: 'scatter', data: peakDots,
+          symbolSize: 5, itemStyle: { color: t.accent, opacity: 0.85 },
+          z: 10, tooltip: dotTooltip('peak'),
         },
+        {
+          name: '谷底', type: 'scatter', data: troughDots,
+          symbolSize: 7, itemStyle: { color: t.down },
+          z: 11, tooltip: dotTooltip('trough'),
+        },
+        {
+          name: '修复完成', type: 'scatter', data: recoveryDots,
+          symbolSize: 7, itemStyle: { color: 'transparent', borderColor: t.up, borderWidth: 2 },
+          z: 9, tooltip: dotTooltip('recovery'),
+        },
+        ...(repairAnnotations.length
+          ? [{
+              name: '修复中标注', type: 'scatter', data: repairAnnotations,
+              silent: true, z: 12, tooltip: { show: false },
+            }]
+          : []),
       ],
     } as unknown as EChartsOption
   }, [asset, t])
@@ -349,15 +411,14 @@ export default function DrawdownDashboard() {
         </div>
       </MacroCard>
 
-      {/* 增长曲线与最大回撤区间 */}
+      {/* 增长曲线与全部回撤标注 */}
       {asset.growth && (
-        <MacroCard title="增长曲线与最大回撤" padding="sm">
+        <MacroCard title="增长曲线与回撤修复全景" padding="sm">
           <ResponsiveChartBox option={growthOption} deps={[growthOption]} />
-          <p className="px-3 pb-2 text-2xs text-ink-3">
-            累计增长（期初=0%，含分红再投资）。绿点标出最大回撤的峰顶与谷底；红色段与阴影为最近高点以来的修复进行时——
-            {asset.current.inDrawdown
-              ? `当前正处在距高点 ${pct(asset.current.depth, 1)} 的修复中。`
-              : '当前处于历史高位附近，无进行中的修复。'}
+          <p className="px-3 pb-2 text-2xs leading-relaxed text-ink-3">
+            累计增长（期初=0%，含分红再投资）。全部 ≥5% 的回撤事件均已标注：<span className="text-info">蓝点=峰顶</span>、
+            <span className="text-down">红点=谷底</span>、<span className="text-up">绿圈=修复完成</span>，红色阴影为回撤持续区间，悬停可看每次的深度与修复时长；
+            绿色标签为历史最大回撤{asset.current.inDrawdown ? '，右端红点为当前进行中的修复' : ''}。
           </p>
         </MacroCard>
       )}

@@ -311,6 +311,16 @@ def compute_asset(symbol, name_zh, basis, dates, prices):
         },
         "buckets": bucket_stats(episodes),
         "episodes": sorted(episodes, key=lambda e: e["depth"])[:60],  # 最深 60 次
+        # 供增长曲线标注：≥5% 的全部回撤事件按时间排序（峰/谷/修复日）
+        "majorEpisodes": [
+            {
+                "peakDate": e["peakDate"], "troughDate": e["troughDate"],
+                "recoveryDate": e["recoveryDate"], "depth": e["depth"],
+                "recovered": e["recovered"],
+            }
+            for e in sorted(episodes, key=lambda x: x["peakDate"])
+            if -e["depth"] >= SCATTER_MIN_DEPTH
+        ],
         "scatter": [
             {
                 "depth": round(-e["depth"], 4),
